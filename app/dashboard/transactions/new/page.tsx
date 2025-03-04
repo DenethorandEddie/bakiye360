@@ -29,22 +29,13 @@ import { toast } from "sonner";
 function adjustDateForTimezone(date) {
   if (!date) return null;
   
-  // Yeni bir tarih nesnesi oluştur (aynı tarih ve saat değerleri ile)
-  const newDate = new Date(date);
+  // UTC'de saat olmayan ISO tarih formatına çevir (YYYY-MM-DD)
+  const dateString = new Date(date).toISOString().split('T')[0];
   
-  // Türkiye saat dilimi (UTC+3) için offset hesapla
-  const tzOffset = 3 * 60; // 3 saat = 180 dakika
+  // Tarihi yeniden oluştur ve gün ortasına ayarla (saat dilimi etkilemesin)
+  const utcDate = new Date(`${dateString}T12:00:00Z`);
   
-  // Kullanıcının yerel saat dilimi offseti (dakika cinsinden)
-  const localOffset = newDate.getTimezoneOffset();
-  
-  // Toplam offset farkını dakika cinsinden hesapla
-  const offsetDiff = localOffset + tzOffset; 
-  
-  // Tarih nesnesini offsetDiff kadar ileri al
-  newDate.setMinutes(newDate.getMinutes() + offsetDiff);
-  
-  return newDate;
+  return utcDate;
 }
 
 export default function NewTransactionPage() {
@@ -153,8 +144,12 @@ export default function NewTransactionPage() {
         return;
       }
 
-      // Tarihi timezone için düzelt
-      const adjustedDate = adjustDateForTimezone(formData.date);
+      // Tarihi ISO formatında kaydet, ama sadece tarih kısmını al
+      let dateToSave: string | null = null;
+      if (formData.date) {
+        // Tarih kısmını al (YYYY-MM-DD)
+        dateToSave = formData.date.toISOString().split('T')[0];
+      }
       
       // Supabase işlem kaydetme
       const { error } = await supabase.from('transactions').insert({
@@ -163,7 +158,7 @@ export default function NewTransactionPage() {
         amount: parseFloat(formData.amount),
         type: formData.type,
         description: formData.description,
-        date: adjustedDate ? adjustedDate.toISOString().split('T')[0] : null,
+        date: dateToSave,
         is_recurring: formData.isRecurring,
         notes: formData.notes
       });
@@ -297,7 +292,16 @@ export default function NewTransactionPage() {
                   <Calendar
                     mode="single"
                     selected={formData.date}
-                    onSelect={(date) => handleChange("date", date || new Date())}
+                    onSelect={(date) => {
+                      if (date) {
+                        // Seçilen tarihin UTC gün başlangıcını oluştur (günü korumak için)
+                        const selectedDate = new Date(date);
+                        selectedDate.setHours(12, 0, 0, 0); // Günü korumak için ortada bir saat belirle
+                        handleChange("date", selectedDate);
+                      } else {
+                        handleChange("date", null);
+                      }
+                    }}
                     initialFocus
                     locale={tr}
                   />
