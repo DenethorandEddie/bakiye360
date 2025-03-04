@@ -5,7 +5,7 @@ import { useSupabase } from "@/components/supabase-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, Sector, Area, AreaChart, RadialBarChart, RadialBar } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, Sector, Area, AreaChart, RadialBarChart, RadialBar, ReferenceLine } from "recharts";
 import { Progress } from "@/components/ui/progress";
 import { format, subMonths, parseISO } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -147,7 +147,12 @@ const CustomRadialBarTooltip = ({ active, payload }) => {
 
 // Aylık veri için tip tanımı
 interface MonthlyData {
-  [key: string]: number;
+  name: string;
+  gelir: number;
+  gider: number;
+  oran?: number;
+  tasarruf?: number;
+  [key: string]: string | number | undefined;
 }
 
 export default function DashboardPage() {
@@ -226,10 +231,10 @@ export default function DashboardPage() {
               name: formatMonthName(name),
               ...(data as object)
             }))
-            .reverse();
+            .reverse() as MonthlyData[];
           
           // Tasarruf geçmişi
-          const savingsHistoryData = monthlyDataArray.map(month => ({
+          const savingsHistoryData = monthlyDataArray.map((month: MonthlyData) => ({
             name: month.name,
             tasarruf: month.gelir - month.gider,
             oran: month.gelir > 0 ? ((month.gelir - month.gider) / month.gelir) * 100 : 0
@@ -423,12 +428,12 @@ export default function DashboardPage() {
               name: formatMonthName(name),
               ...(data as object)
             }))
-            .reverse();
+            .reverse() as MonthlyData[];
             
           setMonthlyData(monthlyDataArray);
           
           // Tasarruf geçmişi
-          const savingsHistoryData = monthlyDataArray.map(month => ({
+          const savingsHistoryData = monthlyDataArray.map((month: MonthlyData) => ({
             name: month.name,
             tasarruf: month.gelir - month.gider,
             oran: month.gelir > 0 ? ((month.gelir - month.gider) / month.gelir) * 100 : 0
@@ -766,93 +771,136 @@ export default function DashboardPage() {
 
         {/* Sağ Sütun */}
         <div className="space-y-4">
-          {/* Harcama Dağılımı */}
-          <Card>
-            <CardHeader className="pb-2">
+          {/* Gelir-Gider Dağılımı */}
+          <Card className="col-span-1">
+            <CardHeader>
               <CardTitle className="text-lg">Harcama Dağılımı</CardTitle>
               <CardDescription>Kategorilere göre harcama dağılımı</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[250px]">
+              <div className="h-[220px] sm:h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                     <Pie
                       activeIndex={activeIndex}
                       activeShape={renderActiveShape}
                       data={expensesByCategory}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
+                      innerRadius={60} 
                       outerRadius={80}
-                      fill="#8884d8"
+                      paddingAngle={2}
                       dataKey="value"
                       onMouseEnter={onPieEnter}
                     >
                       {expensesByCategory.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={COLORS[index % COLORS.length]} 
-                        />
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {expensesByCategory.slice(0, 6).map((category, index) => (
-                  <div key={category.name} className="flex items-center">
-                    <div 
-                      className="mr-2 h-3 w-3 rounded-sm" 
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }} 
-                    />
-                    <span className="text-xs truncate">{category.name}</span>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
 
           {/* Tasarruf Trendi */}
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader>
               <CardTitle className="text-lg">Tasarruf Trendi</CardTitle>
               <CardDescription>Aylık tasarruf miktarı değişimi</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="h-[200px]">
+            <CardContent className="px-2">
+              <div className="h-[250px] sm:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={savingsHistory}
-                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    margin={{
+                      top: 10,
+                      right: 10,
+                      left: 0,
+                      bottom: 20,
+                    }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.5} />
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis 
                       dataKey="name" 
                       tick={{ fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
                     />
                     <YAxis 
-                      axisLine={false}
-                      tickLine={false}
+                      tickFormatter={(value) => `%${value}`} 
                       tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `%${value.toFixed(0)}`}
                     />
                     <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="oran" 
-                      name="Tasarruf Oranı" 
-                      stroke="hsl(var(--chart-3))" 
+                    
+                    <ReferenceLine y={5} stroke="#ff8c00" strokeDasharray="3 3" label={{ 
+                      value: "Hedef %5", 
+                      position: "insideBottomRight",
+                      fill: "#ff8c00",
+                      fontSize: 12
+                    }} />
+                    
+                    <Line
+                      type="monotone"
+                      dataKey="oran"
+                      name="Tasarruf Oranı"
+                      stroke="hsl(var(--chart-3))"
                       strokeWidth={2}
-                      dot={{ r: 4, fill: 'hsl(var(--chart-3))' }}
-                      activeDot={{ r: 6 }}
+                      dot={{ r: 4, strokeWidth: 2, fill: 'hsl(var(--chart-3))' }}
+                      activeDot={{ r: 6, strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
+
+          {/* Tasarruf Oranı Değişimi */}
+          <div className="col-span-full">
+            <h3 className="text-lg font-medium mb-4">Tasarruf Oranı Değişimi</h3>
+            <div className="h-[300px] sm:h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={savingsHistory}
+                  margin={{
+                    top: 10,
+                    right: 10, 
+                    left: 0,
+                    bottom: 30,
+                  }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={(value) => `%${value}`} tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
+                  
+                  <ReferenceLine y={5} stroke="#ff8c00" strokeDasharray="3 3" label={{ 
+                    value: "Hedef %5", 
+                    position: "insideBottomRight",
+                    fill: "#ff8c00",
+                    fontSize: 12
+                  }} />
+                  
+                  <Line
+                    type="monotone"
+                    dataKey="oran"
+                    name="Tasarruf Oranı"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={{ r: 4, strokeWidth: 2 }}
+                    activeDot={{ r: 6, strokeWidth: 2 }}
+                    fill="url(#colorOran)"
+                  />
+                  
+                  <defs>
+                    <linearGradient id="colorOran" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
           {/* Son İşlemler */}
           <Card>
@@ -1007,7 +1055,7 @@ export default function DashboardPage() {
                             axisLine={false}
                             tickLine={false}
                             tick={{ fontSize: 12 }}
-                            tickFormatter={(value) => `%${value.toFixed(0)}`}
+                            tickFormatter={(value) => `%${value}`}
                           />
                           <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
                           <Line 
@@ -1016,8 +1064,8 @@ export default function DashboardPage() {
                             name="Tasarruf Oranı" 
                             stroke="hsl(var(--chart-3))" 
                             strokeWidth={2}
-                            dot={{ r: 4, fill: 'hsl(var(--chart-3))' }}
-                            activeDot={{ r: 6 }}
+                            dot={{ r: 4, strokeWidth: 2 }}
+                            activeDot={{ r: 6, strokeWidth: 2 }}
                           />
                         </LineChart>
                       </ResponsiveContainer>
