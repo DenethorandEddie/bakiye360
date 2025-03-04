@@ -5,10 +5,16 @@
  * yaklaşan ödemeler için bildirim göndermek amacıyla kullanılır.
  */
 
+const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
 const nodemailer = require('nodemailer');
-const { addDays, format, parseISO } = require('date-fns');
+const { format, addDays, parseISO, addHours } = require('date-fns');
 const { tr } = require('date-fns/locale');
+
+// Türkiye saat dilimi (UTC+3)
+const TURKEY_TIMEZONE_OFFSET = 3;
+
+dotenv.config();
 
 // Supabase bağlantısı
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,6 +37,21 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD,
   },
 });
+
+// Bugünün tarihini Türkiye saat dilimine göre hesaplayan yardımcı fonksiyon
+function getTodayInTurkeyTimezone() {
+  const now = new Date();
+  // UTC zamanına TURKEY_TIMEZONE_OFFSET saat ekleyerek Türkiye saatini elde ediyoruz
+  return new Date(now.getTime() + TURKEY_TIMEZONE_OFFSET * 60 * 60 * 1000);
+}
+
+// Verilen tarihin gün başlangıcını Türkiye saat dilimine göre döndüren fonksiyon
+function getStartOfDayInTurkeyTimezone(date) {
+  const turkeyDate = new Date(date.getTime() + TURKEY_TIMEZONE_OFFSET * 60 * 60 * 1000);
+  turkeyDate.setHours(0, 0, 0, 0);
+  // Türkiye saatine çevrildikten sonra UTC'ye geri çeviriyoruz (veritabanı sorgusu için)
+  return new Date(turkeyDate.getTime() - TURKEY_TIMEZONE_OFFSET * 60 * 60 * 1000);
+}
 
 // Kategori ID'leri ve isimlerini veritabanından çeken fonksiyon
 async function fetchCategories() {
@@ -97,56 +118,48 @@ function getCategoryNameById(categoryId, categoryNames) {
   return categoryNames[categoryId] || 'Diğer';
 }
 
-// Yaklaşan ödemeleri bulan fonksiyon
+// Yaklaşan ödemeleri almak için fonksiyon
 async function getUpcomingPayments() {
-  // Yarının tarihini hesapla
-  const tomorrow = addDays(new Date(), 1);
-  const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
-  
-  console.log(`${tomorrowStr} tarihi için yaklaşan ödemeleri kontrol ediyorum...`);
-  
   try {
-    // Önce kategorileri çek
+    // Ödeme bilgilerini Supabase'den çek
+    const today = getTodayInTurkeyTimezone();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    
+    // Gün başlangıcı ve sonunu hesapla
+    const tomorrowStart = getStartOfDayInTurkeyTimezone(tomorrow);
+    const tomorrowEnd = new Date(tomorrowStart);
+    tomorrowEnd.setHours(23, 59, 59, 999);
+    
+    console.log(`Bugün (Türkiye saati): ${format(today, 'yyyy-MM-dd HH:mm:ss')}`);
+    console.log(`Yarın başlangıç: ${format(tomorrowStart, 'yyyy-MM-dd HH:mm:ss')}`);
+    console.log(`Yarın bitiş: ${format(tomorrowEnd, 'yyyy-MM-dd HH:mm:ss')}`);
+
+    // Önce kategorileri al
     const { categoryNames, categoryEmojis } = await fetchCategories();
     
-    // Supabase'den yaklaşan ödemeleri çek
-    // transactions tablosunu kullan
+    // Yarınki ödemeleri sorgula
     const { data: payments, error } = await supabase
       .from('transactions')
-      .select(`
-        id,
-        user_id,
-        description,
-        amount,
-        category_id,
-        date,
-        type
-      `)
-      .eq('date', tomorrowStr)
-      // Hem gelir hem de gider işlemlerini bildirelim
-    
+      .select('id, date, description, amount, type, category_id, user_id')
+      .gte('date', tomorrowStart.toISOString())
+      .lte('date', tomorrowEnd.toISOString());
+
     if (error) {
-      console.error('Yaklaşan ödemeleri alırken hata:', error);
-      return { payments: [], categoryNames, categoryEmojis };
+      throw error;
     }
+
+    console.log(`Bulunan toplam işlem sayısı: ${payments?.length || 0}`);
     
-    console.log('Bulunan işlemler:', payments);
-    
-    // Bulunan işlemlerin kategori ID'lerini ve dönüşümlerini kontrol et
     if (payments && payments.length > 0) {
-      console.log('Kategori ID kontrolleri:');
       payments.forEach(payment => {
-        console.log(`İşlem: ${payment.description}, Kategori ID: ${payment.category_id}, Kategori Adı: ${getCategoryNameById(payment.category_id, categoryNames)}`);
+        console.log(`Ödeme: ${payment.description}, Kategori ID: ${payment.category_id}, Kategori: ${getCategoryNameById(payment.category_id, categoryNames)}`);
       });
     }
-    
-    return { 
-      payments: payments || [],
-      categoryNames,
-      categoryEmojis
-    };
-  } catch (err) {
-    console.error('Yaklaşan ödemeleri alırken beklenmeyen hata:', err);
+
+    return { payments, categoryNames, categoryEmojis };
+  } catch (error) {
+    console.error('Yaklaşan ödemeler alınırken hata oluştu:', error);
     return { payments: [], categoryNames: {}, categoryEmojis: {} };
   }
 }
@@ -217,6 +230,14 @@ async function sendPaymentNotification(email, payments, categoryNames, categoryE
     return acc;
   }, {});
 
+  // Tarih formatını Türkiye saat dilimine göre ayarla
+  const firstPaymentDate = parseISO(expensePayments[0].date);
+  const formattedDateInTurkeyTz = format(
+    addHours(firstPaymentDate, TURKEY_TIMEZONE_OFFSET),
+    'd MMMM yyyy - EEEE',
+    { locale: tr }
+  );
+
   // E-posta içeriği
   let emailContent = `
   <!DOCTYPE html>
@@ -268,7 +289,7 @@ async function sendPaymentNotification(email, payments, categoryNames, categoryE
       <h1>Yarınki Ödemeleriniz</h1>
       
       <div class="date-banner">
-        ${format(parseISO(expensePayments[0].date), 'd MMMM yyyy - EEEE', { locale: tr })}
+        ${formattedDateInTurkeyTz}
       </div>
       
       <div class="message">
@@ -291,11 +312,18 @@ async function sendPaymentNotification(email, payments, categoryNames, categoryE
           </div>`;
 
     categoryPayments.forEach(payment => {
+      const paymentDate = parseISO(payment.date);
+      const formattedDate = format(
+        addHours(paymentDate, TURKEY_TIMEZONE_OFFSET), 
+        'd MMMM yyyy', 
+        { locale: tr }
+      );
+      
       emailContent += `
           <div class="payment-item">
             <div class="payment-details">
               <div class="payment-title">${payment.description}</div>
-              <div class="payment-date">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
+              <div class="payment-date">İşlem Tarihi: ${formattedDate}</div>
             </div>
             <div class="payment-amount">${parseFloat(payment.amount).toLocaleString('tr-TR')} TL</div>
           </div>`;
