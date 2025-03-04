@@ -9,7 +9,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 import { Progress } from "@/components/ui/progress";
 import { format, subMonths, parseISO } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditCard, Loader2, Calendar, DollarSign, BarChart3, PieChart as PieChartIcon, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditCard, Loader2, Calendar, DollarSign, BarChart3, PieChart as PieChartIcon, ArrowUp, ArrowDown, PercentIcon, TrendingDown, MinusIcon } from "lucide-react";
 import Link from "next/link";
 
 // Grafik renkleri - daha profesyonel ve uyumlu renkler
@@ -605,15 +605,27 @@ export default function DashboardPage() {
         <Card className="overflow-hidden border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tasarruf Oranı</CardTitle>
-            <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-              <Target className="h-4 w-4 text-blue-500" />
+            <div className="rounded-full bg-blue-100 p-1">
+              <PercentIcon className="h-4 w-4 text-blue-600" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">%{summary.savingsRate.toFixed(1)}</div>
-            <div className="mt-2">
-              <Progress value={summary.savingsRate} className="h-2" />
+            <div className="text-2xl font-bold">
+              %{summary.savingsRate !== undefined
+                ? summary.savingsRate.toFixed(1)
+                : "0.0"}
             </div>
+            <p className="text-xs text-muted-foreground">
+              {summary.savingsRate > 0 ? (
+                <span className="text-green-500 flex items-center">
+                  %{(summary.savingsRate).toFixed(1)}
+                </span>
+              ) : (
+                <span className="text-gray-500 flex items-center">
+                  Değişim yok
+                </span>
+              )}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -854,54 +866,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Tasarruf Oranı Değişimi */}
-          <div className="col-span-full">
-            <h3 className="text-lg font-medium mb-4">Tasarruf Oranı Değişimi</h3>
-            <div className="h-[300px] sm:h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={savingsHistory}
-                  margin={{
-                    top: 10,
-                    right: 10, 
-                    left: 0,
-                    bottom: 30,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(value) => `%${value}`} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
-                  
-                  <ReferenceLine y={5} stroke="#ff8c00" strokeDasharray="3 3" label={{ 
-                    value: "Hedef %5", 
-                    position: "insideBottomRight",
-                    fill: "#ff8c00",
-                    fontSize: 12
-                  }} />
-                  
-                  <Line
-                    type="monotone"
-                    dataKey="oran"
-                    name="Tasarruf Oranı"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={{ r: 4, strokeWidth: 2 }}
-                    activeDot={{ r: 6, strokeWidth: 2 }}
-                    fill="url(#colorOran)"
-                  />
-                  
-                  <defs>
-                    <linearGradient id="colorOran" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
           {/* Son İşlemler */}
           <Card>
             <CardHeader className="pb-2">
@@ -1036,37 +1000,48 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   
-                  <div>
+                  <div className="col-span-full xl:col-span-4">
                     <h3 className="text-lg font-medium mb-4">Tasarruf Oranı Değişimi</h3>
-                    <div className="h-[300px]">
+                    <div className="h-[300px] sm:h-[400px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                           data={savingsHistory}
-                          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                          margin={{
+                            top: 10,
+                            right: 10,
+                            left: 0,
+                            bottom: 30,
+                          }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.5} />
-                          <XAxis 
-                            dataKey="name" 
-                            tick={{ fontSize: 12 }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
-                          <YAxis 
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 12 }}
-                            tickFormatter={(value) => `%${value}`}
-                          />
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                          <YAxis tickFormatter={(value) => `%${value}`} tick={{ fontSize: 12 }} />
                           <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
-                          <Line 
-                            type="monotone" 
-                            dataKey="oran" 
-                            name="Tasarruf Oranı" 
-                            stroke="hsl(var(--chart-3))" 
+                          
+                          <ReferenceLine y={5} stroke="#ff8c00" strokeDasharray="3 3" label={{ 
+                            value: "Hedef %5", 
+                            position: "insideBottomRight",
+                            fill: "#ff8c00",
+                            fontSize: 12
+                          }} />
+                          
+                          <Line
+                            type="monotone"
+                            dataKey="oran"
+                            name="Tasarruf Oranı"
+                            stroke="#f59e0b"
                             strokeWidth={2}
                             dot={{ r: 4, strokeWidth: 2 }}
                             activeDot={{ r: 6, strokeWidth: 2 }}
+                            fill="url(#colorOran)"
                           />
+                          
+                          <defs>
+                            <linearGradient id="colorOran" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -1195,6 +1170,32 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
         </Tabs>
+      </div>
+
+      {/* Son 30 Gün Gelir-Gider Dağılımı */}
+      <Card className="col-span-3">
+        <CardHeader>
+          <CardTitle>Son 30 Gün Gelir-Gider Dağılımı</CardTitle>
+          <CardDescription>Kategori bazında gelir ve giderleriniz</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="expense" className="h-full space-y-6">
+            {/* ... existing code ... */}
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Masaüstü Görünüm - Son Bölümler */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-9">
+        {/* Gelir-Gider Analizi */}
+        <Card className="col-span-9 xl:col-span-5">
+          {/* ... existing code ... */}
+        </Card>
+
+        {/* Yaklaşan Ödemeler */}
+        <Card className="col-span-9 xl:col-span-5">
+          {/* ... existing code ... */}
+        </Card>
       </div>
     </div>
   );
