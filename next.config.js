@@ -10,11 +10,14 @@ const nextConfig = {
   },
   images: { unoptimized: true },
   reactStrictMode: true,
+  // Derleme hatalarını engellemek için
+  swcMinify: false,
   webpack: (config, { isServer }) => {
     // ws modülü için uyarıları gizle
     config.ignoreWarnings = [
       { module: /node_modules\/ws/ }
     ];
+    config.optimization.minimize = false;
     return config;
   },
 };
