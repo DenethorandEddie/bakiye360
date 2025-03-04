@@ -61,7 +61,7 @@ async function getUpcomingPayments() {
     // Supabase'den yaklaşan ödemeleri çek
     // recurring_transactions tablosunu kullan
     const { data: payments, error } = await supabase
-      .from('recurring_transactions')
+      .from('transactions')
       .select(`
         id,
         user_id,

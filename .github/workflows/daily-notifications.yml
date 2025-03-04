@@ -3,7 +3,7 @@ name: Daily Payment Notifications
 on:
   schedule:
     # Her gün 22:33'te çalışacak (test için değiştirildi)
-    - cron: '33 22 * * *'
+    - cron: '33 19 * * *'
   # Manuel tetikleme için
   workflow_dispatch:
 
