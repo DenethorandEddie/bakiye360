@@ -57,27 +57,33 @@ async function getUpcomingPayments() {
   
   console.log(`${tomorrowStr} tarihi için yaklaşan ödemeleri kontrol ediyorum...`);
   
-  // Supabase'den yaklaşan ödemeleri çek
-  const { data: payments, error } = await supabase
-    .from('recurring_payments')
-    .select(`
-      id,
-      user_id,
-      title,
-      amount,
-      category,
-      payment_date,
-      profiles(email)
-    `)
-    .eq('payment_date', tomorrowStr)
-    .eq('is_active', true);
-  
-  if (error) {
-    console.error('Yaklaşan ödemeleri alırken hata:', error);
+  try {
+    // Supabase'den yaklaşan ödemeleri çek
+    // recurring_transactions tablosunu kullan
+    const { data: payments, error } = await supabase
+      .from('recurring_transactions')
+      .select(`
+        id,
+        user_id,
+        title,
+        amount,
+        category,
+        payment_date,
+        users(email)
+      `)
+      .eq('payment_date', tomorrowStr)
+      .eq('is_active', true);
+    
+    if (error) {
+      console.error('Yaklaşan ödemeleri alırken hata:', error);
+      return [];
+    }
+    
+    return payments || [];
+  } catch (err) {
+    console.error('Yaklaşan ödemeleri alırken beklenmeyen hata:', err);
     return [];
   }
-  
-  return payments || [];
 }
 
 // Bildirim gönderen fonksiyon
@@ -94,7 +100,7 @@ async function sendNotifications(payments) {
   // Her kullanıcı için bildirim gönder
   for (const userId in paymentsByUser) {
     const userPayments = paymentsByUser[userId];
-    const userEmail = userPayments[0]?.profiles?.email;
+    const userEmail = userPayments[0]?.users?.email;
     
     if (!userEmail) {
       console.warn(`${userId} ID'li kullanıcı için e-posta adresi bulunamadı.`);
