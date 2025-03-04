@@ -34,9 +34,27 @@ const transporter = nodemailer.createTransport({
 
 // Kategorileri emoji formatında gösterme
 const categoryEmojis = {
+  // UUID formatındaki kategori ID'leri
+  '1f204dc5-9b6a-4b4c-935c-0f15038d7659': '🚗', // Ulaşım
+  '2c09e6e4-5d40-4db2-8fb1-2399c7e0a965': '🏠', // Konut
+  '45cf1d3b-8f35-4f2f-89cb-7dfa6ae01de4': '🍔', // Yiyecek
+  '4b37797a-5e97-4bfc-a24d-6b8c090d8037': '📚', // Eğitim
+  '5e7b40cc-abae-4f1a-9156-2becbc47170e': '🎬', // Eğlence
+  '9037418f-400d-46f6-8dd8-0f78d1074a9b': '🏥', // Sağlık
+  'c6fd164a-a92e-431b-ad3e-99046a555efe': '📦', // Diğer Gider
+  'd4d0b3ac-fde5-4331-bd26-1d4be57b4557': '👕', // Giyim
+  'f7b4d0a7-e4f3-4c22-b0f5-407aaa8c53eb': '📄', // Faturalar
+  
+  // Gelir kategorileri
+  'ebf3cba0-0cab-4b05-9f5d-b93e9f639f22': '💰', // Maaş
+  '4232b5ab-f0f6-4b12-91ba-a5cede465d02': '💻', // Freelance
+  '6e46e35b-71fc-4606-8f19-e3a980883db2': '📈', // Yatırım
+  '7bcd83f0-17d8-454d-a03d-aab7cebb5d7b': '💼', // Diğer Gelir
+  
+  // Eski sayısal ID'ler için geriye dönük uyumluluk
   '1': '🍔', // Yiyecek
   '2': '🚗', // Ulaşım
-  '3': '📝', // Faturalar
+  '3': '📄', // Faturalar
   '4': '🏠', // Konut
   '5': '🎬', // Eğlence
   '6': '👕', // Giyim
@@ -53,6 +71,26 @@ const categoryEmojis = {
 // Kategori ID'den kategori adını almak için yardımcı fonksiyon
 function getCategoryNameById(categoryId) {
   const categoryNames = {
+    // UUID formatındaki kategori ID'leri ile kategori isimleri
+    '1f204dc5-9b6a-4b4c-935c-0f15038d7659': 'Ulaşım',
+    '2c09e6e4-5d40-4db2-8fb1-2399c7e0a965': 'Konut',
+    '45cf1d3b-8f35-4f2f-89cb-7dfa6ae01de4': 'Yiyecek',
+    '4b37797a-5e97-4bfc-a24d-6b8c090d8037': 'Eğitim',
+    '5e7b40cc-abae-4f1a-9156-2becbc47170e': 'Eğlence',
+    '9037418f-400d-46f6-8dd8-0f78d1074a9b': 'Sağlık',
+    'c6fd164a-a92e-431b-ad3e-99046a555efe': 'Diğer Gider',
+    'd4d0b3ac-fde5-4331-bd26-1d4be57b4557': 'Giyim',
+    'f7b4d0a7-e4f3-4c22-b0f5-407aaa8c53eb': 'Faturalar',
+    
+    // Gelir kategorileri
+    'ebf3cba0-0cab-4b05-9f5d-b93e9f639f22': 'Maaş',
+    '4232b5ab-f0f6-4b12-91ba-a5cede465d02': 'Freelance',
+    '6e46e35b-71fc-4606-8f19-e3a980883db2': 'Yatırım',
+    '7bcd83f0-17d8-454d-a03d-aab7cebb5d7b': 'Diğer Gelir'
+  };
+  
+  // Eski sayısal kategori ID'leri için geriye dönük uyumluluk
+  const legacyCategoryNames = {
     '1': 'Yiyecek',
     '2': 'Ulaşım',
     '3': 'Faturalar',
@@ -67,8 +105,9 @@ function getCategoryNameById(categoryId) {
     '12': 'Yatırım',
     '13': 'Diğer Gelir'
   };
-  
-  return categoryNames[categoryId] || 'Diğer';
+
+  // Önce UUID formatında kontrol et, sonra eski format kontrol et
+  return categoryNames[categoryId] || legacyCategoryNames[categoryId] || 'Diğer';
 }
 
 // Yaklaşan ödemeleri bulan fonksiyon
@@ -102,6 +141,15 @@ async function getUpcomingPayments() {
     }
     
     console.log('Bulunan işlemler:', payments);
+    
+    // Bulunan işlemlerin kategori ID'lerini ve dönüşümlerini kontrol et
+    if (payments && payments.length > 0) {
+      console.log('Kategori ID kontrolleri:');
+      payments.forEach(payment => {
+        console.log(`İşlem: ${payment.description}, Kategori ID: ${payment.category_id}, Kategori Adı: ${getCategoryNameById(payment.category_id)}`);
+      });
+    }
+    
     return payments || [];
   } catch (err) {
     console.error('Yaklaşan ödemeleri alırken beklenmeyen hata:', err);
