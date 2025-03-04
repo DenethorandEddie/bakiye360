@@ -180,9 +180,16 @@ async function sendPaymentNotification(email, payments) {
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Bakiye360 - Yarınki Ödemeleriniz</title>
     <style>
-      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; color: #333; }
+      /* E-posta istemcileri için temel reset */
+      body, div, dl, dt, dd, ul, ol, li, h1, h2, h3, h4, h5, h6, pre, form, fieldset, input, p, blockquote, table, th, td, embed, object {
+        margin: 0;
+        padding: 0;
+      }
+      /* E-posta istemcileri desteklemeyen CSS özelliklerini görmezden gelir */
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; color: #333; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
       .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
       .header { text-align: center; padding: 10px 0 20px; }
       .logo { height: 60px; margin-bottom: 10px; }
@@ -211,7 +218,7 @@ async function sendPaymentNotification(email, payments) {
   <body>
     <div class="container">
       <div class="header">
-        <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="Bakiye360 Logo" class="logo">
+        <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="Bakiye360 Logo" style="height: 60px; margin-bottom: 10px; border: 0; display: inline-block;">
       </div>
       
       <h1>Yarınki Ödemeleriniz</h1>
@@ -262,7 +269,10 @@ async function sendPaymentNotification(email, payments) {
       </div>
       
       <div class="button-container">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transactions" class="button">Ödemelerimi Görüntüle</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transactions" 
+           style="display: inline-block; background-color: #2557a7; color: #ffffff; font-weight: bold; font-size: 16px; padding: 15px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          ▶ ÖDEMELERİMİ GÖRÜNTÜLE
+        </a>
       </div>
       
       <div class="footer">
