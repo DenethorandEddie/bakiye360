@@ -59,7 +59,7 @@ async function getUpcomingPayments() {
   
   try {
     // Supabase'den yaklaşan ödemeleri çek
-    // recurring_transactions tablosunu kullan
+    // transactions tablosunu kullan
     const { data: payments, error } = await supabase
       .from('transactions')
       .select(`
@@ -68,17 +68,17 @@ async function getUpcomingPayments() {
         title,
         amount,
         category,
-        payment_date,
+        date,
         users(email)
       `)
-      .eq('payment_date', tomorrowStr)
-      .eq('is_active', true);
+      .eq('date', tomorrowStr)
     
     if (error) {
       console.error('Yaklaşan ödemeleri alırken hata:', error);
       return [];
     }
     
+    console.log('Bulunan işlemler:', payments);
     return payments || [];
   } catch (err) {
     console.error('Yaklaşan ödemeleri alırken beklenmeyen hata:', err);
@@ -138,7 +138,7 @@ async function sendPaymentNotification(email, payments) {
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yarınki Ödemeleriniz - Bakiye360</title>
+    <title>Yarınki İşlemleriniz - Bakiye360</title>
     <style>
       body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
       .header { text-align: center; margin-bottom: 20px; }
@@ -161,9 +161,9 @@ async function sendPaymentNotification(email, payments) {
       <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="Bakiye360 Logo" class="logo">
     </div>
     <div class="container">
-      <h2>Yarın Ödenecek Faturalarınız</h2>
+      <h2>Yarın Gerçekleşecek İşlemleriniz</h2>
       <p>Merhaba,</p>
-      <p>Yarın için planlanmış ${payments.length} adet ödemeniz bulunmaktadır. Toplam tutar: <strong>${totalAmount} TL</strong></p>
+      <p>Yarın için planlanmış ${payments.length} adet işleminiz bulunmaktadır. Toplam tutar: <strong>${totalAmount} TL</strong></p>
       
       <div class="payment-list">`;
       
@@ -180,7 +180,7 @@ async function sendPaymentNotification(email, payments) {
         <div class="payment-item">
           <div class="payment-title">${payment.title}</div>
           <div class="payment-amount">${parseFloat(payment.amount).toFixed(2)} TL</div>
-          <div class="payment-category">Ödeme Tarihi: ${format(parseISO(payment.payment_date), 'd MMMM yyyy', { locale: tr })}</div>
+          <div class="payment-category">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
         </div>`;
     });
   }
@@ -223,10 +223,10 @@ async function main() {
   try {
     // Yaklaşan ödemeleri al
     const upcomingPayments = await getUpcomingPayments();
-    console.log(`Toplam ${upcomingPayments.length} adet yaklaşan ödeme bulundu.`);
+    console.log(`Toplam ${upcomingPayments.length} adet yaklaşan işlem bulundu.`);
     
     if (upcomingPayments.length === 0) {
-      console.log('Yarın için planlanmış ödeme bulunamadı.');
+      console.log('Yarın için planlanmış işlem bulunamadı.');
       return;
     }
     
