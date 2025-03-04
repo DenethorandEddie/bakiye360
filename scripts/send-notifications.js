@@ -124,30 +124,27 @@ async function sendNotifications(payments) {
   for (const userId in paymentsByUser) {
     const userPayments = paymentsByUser[userId];
     
-    // Kullanıcı e-posta adresini ayrı bir sorgu ile al
-    const { data: userData, error } = await supabase
-      .from('profiles')  // veya users, hangisi varsa
-      .select('email')
-      .eq('id', userId)
-      .single();
+    // Kullanıcı e-posta adresini auth.users tablosundan al
+    const { data: userData, error } = await supabase.auth.admin.getUserById(userId);
     
-    if (error || !userData) {
-      console.warn(`${userId} ID'li kullanıcı için e-posta adresi bulunamadı:`, error);
+    if (error) {
+      console.error(`${userId} ID'li kullanıcı için e-posta adresi bulunamadı:`, error);
+      continue; // Bu kullanıcı için bildirim göndermeyi atla ve diğerine geç
+    }
+    
+    if (!userData || !userData.user || !userData.user.email) {
+      console.error(`${userId} ID'li kullanıcı için e-posta adresi bulunamadı.`);
       continue;
     }
     
-    const userEmail = userData.email;
-    
-    if (!userEmail) {
-      console.warn(`${userId} ID'li kullanıcı için e-posta adresi bulunamadı.`);
-      continue;
-    }
+    const email = userData.user.email;
+    console.log(`${userId} kullanıcısına bildirim gönderiliyor (${email})...`);
     
     try {
-      await sendPaymentNotification(userEmail, userPayments);
-      console.log(`${userEmail} adresine bildirim gönderildi.`);
+      await sendPaymentNotification(email, userPayments);
+      console.log(`${email} adresine bildirim gönderildi.`);
     } catch (error) {
-      console.error(`${userEmail} adresine bildirim gönderilirken hata:`, error);
+      console.error(`${email} adresine bildirim gönderilirken hata:`, error);
     }
   }
 }
