@@ -151,20 +151,20 @@ async function sendNotifications(payments) {
 
 // E-posta bildirimi gönderen fonksiyon
 async function sendPaymentNotification(email, payments) {
-  // Toplam ödeme miktarını hesapla - gelir ve giderler için ayrı ayrı
-  const expenseTotal = payments
-    .filter(payment => payment.type === 'expense')
-    .reduce((sum, payment) => sum + parseFloat(payment.amount), 0)
-    .toFixed(2);
-    
-  const incomeTotal = payments
-    .filter(payment => payment.type === 'income')
-    .reduce((sum, payment) => sum + parseFloat(payment.amount), 0)
-    .toFixed(2);
+  // Sadece EXPENSE tipindeki ödemeleri filtrele
+  const expensePayments = payments.filter(payment => payment.type === 'expense');
   
-  // Ödemeleri kategorilere göre grupla
-  const paymentsByCategory = payments.reduce((acc, payment) => {
-    // category_id'yi kullanarak kategori adını belirle
+  // Eğer gösterilecek gider yoksa, e-posta gönderme
+  if (expensePayments.length === 0) {
+    console.log(`${email} için yarınki gider bulunamadı, e-posta gönderilmiyor.`);
+    return;
+  }
+
+  // Toplam ödeme tutarını hesapla
+  const totalAmount = expensePayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0).toFixed(2);
+  
+  // Kategori bazında ödemeleri grupla
+  const expensesByCategory = expensePayments.reduce((acc, payment) => {
     const categoryName = getCategoryNameById(payment.category_id);
     if (!acc[categoryName]) {
       acc[categoryName] = [];
@@ -172,142 +172,115 @@ async function sendPaymentNotification(email, payments) {
     acc[categoryName].push(payment);
     return acc;
   }, {});
-  
-  // E-posta içeriğini oluştur
+
+  // E-posta içeriği
   let emailContent = `
   <!DOCTYPE html>
   <html>
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yarınki İşlemleriniz - Bakiye360</title>
+    <title>Bakiye360 - Yarınki Ödemeleriniz</title>
     <style>
-      body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-      .header { text-align: center; margin-bottom: 20px; }
-      .logo { max-width: 200px; height: auto; }
-      .container { background-color: #f9f9f9; border-radius: 10px; padding: 20px; }
-      .payment-list { margin: 20px 0; }
-      .payment-item { padding: 10px; border-bottom: 1px solid #eee; }
-      .payment-title { font-weight: bold; }
-      .payment-amount-expense { color: #e63946; font-weight: bold; }
-      .payment-amount-income { color: #2a9d8f; font-weight: bold; }
-      .payment-category { color: #6c757d; font-size: 0.9em; }
-      .total { font-size: 1.2em; margin-top: 20px; text-align: right; }
-      .footer { margin-top: 30px; font-size: 0.9em; color: #6c757d; text-align: center; }
-      .button { display: inline-block; background-color: #2557a7; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 20px; }
-      h2 { color: #2557a7; }
-      .category-title { background-color: #f0f0f0; padding: 8px; border-radius: 5px; margin-top: 15px; margin-bottom: 10px; }
-      .section-title { margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; color: #333; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+      .header { text-align: center; padding: 10px 0 20px; }
+      .logo { height: 60px; margin-bottom: 10px; }
+      h1 { color: #2557a7; font-size: 24px; margin-bottom: 20px; }
+      .date-banner { background-color: #f2f7ff; padding: 10px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold; color: #2557a7; }
+      .message { margin-bottom: 20px; line-height: 1.5; }
+      .payment-list { margin-bottom: 20px; }
+      .category-section { margin-bottom: 15px; }
+      .category-header { display: flex; align-items: center; background-color: #f2f7ff; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+      .category-emoji { font-size: 20px; margin-right: 10px; }
+      .category-name { font-weight: bold; color: #2557a7; }
+      .payment-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+      .payment-item:last-child { border-bottom: none; }
+      .payment-details { flex: 1; }
+      .payment-title { font-weight: bold; margin-bottom: 5px; }
+      .payment-date { color: #6c757d; font-size: 0.9em; }
+      .payment-amount { font-weight: bold; color: #e63946; white-space: nowrap; }
+      .total-section { background-color: #f8f9fa; padding: 15px; border-radius: 6px; text-align: right; margin-bottom: 20px; }
+      .total-amount { font-size: 1.2em; font-weight: bold; color: #e63946; }
+      .button-container { text-align: center; margin: 30px 0; }
+      .button { display: inline-block; background-color: #2557a7; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; }
+      .button:hover { background-color: #1c4585; }
+      .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #6c757d; font-size: 0.9em; }
     </style>
   </head>
   <body>
-    <div class="header">
-      <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="Bakiye360 Logo" class="logo">
-    </div>
     <div class="container">
-      <h2>Yarın Gerçekleşecek İşlemleriniz</h2>
-      <p>Merhaba,</p>
-      <p>Yarın için planlanmış ${payments.length} adet işleminiz bulunmaktadır.</p>
+      <div class="header">
+        <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="Bakiye360 Logo" class="logo">
+      </div>
       
+      <h1>Yarınki Ödemeleriniz</h1>
+      
+      <div class="date-banner">
+        ${format(parseISO(expensePayments[0].date), 'd MMMM yyyy - EEEE', { locale: tr })}
+      </div>
+      
+      <div class="message">
+        <p>Merhaba,</p>
+        <p>Yarın için planlanmış <strong>${expensePayments.length} adet ödemeniz</strong> bulunmaktadır. Aşağıda ödeme detaylarınızı görebilirsiniz:</p>
+      </div>
+
       <div class="payment-list">`;
-      
-  // Önce giderleri göster
-  const expensePayments = payments.filter(payment => payment.type === 'expense');
-  if (expensePayments.length > 0) {
+
+  // Kategori bazında ödemeleri listele
+  for (const category in expensesByCategory) {
+    const categoryPayments = expensesByCategory[category];
+    const emoji = categoryEmojis[categoryPayments[0].category_id] || '📊';
+
     emailContent += `
-      <div class="section-title">📉 Giderler (Toplam: ${expenseTotal} TL)</div>`;
-      
-    // Her kategori için giderleri listele
-    const expensesByCategory = expensePayments.reduce((acc, payment) => {
-      const categoryName = getCategoryNameById(payment.category_id);
-      if (!acc[categoryName]) {
-        acc[categoryName] = [];
-      }
-      acc[categoryName].push(payment);
-      return acc;
-    }, {});
-    
-    for (const category in expensesByCategory) {
-      const categoryPayments = expensesByCategory[category];
-      const emoji = categoryEmojis[categoryPayments[0].category_id] || '📝';
-      
-      emailContent += `
-          <div class="category-title">${emoji} ${category}</div>`;
-      
-      categoryPayments.forEach(payment => {
-        emailContent += `
-          <div class="payment-item">
-            <div class="payment-title">${payment.description}</div>
-            <div class="payment-amount-expense">${parseFloat(payment.amount).toFixed(2)} TL</div>
-            <div class="payment-category">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
+        <div class="category-section">
+          <div class="category-header">
+            <span class="category-emoji">${emoji}</span>
+            <span class="category-name">${category}</span>
           </div>`;
-      });
-    }
-  }
-  
-  // Sonra gelirleri göster
-  const incomePayments = payments.filter(payment => payment.type === 'income');
-  if (incomePayments.length > 0) {
+
+    categoryPayments.forEach(payment => {
+      emailContent += `
+          <div class="payment-item">
+            <div class="payment-details">
+              <div class="payment-title">${payment.description}</div>
+              <div class="payment-date">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
+            </div>
+            <div class="payment-amount">${parseFloat(payment.amount).toLocaleString('tr-TR')} TL</div>
+          </div>`;
+    });
+
     emailContent += `
-      <div class="section-title">📈 Gelirler (Toplam: ${incomeTotal} TL)</div>`;
-      
-    // Her kategori için gelirleri listele
-    const incomesByCategory = incomePayments.reduce((acc, payment) => {
-      const categoryName = getCategoryNameById(payment.category_id);
-      if (!acc[categoryName]) {
-        acc[categoryName] = [];
-      }
-      acc[categoryName].push(payment);
-      return acc;
-    }, {});
-    
-    for (const category in incomesByCategory) {
-      const categoryPayments = incomesByCategory[category];
-      const emoji = categoryEmojis[categoryPayments[0].category_id] || '📝';
-      
-      emailContent += `
-          <div class="category-title">${emoji} ${category}</div>`;
-      
-      categoryPayments.forEach(payment => {
-        emailContent += `
-          <div class="payment-item">
-            <div class="payment-title">${payment.description}</div>
-            <div class="payment-amount-income">${parseFloat(payment.amount).toFixed(2)} TL</div>
-            <div class="payment-category">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
-          </div>`;
-      });
-    }
+        </div>`;
   }
-  
+
   emailContent += `
       </div>
       
-      <div class="total">
-        <div>Giderler: <span style="color: #e63946;">${expenseTotal} TL</span></div>
-        <div>Gelirler: <span style="color: #2a9d8f;">${incomeTotal} TL</span></div>
-        <div style="margin-top: 10px; font-weight: bold;">Net: <span style="${parseFloat(incomeTotal) - parseFloat(expenseTotal) >= 0 ? 'color: #2a9d8f;' : 'color: #e63946;'}">${(parseFloat(incomeTotal) - parseFloat(expenseTotal)).toFixed(2)} TL</span></div>
+      <div class="total-section">
+        Toplam Ödenecek Tutar: <span class="total-amount">${parseFloat(totalAmount).toLocaleString('tr-TR')} TL</span>
       </div>
       
-      <div style="text-align: center;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transactions" class="button">İşlemlerimi Görüntüle</a>
+      <div class="button-container">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transactions" class="button">Ödemelerimi Görüntüle</a>
       </div>
-    </div>
-    
-    <div class="footer">
-      <p>Bu e-posta Bakiye360 otomatik bildirim sistemi tarafından gönderilmiştir.</p>
-      <p>© ${new Date().getFullYear()} Bakiye360. Tüm hakları saklıdır.</p>
+      
+      <div class="footer">
+        <p>Bu e-posta Bakiye360 otomatik bildirim sistemi tarafından gönderilmiştir.</p>
+        <p>© ${new Date().getFullYear()} Bakiye360. Tüm hakları saklıdır.</p>
+      </div>
     </div>
   </body>
   </html>`;
-  
+
   // E-postayı gönder
   const info = await transporter.sendMail({
     from: `"Bakiye360" <${process.env.EMAIL_FROM}>`,
     to: email,
-    subject: `Yarın İçin ${payments.length} İşleminiz Var - Bakiye360`,
+    subject: `Yarın İçin ${expensePayments.length} Ödemeniz Var - Bakiye360`,
     html: emailContent,
   });
-  
+
   return info;
 }
 
