@@ -144,11 +144,11 @@ export default function NewTransactionPage() {
         return;
       }
 
-      // Tarihi ISO formatında kaydet, ama sadece tarih kısmını al
+      // Tarihi yerel saat dilimine göre kaydet
       let dateToSave: string | null = null;
       if (formData.date) {
-        // Tarih kısmını al (YYYY-MM-DD)
-        dateToSave = formData.date.toISOString().split('T')[0];
+        // Tarih kısmını al (YYYY-MM-DD) ve yerel saat dilimine göre formatla
+        dateToSave = formData.date.toLocaleDateString('en-CA');
       }
       
       // Supabase işlem kaydetme
