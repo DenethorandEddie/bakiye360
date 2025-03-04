@@ -44,6 +44,7 @@ const categoryEmojis = {
   'c6fd164a-a92e-431b-ad3e-99046a555efe': '📦', // Diğer Gider
   'd4d0b3ac-fde5-4331-bd26-1d4be57b4557': '👕', // Giyim
   'f7b4d0a7-e4f3-4c22-b0f5-407aaa8c53eb': '📄', // Faturalar
+  'eefc049b-b64f-4456-87c9-f1c38fabffee': '💰', // Banka 
   
   // Gelir kategorileri
   'ebf3cba0-0cab-4b05-9f5d-b93e9f639f22': '💰', // Maaş
@@ -65,6 +66,7 @@ const categoryEmojis = {
   '11': '💰', // Maaş
   '12': '📈', // Yatırım
   '13': '💼', // Diğer Gelir
+  '14': '💰', // Banka 
   'undefined': '❓' // Tanımlanmamış
 };
 
