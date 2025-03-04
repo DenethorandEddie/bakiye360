@@ -1,12 +1,10 @@
-name: Günlük Ödeme Bildirimleri
+name: Daily Payment Notifications
 
 on:
   schedule:
-    # Her gün Türkiye saati ile 21:15'te çalışır (UTC+3)
-    # GitHub Actions UTC kullandığı için, UTC olarak 18:15
-    - cron: '00 19 * * *'
-  
-  # Manuel tetiklemeyi de etkinleştirelim (test için)
+    # Her gün sabah 09:00'da çalışacak (UTC zaman diliminde 06:00)
+    - cron: '0 6 * * *'
+  # Manuel tetikleme için
   workflow_dispatch:
 
 jobs:
@@ -14,19 +12,26 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Bildirim Gönderme İşlemini Tetikle
-        # Ana uygulama URL'sini ve API anahtarını GitHub Secrets'dan alıyoruz
-        env:
-          APP_URL: ${{ secrets.APP_URL }}
-          CRON_API_KEY: ${{ secrets.CRON_API_KEY }}
-        run: |
-          echo "Bildirim API'si tetikleniyor: $APP_URL/api/cron/send-notifications"
-          curl -X GET "$APP_URL/api/cron/send-notifications" \
-               -H "x-api-key: $CRON_API_KEY" \
-               -H "Content-Type: application/json" \
-               -w "\n\nHTTP Durum Kodu: %{http_code}"
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
           
-      - name: Sonuç Bildirimi
-        if: always()
-        run: |
-          echo "Bildirim işlemi tamamlandı: $(date)" 
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Send notifications
+        run: node scripts/send-notifications.js
+        env:
+          # Gerekli ortam değişkenleri
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EMAIL_SERVER: ${{ secrets.EMAIL_SERVER }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }} 
