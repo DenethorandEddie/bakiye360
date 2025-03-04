@@ -32,84 +32,69 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Kategorileri emoji formatında gösterme
-const categoryEmojis = {
-  // UUID formatındaki kategori ID'leri
-  '1f204dc5-9b6a-4b4c-935c-0f15038d7659': '🚗', // Ulaşım
-  '2c09e6e4-5d40-4db2-8fb1-2399c7e0a965': '🏠', // Konut
-  '45cf1d3b-8f35-4f2f-89cb-7dfa6ae01de4': '🍔', // Yiyecek
-  '4b37797a-5e97-4bfc-a24d-6b8c090d8037': '📚', // Eğitim
-  '5e7b40cc-abae-4f1a-9156-2becbc47170e': '🎬', // Eğlence
-  '9037418f-400d-46f6-8dd8-0f78d1074a9b': '🏥', // Sağlık
-  'c6fd164a-a92e-431b-ad3e-99046a555efe': '📦', // Diğer Gider
-  'd4d0b3ac-fde5-4331-bd26-1d4be57b4557': '👕', // Giyim
-  'f7b4d0a7-e4f3-4c22-b0f5-407aaa8c53eb': '📄', // Faturalar
-  'eefc049b-b64f-4456-87c9-f1c38fabffee': '💰', // Banka 
-  
-  // Gelir kategorileri
-  'ebf3cba0-0cab-4b05-9f5d-b93e9f639f22': '💰', // Maaş
-  '4232b5ab-f0f6-4b12-91ba-a5cede465d02': '💻', // Freelance
-  '6e46e35b-71fc-4606-8f19-e3a980883db2': '📈', // Yatırım
-  '7bcd83f0-17d8-454d-a03d-aab7cebb5d7b': '💼', // Diğer Gelir
-  
-  // Eski sayısal ID'ler için geriye dönük uyumluluk
-  '1': '🍔', // Yiyecek
-  '2': '🚗', // Ulaşım
-  '3': '📄', // Faturalar
-  '4': '🏠', // Konut
-  '5': '🎬', // Eğlence
-  '6': '👕', // Giyim
-  '7': '📚', // Eğitim
-  '8': '🏥', // Sağlık
-  '9': '📦', // Diğer Gider
-  '10': '💻', // Freelance
-  '11': '💰', // Maaş
-  '12': '📈', // Yatırım
-  '13': '💼', // Diğer Gelir
-  '14': '💰', // Banka 
-  'undefined': '❓' // Tanımlanmamış
-};
+// Kategori ID'leri ve isimlerini veritabanından çeken fonksiyon
+async function fetchCategories() {
+  try {
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('id, name, type');
+    
+    if (error) {
+      console.error('Kategorileri çekerken hata:', error);
+      return {};
+    }
+    
+    // Kategori ID'lerine göre isimleri ve emojileri saklayan objeler
+    const categoryNames = {};
+    const categoryEmojis = {};
+    
+    // Kategori tiplerine göre emoji belirleme
+    const typeEmojis = {
+      'expense': {
+        'Yiyecek': '🍔',
+        'Ulaşım': '🚗',
+        'Faturalar': '📄',
+        'Konut': '🏠',
+        'Eğlence': '🎬',
+        'Giyim': '👕',
+        'Eğitim': '📚',
+        'Sağlık': '🏥',
+        'Diğer Gider': '📦',
+        'Banka': '🏦',
+        'Hediye': '🎁',
+        default: '📋'
+      },
+      'income': {
+        'Maaş': '💰',
+        'Freelance': '💻',
+        'Yatırım': '📈',
+        'Diğer Gelir': '💼',
+        'Hediye': '🎁',
+        default: '💲'
+      }
+    };
+    
+    // Tüm kategorileri döngüye al
+    categories.forEach(category => {
+      categoryNames[category.id] = category.name;
+      
+      // Kategori tipine ve ismine göre uygun emoji seç
+      const typeEmoji = typeEmojis[category.type] || {};
+      categoryEmojis[category.id] = typeEmoji[category.name] || typeEmoji.default || '❓';
+    });
+    
+    console.log('Kategoriler başarıyla yüklendi:', categories.length);
+    
+    return { categoryNames, categoryEmojis };
+  } catch (error) {
+    console.error('Kategori bilgilerini çekerken beklenmeyen hata:', error);
+    return {};
+  }
+}
 
 // Kategori ID'den kategori adını almak için yardımcı fonksiyon
-function getCategoryNameById(categoryId) {
-  const categoryNames = {
-    // UUID formatındaki kategori ID'leri ile kategori isimleri
-    '1f204dc5-9b6a-4b4c-935c-0f15038d7659': 'Ulaşım',
-    '2c09e6e4-5d40-4db2-8fb1-2399c7e0a965': 'Konut',
-    '45cf1d3b-8f35-4f2f-89cb-7dfa6ae01de4': 'Yiyecek',
-    '4b37797a-5e97-4bfc-a24d-6b8c090d8037': 'Eğitim',
-    '5e7b40cc-abae-4f1a-9156-2becbc47170e': 'Eğlence',
-    '9037418f-400d-46f6-8dd8-0f78d1074a9b': 'Sağlık',
-    'c6fd164a-a92e-431b-ad3e-99046a555efe': 'Diğer Gider',
-    'd4d0b3ac-fde5-4331-bd26-1d4be57b4557': 'Giyim',
-    'f7b4d0a7-e4f3-4c22-b0f5-407aaa8c53eb': 'Faturalar',
-    
-    // Gelir kategorileri
-    'ebf3cba0-0cab-4b05-9f5d-b93e9f639f22': 'Maaş',
-    '4232b5ab-f0f6-4b12-91ba-a5cede465d02': 'Freelance',
-    '6e46e35b-71fc-4606-8f19-e3a980883db2': 'Yatırım',
-    '7bcd83f0-17d8-454d-a03d-aab7cebb5d7b': 'Diğer Gelir'
-  };
-  
-  // Eski sayısal kategori ID'leri için geriye dönük uyumluluk
-  const legacyCategoryNames = {
-    '1': 'Yiyecek',
-    '2': 'Ulaşım',
-    '3': 'Faturalar',
-    '4': 'Konut',
-    '5': 'Eğlence',
-    '6': 'Giyim',
-    '7': 'Eğitim',
-    '8': 'Sağlık',
-    '9': 'Diğer Gider',
-    '10': 'Freelance',
-    '11': 'Maaş',
-    '12': 'Yatırım',
-    '13': 'Diğer Gelir'
-  };
-
-  // Önce UUID formatında kontrol et, sonra eski format kontrol et
-  return categoryNames[categoryId] || legacyCategoryNames[categoryId] || 'Diğer';
+function getCategoryNameById(categoryId, categoryNames) {
+  return categoryNames[categoryId] || 'Diğer';
 }
 
 // Yaklaşan ödemeleri bulan fonksiyon
@@ -121,6 +106,9 @@ async function getUpcomingPayments() {
   console.log(`${tomorrowStr} tarihi için yaklaşan ödemeleri kontrol ediyorum...`);
   
   try {
+    // Önce kategorileri çek
+    const { categoryNames, categoryEmojis } = await fetchCategories();
+    
     // Supabase'den yaklaşan ödemeleri çek
     // transactions tablosunu kullan
     const { data: payments, error } = await supabase
@@ -139,7 +127,7 @@ async function getUpcomingPayments() {
     
     if (error) {
       console.error('Yaklaşan ödemeleri alırken hata:', error);
-      return [];
+      return { payments: [], categoryNames, categoryEmojis };
     }
     
     console.log('Bulunan işlemler:', payments);
@@ -148,19 +136,25 @@ async function getUpcomingPayments() {
     if (payments && payments.length > 0) {
       console.log('Kategori ID kontrolleri:');
       payments.forEach(payment => {
-        console.log(`İşlem: ${payment.description}, Kategori ID: ${payment.category_id}, Kategori Adı: ${getCategoryNameById(payment.category_id)}`);
+        console.log(`İşlem: ${payment.description}, Kategori ID: ${payment.category_id}, Kategori Adı: ${getCategoryNameById(payment.category_id, categoryNames)}`);
       });
     }
     
-    return payments || [];
+    return { 
+      payments: payments || [],
+      categoryNames,
+      categoryEmojis
+    };
   } catch (err) {
     console.error('Yaklaşan ödemeleri alırken beklenmeyen hata:', err);
-    return [];
+    return { payments: [], categoryNames: {}, categoryEmojis: {} };
   }
 }
 
 // Bildirim gönderen fonksiyon
-async function sendNotifications(payments) {
+async function sendNotifications(paymentsData) {
+  const { payments, categoryNames, categoryEmojis } = paymentsData;
+  
   // Kullanıcı ID'sine göre ödemeleri grupla
   const paymentsByUser = payments.reduce((acc, payment) => {
     if (!acc[payment.user_id]) {
@@ -191,7 +185,7 @@ async function sendNotifications(payments) {
     console.log(`${userId} kullanıcısına bildirim gönderiliyor (${email})...`);
     
     try {
-      await sendPaymentNotification(email, userPayments);
+      await sendPaymentNotification(email, userPayments, categoryNames, categoryEmojis);
       console.log(`${email} adresine bildirim gönderildi.`);
     } catch (error) {
       console.error(`${email} adresine bildirim gönderilirken hata:`, error);
@@ -200,7 +194,7 @@ async function sendNotifications(payments) {
 }
 
 // E-posta bildirimi gönderen fonksiyon
-async function sendPaymentNotification(email, payments) {
+async function sendPaymentNotification(email, payments, categoryNames, categoryEmojis) {
   // Sadece EXPENSE tipindeki ödemeleri filtrele
   const expensePayments = payments.filter(payment => payment.type === 'expense');
   
@@ -215,7 +209,7 @@ async function sendPaymentNotification(email, payments) {
   
   // Kategori bazında ödemeleri grupla
   const expensesByCategory = expensePayments.reduce((acc, payment) => {
-    const categoryName = getCategoryNameById(payment.category_id);
+    const categoryName = getCategoryNameById(payment.category_id, categoryNames);
     if (!acc[categoryName]) {
       acc[categoryName] = [];
     }
@@ -351,16 +345,18 @@ async function main() {
   
   try {
     // Yaklaşan ödemeleri al
-    const upcomingPayments = await getUpcomingPayments();
-    console.log(`Toplam ${upcomingPayments.length} adet yaklaşan işlem bulundu.`);
+    const paymentsData = await getUpcomingPayments();
+    const { payments, categoryNames, categoryEmojis } = paymentsData;
     
-    if (upcomingPayments.length === 0) {
+    console.log(`Toplam ${payments.length} adet yaklaşan işlem bulundu.`);
+    
+    if (payments.length === 0) {
       console.log('Yarın için planlanmış işlem bulunamadı.');
       return;
     }
     
     // Bildirimleri gönder
-    await sendNotifications(upcomingPayments);
+    await sendNotifications({ payments, categoryNames, categoryEmojis });
     console.log('Tüm bildirimler başarıyla gönderildi.');
   } catch (error) {
     console.error('Bildirim gönderme işlemi sırasında hata:', error);
