@@ -1,0 +1,32 @@
+name: Günlük Ödeme Bildirimleri
+
+on:
+  schedule:
+    # Her gün Türkiye saati ile 21:15'te çalışır (UTC+3)
+    # GitHub Actions UTC kullandığı için, UTC olarak 18:15
+    - cron: '15 18 * * *'
+  
+  # Manuel tetiklemeyi de etkinleştirelim (test için)
+  workflow_dispatch:
+
+jobs:
+  send-notifications:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Bildirim Gönderme İşlemini Tetikle
+        # Ana uygulama URL'sini ve API anahtarını GitHub Secrets'dan alıyoruz
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_API_KEY: ${{ secrets.CRON_API_KEY }}
+        run: |
+          echo "Bildirim API'si tetikleniyor: $APP_URL/api/cron/send-notifications"
+          curl -X GET "$APP_URL/api/cron/send-notifications" \
+               -H "x-api-key: $CRON_API_KEY" \
+               -H "Content-Type: application/json" \
+               -w "\n\nHTTP Durum Kodu: %{http_code}"
+          
+      - name: Sonuç Bildirimi
+        if: always()
+        run: |
+          echo "Bildirim işlemi tamamlandı: $(date)" 
