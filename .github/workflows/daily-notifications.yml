@@ -4,7 +4,7 @@ on:
   schedule:
     # Her gün Türkiye saati ile 21:15'te çalışır (UTC+3)
     # GitHub Actions UTC kullandığı için, UTC olarak 18:15
-    - cron: '15 18 * * *'
+    - cron: '00 19 * * *'
   
   # Manuel tetiklemeyi de etkinleştirelim (test için)
   workflow_dispatch:
