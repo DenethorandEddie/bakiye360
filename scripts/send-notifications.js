@@ -68,8 +68,7 @@ async function getUpcomingPayments() {
         title,
         amount,
         category,
-        date,
-        users(email)
+        date
       `)
       .eq('date', tomorrowStr)
     
@@ -100,7 +99,20 @@ async function sendNotifications(payments) {
   // Her kullanıcı için bildirim gönder
   for (const userId in paymentsByUser) {
     const userPayments = paymentsByUser[userId];
-    const userEmail = userPayments[0]?.users?.email;
+    
+    // Kullanıcı e-posta adresini ayrı bir sorgu ile al
+    const { data: userData, error } = await supabase
+      .from('profiles')  // veya users, hangisi varsa
+      .select('email')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !userData) {
+      console.warn(`${userId} ID'li kullanıcı için e-posta adresi bulunamadı:`, error);
+      continue;
+    }
+    
+    const userEmail = userData.email;
     
     if (!userEmail) {
       console.warn(`${userId} ID'li kullanıcı için e-posta adresi bulunamadı.`);
