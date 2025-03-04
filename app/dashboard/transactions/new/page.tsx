@@ -24,6 +24,29 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+// Tarih kaydetme sırasında zaman dilimi farkını dengeleyen yardımcı fonksiyon
+// Türkiye için UTC+3 saatini hesaplar ve tarihi doğru şekilde ayarlar
+function adjustDateForTimezone(date) {
+  if (!date) return null;
+  
+  // Yeni bir tarih nesnesi oluştur (aynı tarih ve saat değerleri ile)
+  const newDate = new Date(date);
+  
+  // Türkiye saat dilimi (UTC+3) için offset hesapla
+  const tzOffset = 3 * 60; // 3 saat = 180 dakika
+  
+  // Kullanıcının yerel saat dilimi offseti (dakika cinsinden)
+  const localOffset = newDate.getTimezoneOffset();
+  
+  // Toplam offset farkını dakika cinsinden hesapla
+  const offsetDiff = localOffset + tzOffset; 
+  
+  // Tarih nesnesini offsetDiff kadar ileri al
+  newDate.setMinutes(newDate.getMinutes() + offsetDiff);
+  
+  return newDate;
+}
+
 export default function NewTransactionPage() {
   const router = useRouter();
   const { supabase, user } = useSupabase();
@@ -130,6 +153,9 @@ export default function NewTransactionPage() {
         return;
       }
 
+      // Tarihi timezone için düzelt
+      const adjustedDate = adjustDateForTimezone(formData.date);
+      
       // Supabase işlem kaydetme
       const { error } = await supabase.from('transactions').insert({
         user_id: user.id,
@@ -137,7 +163,7 @@ export default function NewTransactionPage() {
         amount: parseFloat(formData.amount),
         type: formData.type,
         description: formData.description,
-        date: formData.date.toISOString().split('T')[0],
+        date: adjustedDate ? adjustedDate.toISOString().split('T')[0] : null,
         is_recurring: formData.isRecurring,
         notes: formData.notes
       });
