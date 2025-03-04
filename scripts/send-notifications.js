@@ -34,20 +34,42 @@ const transporter = nodemailer.createTransport({
 
 // Kategorileri emoji formatında gösterme
 const categoryEmojis = {
-  'Yiyecek': '🍔',
-  'Ulaşım': '🚗',
-  'Faturalar': '📝',
-  'Konut': '🏠',
-  'Eğlence': '🎬',
-  'Giyim': '👕',
-  'Eğitim': '📚',
-  'Sağlık': '🏥',
-  'Diğer Gider': '📦',
-  'Freelance': '💻',
-  'Maaş': '💰',
-  'Yatırım': '📈',
-  'Diğer Gelir': '💼'
+  '1': '🍔', // Yiyecek
+  '2': '🚗', // Ulaşım
+  '3': '📝', // Faturalar
+  '4': '🏠', // Konut
+  '5': '🎬', // Eğlence
+  '6': '👕', // Giyim
+  '7': '📚', // Eğitim
+  '8': '🏥', // Sağlık
+  '9': '📦', // Diğer Gider
+  '10': '💻', // Freelance
+  '11': '💰', // Maaş
+  '12': '📈', // Yatırım
+  '13': '💼', // Diğer Gelir
+  'undefined': '❓' // Tanımlanmamış
 };
+
+// Kategori ID'den kategori adını almak için yardımcı fonksiyon
+function getCategoryNameById(categoryId) {
+  const categoryNames = {
+    '1': 'Yiyecek',
+    '2': 'Ulaşım',
+    '3': 'Faturalar',
+    '4': 'Konut',
+    '5': 'Eğlence',
+    '6': 'Giyim',
+    '7': 'Eğitim',
+    '8': 'Sağlık',
+    '9': 'Diğer Gider',
+    '10': 'Freelance',
+    '11': 'Maaş',
+    '12': 'Yatırım',
+    '13': 'Diğer Gelir'
+  };
+  
+  return categoryNames[categoryId] || 'Diğer';
+}
 
 // Yaklaşan ödemeleri bulan fonksiyon
 async function getUpcomingPayments() {
@@ -65,12 +87,14 @@ async function getUpcomingPayments() {
       .select(`
         id,
         user_id,
-        title,
+        description,
         amount,
-        category,
-        date
+        category_id,
+        date,
+        type
       `)
       .eq('date', tomorrowStr)
+      // Hem gelir hem de gider işlemlerini bildirelim
     
     if (error) {
       console.error('Yaklaşan ödemeleri alırken hata:', error);
@@ -130,16 +154,25 @@ async function sendNotifications(payments) {
 
 // E-posta bildirimi gönderen fonksiyon
 async function sendPaymentNotification(email, payments) {
-  // Toplam ödeme miktarını hesapla
-  const totalAmount = payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0).toFixed(2);
+  // Toplam ödeme miktarını hesapla - gelir ve giderler için ayrı ayrı
+  const expenseTotal = payments
+    .filter(payment => payment.type === 'expense')
+    .reduce((sum, payment) => sum + parseFloat(payment.amount), 0)
+    .toFixed(2);
+    
+  const incomeTotal = payments
+    .filter(payment => payment.type === 'income')
+    .reduce((sum, payment) => sum + parseFloat(payment.amount), 0)
+    .toFixed(2);
   
   // Ödemeleri kategorilere göre grupla
   const paymentsByCategory = payments.reduce((acc, payment) => {
-    const category = payment.category || 'Diğer';
-    if (!acc[category]) {
-      acc[category] = [];
+    // category_id'yi kullanarak kategori adını belirle
+    const categoryName = getCategoryNameById(payment.category_id);
+    if (!acc[categoryName]) {
+      acc[categoryName] = [];
     }
-    acc[category].push(payment);
+    acc[categoryName].push(payment);
     return acc;
   }, {});
   
@@ -159,13 +192,15 @@ async function sendPaymentNotification(email, payments) {
       .payment-list { margin: 20px 0; }
       .payment-item { padding: 10px; border-bottom: 1px solid #eee; }
       .payment-title { font-weight: bold; }
-      .payment-amount { color: #e63946; font-weight: bold; }
+      .payment-amount-expense { color: #e63946; font-weight: bold; }
+      .payment-amount-income { color: #2a9d8f; font-weight: bold; }
       .payment-category { color: #6c757d; font-size: 0.9em; }
       .total { font-size: 1.2em; margin-top: 20px; text-align: right; }
       .footer { margin-top: 30px; font-size: 0.9em; color: #6c757d; text-align: center; }
       .button { display: inline-block; background-color: #2557a7; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 20px; }
       h2 { color: #2557a7; }
       .category-title { background-color: #f0f0f0; padding: 8px; border-radius: 5px; margin-top: 15px; margin-bottom: 10px; }
+      .section-title { margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
     </style>
   </head>
   <body>
@@ -175,37 +210,89 @@ async function sendPaymentNotification(email, payments) {
     <div class="container">
       <h2>Yarın Gerçekleşecek İşlemleriniz</h2>
       <p>Merhaba,</p>
-      <p>Yarın için planlanmış ${payments.length} adet işleminiz bulunmaktadır. Toplam tutar: <strong>${totalAmount} TL</strong></p>
+      <p>Yarın için planlanmış ${payments.length} adet işleminiz bulunmaktadır.</p>
       
       <div class="payment-list">`;
       
-  // Her kategori için ödemeleri listele
-  for (const category in paymentsByCategory) {
-    const categoryPayments = paymentsByCategory[category];
-    const emoji = categoryEmojis[category] || '📝';
-    
+  // Önce giderleri göster
+  const expensePayments = payments.filter(payment => payment.type === 'expense');
+  if (expensePayments.length > 0) {
     emailContent += `
-        <div class="category-title">${emoji} ${category}</div>`;
+      <div class="section-title">📉 Giderler (Toplam: ${expenseTotal} TL)</div>`;
+      
+    // Her kategori için giderleri listele
+    const expensesByCategory = expensePayments.reduce((acc, payment) => {
+      const categoryName = getCategoryNameById(payment.category_id);
+      if (!acc[categoryName]) {
+        acc[categoryName] = [];
+      }
+      acc[categoryName].push(payment);
+      return acc;
+    }, {});
     
-    categoryPayments.forEach(payment => {
+    for (const category in expensesByCategory) {
+      const categoryPayments = expensesByCategory[category];
+      const emoji = categoryEmojis[categoryPayments[0].category_id] || '📝';
+      
       emailContent += `
-        <div class="payment-item">
-          <div class="payment-title">${payment.title}</div>
-          <div class="payment-amount">${parseFloat(payment.amount).toFixed(2)} TL</div>
-          <div class="payment-category">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
-        </div>`;
-    });
+          <div class="category-title">${emoji} ${category}</div>`;
+      
+      categoryPayments.forEach(payment => {
+        emailContent += `
+          <div class="payment-item">
+            <div class="payment-title">${payment.description}</div>
+            <div class="payment-amount-expense">${parseFloat(payment.amount).toFixed(2)} TL</div>
+            <div class="payment-category">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
+          </div>`;
+      });
+    }
+  }
+  
+  // Sonra gelirleri göster
+  const incomePayments = payments.filter(payment => payment.type === 'income');
+  if (incomePayments.length > 0) {
+    emailContent += `
+      <div class="section-title">📈 Gelirler (Toplam: ${incomeTotal} TL)</div>`;
+      
+    // Her kategori için gelirleri listele
+    const incomesByCategory = incomePayments.reduce((acc, payment) => {
+      const categoryName = getCategoryNameById(payment.category_id);
+      if (!acc[categoryName]) {
+        acc[categoryName] = [];
+      }
+      acc[categoryName].push(payment);
+      return acc;
+    }, {});
+    
+    for (const category in incomesByCategory) {
+      const categoryPayments = incomesByCategory[category];
+      const emoji = categoryEmojis[categoryPayments[0].category_id] || '📝';
+      
+      emailContent += `
+          <div class="category-title">${emoji} ${category}</div>`;
+      
+      categoryPayments.forEach(payment => {
+        emailContent += `
+          <div class="payment-item">
+            <div class="payment-title">${payment.description}</div>
+            <div class="payment-amount-income">${parseFloat(payment.amount).toFixed(2)} TL</div>
+            <div class="payment-category">İşlem Tarihi: ${format(parseISO(payment.date), 'd MMMM yyyy', { locale: tr })}</div>
+          </div>`;
+      });
+    }
   }
   
   emailContent += `
       </div>
       
       <div class="total">
-        <strong>Toplam: ${totalAmount} TL</strong>
+        <div>Giderler: <span style="color: #e63946;">${expenseTotal} TL</span></div>
+        <div>Gelirler: <span style="color: #2a9d8f;">${incomeTotal} TL</span></div>
+        <div style="margin-top: 10px; font-weight: bold;">Net: <span style="${parseFloat(incomeTotal) - parseFloat(expenseTotal) >= 0 ? 'color: #2a9d8f;' : 'color: #e63946;'}">${(parseFloat(incomeTotal) - parseFloat(expenseTotal)).toFixed(2)} TL</span></div>
       </div>
       
       <div style="text-align: center;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payments" class="button">Ödemelerimi Görüntüle</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transactions" class="button">İşlemlerimi Görüntüle</a>
       </div>
     </div>
     
@@ -220,7 +307,7 @@ async function sendPaymentNotification(email, payments) {
   const info = await transporter.sendMail({
     from: `"Bakiye360" <${process.env.EMAIL_FROM}>`,
     to: email,
-    subject: `Yarın İçin ${payments.length} Ödemeniz Var - Bakiye360`,
+    subject: `Yarın İçin ${payments.length} İşleminiz Var - Bakiye360`,
     html: emailContent,
   });
   
