@@ -26,6 +26,7 @@ export default function DashboardLayout({
           const demoUser = localStorage.getItem('demoUser');
           if (!demoUser) {
             router.push("/login");
+            return;
           } else {
             setLoading(false);
           }
@@ -36,6 +37,7 @@ export default function DashboardLayout({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           router.push("/login");
+          return;
         } else {
           setLoading(false);
         }
@@ -46,6 +48,37 @@ export default function DashboardLayout({
     };
 
     checkSession();
+    
+    // Oturum değişikliklerini izle
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'demoUser' && !event.newValue) {
+        router.push("/login");
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Supabase auth state değişimlerini izle
+    let authListener: { data: { subscription: { unsubscribe: () => void } } };
+    
+    const setupAuthListener = async () => {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://example.supabase.co') {
+        authListener = supabase.auth.onAuthStateChange((event) => {
+          if (event === 'SIGNED_OUT') {
+            router.push("/login");
+          }
+        });
+      }
+    };
+    
+    setupAuthListener();
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (authListener?.data?.subscription) {
+        authListener.data.subscription.unsubscribe();
+      }
+    };
   }, [router, supabase]);
 
   if (loading) {

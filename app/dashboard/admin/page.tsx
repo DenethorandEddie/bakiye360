@@ -89,6 +89,13 @@ export default function AdminDashboard() {
   ];
 
   useEffect(() => {
+    if (!user) {
+      // Redirect to landing page if user is not logged in
+      window.location.href = '/';
+    }
+  }, [user]);
+
+  useEffect(() => {
     async function fetchStats() {
       try {
         // Fetch user statistics
@@ -173,6 +180,22 @@ export default function AdminDashboard() {
     fetchRecentUsers();
     fetchRecentTransactions();
   }, [supabase]);
+
+  async function handleLogout() {
+    const { error } = await supabase.auth.signOut();
+    if (!error) {
+      // Redirect to landing page upon successful logout
+      window.location.href = '/';
+    } else {
+      console.error('Error during logout:', error);
+    }
+  }
+
+  // CSS for maintaining image aspect ratio
+  const imageStyle = {
+    width: 'auto',
+    height: 'auto'
+  };
 
   return (
     <div className="space-y-6">

@@ -93,22 +93,55 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://example.supabase.co') {
         // Demo modda çıkış işlemi
         localStorage.removeItem('demoUser');
+        
+        // Local storage'dan Supabase ile ilgili öğeleri temizle
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('supabase.') || key.includes('demoUser'))) {
+            localStorage.removeItem(key);
+          }
+        }
+        
+        // Oturum durumunu temizle
+        setUser(null);
+        
         window.dispatchEvent(new StorageEvent('storage', {
           key: 'demoUser',
           newValue: null
         }));
+        
         toast.success("Demo mod: Başarıyla çıkış yapıldı");
-        router.push("/");
+        
+        // Yönlendirme gecikme ile yapılsın
+        setTimeout(() => {
+          router.push("/");
+          router.refresh();
+        }, 100);
+        
         return;
       }
 
       // Gerçek Supabase çıkış işlemi
       await supabase.auth.signOut();
+      setUser(null);
+      
       toast.success("Başarıyla çıkış yapıldı");
-      router.push("/");
+      
+      // Yönlendirme gecikme ile yapılsın
+      setTimeout(() => {
+        router.push("/");
+        router.refresh();
+      }, 100);
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Çıkış yapılırken bir hata oluştu");
+      
+      // Hata durumunda zorla çıkış yapma girişimi
+      setUser(null);
+      setTimeout(() => {
+        router.push("/");
+        router.refresh();
+      }, 100);
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSupabase } from "@/components/supabase-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import { Bell, Moon, Sun, Languages, CreditCard, Trash2 } from "lucide-react";
 export default function SettingsPage() {
   const { supabase, user, signOut } = useSupabase();
   const [loading, setLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [settings, setSettings] = useState({
     notifications: {
       email: true,
@@ -32,55 +33,176 @@ export default function SettingsPage() {
     },
   });
 
-  const handleNotificationChange = (field: string, value: boolean) => {
-    setSettings((prev) => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [field]: value,
-      },
-    }));
-  };
-
-  const handlePreferenceChange = (field: string, value: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      preferences: {
-        ...prev.preferences,
-        [field]: value,
-      },
-    }));
-  };
-
-  const saveSettings = async () => {
-    setLoading(true);
-
-    try {
+  // Mevcut ayarları Supabase'den yükle
+  useEffect(() => {
+    async function loadUserSettings() {
       if (!supabase || !user) {
-        throw new Error("Oturum bilgisi bulunamadı");
+        setSettingsLoading(false);
+        return;
       }
 
+      try {
+        console.log("Kullanıcı ayarları yükleniyor...");
+        
+        // İlk olarak user_settings tablosundan ayarları al
+        const { data: userSettingsData, error: userSettingsError } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (userSettingsError && userSettingsError.code !== 'PGRST116') {
+          console.error('Ayarlar yüklenirken hata:', userSettingsError.message);
+          toast.error('Bildirim ayarları yüklenirken bir hata oluştu');
+          return;
+        }
+
+        // Eğer user_settings tablosunda kayıt varsa
+        if (userSettingsData) {
+          console.log("Mevcut kullanıcı ayarları:", userSettingsData);
+          
+          // Profil bilgilerini güncelle
+          setSettings({
+            notifications: {
+              email: typeof userSettingsData.email_notifications === 'boolean' ? userSettingsData.email_notifications : true,
+              budgetAlerts: typeof userSettingsData.budget_alerts === 'boolean' ? userSettingsData.budget_alerts : true,
+              monthlyReports: typeof userSettingsData.monthly_reports === 'boolean' ? userSettingsData.monthly_reports : true,
+            },
+            preferences: {
+              currency: userSettingsData.app_preferences && typeof userSettingsData.app_preferences === 'object' ? 
+                String(userSettingsData.app_preferences.currency || "TRY") : "TRY",
+              language: userSettingsData.app_preferences && typeof userSettingsData.app_preferences === 'object' ? 
+                String(userSettingsData.app_preferences.language || "tr") : "tr",
+            }
+          });
+        } else {
+          console.log("Kullanıcı ayarları bulunamadı, varsayılan değerler kullanılacak");
+          
+          // Varsayılan ayarlarla devam et ve veritabanına yeni kayıt oluştur
+          await saveSettingsToSupabase({
+            notifications: {
+              email: true,
+              budgetAlerts: true,
+              monthlyReports: true,
+            },
+            preferences: {
+              currency: "TRY",
+              language: "tr",
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Ayarlar yüklenirken hata:', error);
+        toast.error('Bildirim ayarları yüklenirken bir hata oluştu');
+      } finally {
+        setSettingsLoading(false);
+      }
+    }
+
+    loadUserSettings();
+  }, [supabase, user]);
+
+  const handleNotificationChange = async (field: string, value: boolean) => {
+    // Önce yerel state'i güncelle
+    const updatedSettings = {
+      ...settings,
+      notifications: {
+        ...settings.notifications,
+        [field]: value,
+      },
+    };
+    
+    setSettings(updatedSettings);
+    
+    // Ardından Supabase'e kaydet
+    await saveSettingsToSupabase(updatedSettings);
+  };
+
+  const handlePreferenceChange = async (field: string, value: string) => {
+    // Önce yerel state'i güncelle
+    const updatedSettings = {
+      ...settings,
+      preferences: {
+        ...settings.preferences,
+        [field]: value,
+      },
+    };
+    
+    setSettings(updatedSettings);
+    
+    // Ardından Supabase'e kaydet
+    await saveSettingsToSupabase(updatedSettings);
+  };
+
+  const saveSettingsToSupabase = async (settingsToSave: typeof settings) => {
+    if (!supabase || !user) {
+      toast.error("Oturum bilgisi bulunamadı");
+      return;
+    }
+
+    try {
       // Kullanıcı ayarlarını Supabase'e kaydet
       const { error } = await supabase
         .from('user_settings')
         .upsert({
           user_id: user.id,
-          notification_preferences: settings.notifications,
+          email_notifications: settingsToSave.notifications.email,
+          budget_alerts: settingsToSave.notifications.budgetAlerts,
+          monthly_reports: settingsToSave.notifications.monthlyReports,
           app_preferences: {
-            currency: settings.preferences.currency,
-            language: settings.preferences.language
-          }
+            currency: settingsToSave.preferences.currency,
+            language: settingsToSave.preferences.language
+          } as { currency: string; language: string },
+          updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Settings update error:", error);
+        
+        // If error occurs because app_preferences column doesn't exist, try to alter the table
+        if (error.message.includes("column \"app_preferences\" does not exist")) {
+          console.log("Attempting to add app_preferences column to user_settings table...");
+          
+          // Create the column if it doesn't exist
+          const { error: alterError } = await supabase.rpc('add_app_preferences_column');
+          
+          if (alterError) {
+            console.error("Error adding app_preferences column:", alterError);
+            throw alterError;
+          }
+          
+          // Retry saving settings after column is added
+          const { error: retryError } = await supabase
+            .from('user_settings')
+            .upsert({
+              user_id: user.id,
+              email_notifications: settingsToSave.notifications.email,
+              budget_alerts: settingsToSave.notifications.budgetAlerts,
+              monthly_reports: settingsToSave.notifications.monthlyReports,
+              app_preferences: {
+                currency: settingsToSave.preferences.currency,
+                language: settingsToSave.preferences.language
+              } as { currency: string; language: string },
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+          
+          if (retryError) throw retryError;
+        } else {
+          throw error;
+        }
+      }
 
       toast.success("Ayarlarınız güncellendi");
     } catch (error) {
       console.error("Settings update error:", error);
       toast.error("Ayarlar güncellenirken bir hata oluştu");
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const saveSettings = async () => {
+    setLoading(true);
+    await saveSettingsToSupabase(settings);
+    setLoading(false);
   };
 
   const deleteAccount = async () => {
@@ -151,6 +273,18 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
+
+  // Yükleniyor göstergesi
+  if (settingsLoading) {
+    return (
+      <div className="container py-6 flex justify-center items-center min-h-[500px]">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Ayarlar yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-6">
