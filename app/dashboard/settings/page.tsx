@@ -15,12 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bell, Moon, Sun, Languages, CreditCard, Trash2 } from "lucide-react";
+import { Bell, Moon, Sun, Languages, CreditCard, Trash2, BadgePlus } from "lucide-react";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { supabase, user, signOut } = useSupabase();
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
   const [settings, setSettings] = useState({
     notifications: {
       email: true,
@@ -61,6 +63,9 @@ export default function SettingsPage() {
         if (userSettingsData) {
           console.log("Mevcut kullanıcı ayarları:", userSettingsData);
           
+          // Abonelik durumunu ayarla
+          setSubscriptionStatus(userSettingsData.subscription_status || 'free');
+          
           // Profil bilgilerini güncelle
           setSettings({
             notifications: {
@@ -69,10 +74,8 @@ export default function SettingsPage() {
               monthlyReports: typeof userSettingsData.monthly_reports === 'boolean' ? userSettingsData.monthly_reports : true,
             },
             preferences: {
-              currency: userSettingsData.app_preferences && typeof userSettingsData.app_preferences === 'object' ? 
-                String(userSettingsData.app_preferences.currency || "TRY") : "TRY",
-              language: userSettingsData.app_preferences && typeof userSettingsData.app_preferences === 'object' ? 
-                String(userSettingsData.app_preferences.language || "tr") : "tr",
+              currency: userSettingsData.app_preferences?.currency || "TRY",
+              language: userSettingsData.app_preferences?.language || "tr",
             }
           });
         } else {
@@ -103,6 +106,12 @@ export default function SettingsPage() {
   }, [supabase, user]);
 
   const handleNotificationChange = async (field: string, value: boolean) => {
+    // Ücretsiz planda değişiklik yapılmasını engelle
+    if (subscriptionStatus !== 'premium') {
+      toast.error('Bu özellik yalnızca Premium abonelikle kullanılabilir.');
+      return;
+    }
+    
     // Önce yerel state'i güncelle
     const updatedSettings = {
       ...settings,
@@ -151,51 +160,20 @@ export default function SettingsPage() {
           monthly_reports: settingsToSave.notifications.monthlyReports,
           app_preferences: {
             currency: settingsToSave.preferences.currency,
-            language: settingsToSave.preferences.language
-          } as { currency: string; language: string },
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+            language: settingsToSave.preferences.language,
+          }
+        });
 
       if (error) {
-        console.error("Settings update error:", error);
-        
-        // If error occurs because app_preferences column doesn't exist, try to alter the table
-        if (error.message.includes("column \"app_preferences\" does not exist")) {
-          console.log("Attempting to add app_preferences column to user_settings table...");
-          
-          // Create the column if it doesn't exist
-          const { error: alterError } = await supabase.rpc('add_app_preferences_column');
-          
-          if (alterError) {
-            console.error("Error adding app_preferences column:", alterError);
-            throw alterError;
-          }
-          
-          // Retry saving settings after column is added
-          const { error: retryError } = await supabase
-            .from('user_settings')
-            .upsert({
-              user_id: user.id,
-              email_notifications: settingsToSave.notifications.email,
-              budget_alerts: settingsToSave.notifications.budgetAlerts,
-              monthly_reports: settingsToSave.notifications.monthlyReports,
-              app_preferences: {
-                currency: settingsToSave.preferences.currency,
-                language: settingsToSave.preferences.language
-              } as { currency: string; language: string },
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id' });
-          
-          if (retryError) throw retryError;
-        } else {
-          throw error;
-        }
+        console.error('Ayarlar kaydedilirken hata:', error);
+        toast.error('Ayarlar kaydedilirken bir hata oluştu');
+        return;
       }
 
-      toast.success("Ayarlarınız güncellendi");
+      toast.success('Ayarlar başarıyla kaydedildi');
     } catch (error) {
-      console.error("Settings update error:", error);
-      toast.error("Ayarlar güncellenirken bir hata oluştu");
+      console.error('Ayarlar kaydedilirken hata:', error);
+      toast.error('Ayarlar kaydedilirken bir hata oluştu');
     }
   };
 
@@ -206,80 +184,44 @@ export default function SettingsPage() {
   };
 
   const deleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz silinecektir."
-    );
+    if (!supabase || !user) {
+      toast.error("Oturum bilgisi bulunamadı");
+      return;
+    }
 
-    if (!confirmed) return;
-
-    setLoading(true);
+    // Kullanıcıdan onay al
+    if (!window.confirm("Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.")) {
+      return;
+    }
 
     try {
-      if (!supabase || !user) {
-        throw new Error("Oturum bilgisi bulunamadı");
-      }
+      setLoading(true);
 
-      // Kullanıcının verilerini sil (işlemler, bütçe hedefleri, kategoriler vb.)
-      // Silme işlemlerini transaction içinde yapmak daha güvenli olacaktır,
-      // ancak şimdilik sırasıyla siliyoruz
-      
-      // Kullanıcının işlemlerini sil
-      await supabase
-        .from('transactions')
-        .delete()
-        .eq('user_id', user.id);
-      
-      // Kullanıcının bütçe hedeflerini sil
-      await supabase
-        .from('budget_goals')
-        .delete()
-        .eq('user_id', user.id);
-      
-      // Kullanıcının özel kategorilerini sil
-      await supabase
-        .from('categories')
-        .delete()
-        .eq('user_id', user.id);
-      
-      // Kullanıcının ayarlarını sil
-      await supabase
-        .from('user_settings')
-        .delete()
-        .eq('user_id', user.id);
-      
-      // Kullanıcının profilini sil
-      await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', user.id);
-      
-      // En son kullanıcı hesabını sil
+      // Kullanıcının verilerini sil (cascade ile otomatik silinebilir veya manuel silme işlemleri)
+      // Bu örnek için sadece auth.users tablosundan siliyoruz
       const { error } = await supabase.auth.admin.deleteUser(user.id);
-      
+
       if (error) {
-        // Eğer admin API erişimi yoksa, alternatif olarak:
-        // Kullanıcının oturumunu sonlandır ve yöneticiden hesabın silinmesini talep et
-        await supabase.auth.signOut();
-        toast.info("Hesabınız silinmek üzere işaretlendi. Yönetici onayından sonra tamamen silinecektir.");
-        return;
+        throw error;
       }
 
+      // Oturumu kapat
+      await signOut();
       toast.success("Hesabınız başarıyla silindi");
-      signOut();
+      window.location.href = "/";
     } catch (error) {
-      console.error("Account deletion error:", error);
-      toast.error("Hesap silinirken bir hata oluştu");
+      console.error('Hesap silme hatası:', error);
+      toast.error('Hesabınız silinirken bir hata oluştu');
     } finally {
       setLoading(false);
     }
   };
 
-  // Yükleniyor göstergesi
+  // İçerik yüklenirken yükleme spinner'ı göster
   if (settingsLoading) {
     return (
-      <div className="container py-6 flex justify-center items-center min-h-[500px]">
-        <div className="flex flex-col items-center gap-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="container py-6">
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <p className="text-muted-foreground">Ayarlar yükleniyor...</p>
         </div>
       </div>
@@ -307,6 +249,7 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* E-posta Bildirimleri */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="email-notifications">E-posta Bildirimleri</Label>
@@ -314,13 +257,26 @@ export default function SettingsPage() {
                   Önemli güncellemeler ve bildirimler için e-posta alın
                 </p>
               </div>
-              <Switch
-                id="email-notifications"
-                checked={settings.notifications.email}
-                onCheckedChange={(checked) => handleNotificationChange("email", checked)}
-              />
+              {subscriptionStatus === 'premium' ? (
+                <Switch
+                  id="email-notifications"
+                  checked={settings.notifications.email}
+                  onCheckedChange={(checked) => handleNotificationChange("email", checked)}
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/dashboard/subscription" className="text-xs flex items-center">
+                      <BadgePlus className="h-4 w-4 mr-1" />
+                      Premium
+                    </Link>
+                  </Button>
+                  <Switch disabled />
+                </div>
+              )}
             </div>
-            <Separator />
+
+            {/* Bütçe Uyarıları */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="budget-alerts">Bütçe Uyarıları</Label>
@@ -328,13 +284,26 @@ export default function SettingsPage() {
                   Bütçe limitinize yaklaştığınızda veya aştığınızda bildirim alın
                 </p>
               </div>
-              <Switch
-                id="budget-alerts"
-                checked={settings.notifications.budgetAlerts}
-                onCheckedChange={(checked) => handleNotificationChange("budgetAlerts", checked)}
-              />
+              {subscriptionStatus === 'premium' ? (
+                <Switch
+                  id="budget-alerts"
+                  checked={settings.notifications.budgetAlerts}
+                  onCheckedChange={(checked) => handleNotificationChange("budgetAlerts", checked)}
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/dashboard/subscription" className="text-xs flex items-center">
+                      <BadgePlus className="h-4 w-4 mr-1" />
+                      Premium
+                    </Link>
+                  </Button>
+                  <Switch disabled />
+                </div>
+              )}
             </div>
-            <Separator />
+
+            {/* Aylık Raporlar */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="monthly-reports">Aylık Raporlar</Label>
@@ -342,51 +311,57 @@ export default function SettingsPage() {
                   Her ayın sonunda finansal durumunuzla ilgili özet rapor alın
                 </p>
               </div>
-              <Switch
-                id="monthly-reports"
-                checked={settings.notifications.monthlyReports}
-                onCheckedChange={(checked) => handleNotificationChange("monthlyReports", checked)}
-              />
+              {subscriptionStatus === 'premium' ? (
+                <Switch
+                  id="monthly-reports"
+                  checked={settings.notifications.monthlyReports}
+                  onCheckedChange={(checked) => handleNotificationChange("monthlyReports", checked)}
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/dashboard/subscription" className="text-xs flex items-center">
+                      <BadgePlus className="h-4 w-4 mr-1" />
+                      Premium
+                    </Link>
+                  </Button>
+                  <Switch disabled />
+                </div>
+              )}
             </div>
+
+            {subscriptionStatus !== 'premium' && (
+              <div className="bg-primary-foreground/20 p-3 rounded-md mt-4 text-sm">
+                <p>
+                  E-posta bildirimleri ve hatırlatıcılar Premium pakete özel bir özelliktir.{" "}
+                  <Link href="/dashboard/subscription" className="text-primary font-medium hover:underline">
+                    Premium'a yükselterek bu özelliklere erişebilirsiniz
+                  </Link>.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-muted-foreground" />
+              <Languages className="h-5 w-5 text-muted-foreground" />
               <CardTitle>Uygulama Tercihleri</CardTitle>
             </div>
             <CardDescription>
-              Uygulama deneyiminizi özelleştirin
+              Uygulama için tercih ettiğiniz ayarları belirleyin
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currency">Para Birimi</Label>
-              <Select
-                value={settings.preferences.currency}
-                onValueChange={(value) => handlePreferenceChange("currency", value)}
-              >
-                <SelectTrigger id="currency">
-                  <SelectValue placeholder="Para birimi seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TRY">Türk Lirası (₺)</SelectItem>
-                  <SelectItem value="USD">Amerikan Doları ($)</SelectItem>
-                  <SelectItem value="EUR">Euro (€)</SelectItem>
-                  <SelectItem value="GBP">İngiliz Sterlini (£)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="language">Dil</Label>
               <Select
                 value={settings.preferences.language}
                 onValueChange={(value) => handlePreferenceChange("language", value)}
               >
-                <SelectTrigger id="language">
-                  <SelectValue placeholder="Dil seçin" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Bir dil seçin" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tr">Türkçe</SelectItem>
@@ -394,10 +369,27 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="currency">Para Birimi</Label>
+              <Select
+                value={settings.preferences.currency}
+                onValueChange={(value) => handlePreferenceChange("currency", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Bir para birimi seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TRY">Türk Lirası (₺)</SelectItem>
+                  <SelectItem value="USD">US Dollar ($)</SelectItem>
+                  <SelectItem value="EUR">Euro (€)</SelectItem>
+                  <SelectItem value="GBP">Pound Sterling (£)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
           <CardFooter>
             <Button onClick={saveSettings} disabled={loading}>
-              {loading ? "Kaydediliyor..." : "Ayarları Kaydet"}
+              {loading ? "Kaydediliyor..." : "Tercihleri Kaydet"}
             </Button>
           </CardFooter>
         </Card>
@@ -405,24 +397,50 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
-              <CardTitle className="text-destructive">Hesabı Sil</CardTitle>
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Abonelik</CardTitle>
             </div>
             <CardDescription>
-              Hesabınızı ve tüm verilerinizi kalıcı olarak silin
+              Mevcut abonelik planınızı görüntüleyin veya değiştirin
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Bu işlem geri alınamaz. Hesabınız ve tüm verileriniz kalıcı olarak silinecektir.
-              Devam etmeden önce gerekli verileri yedeklediğinizden emin olun.
-            </p>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-medium">Mevcut Plan</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {subscriptionStatus === 'premium' ? 'Premium' : 'Ücretsiz'}
+                  </p>
+                </div>
+                <Button variant="outline" asChild>
+                  <Link href="/dashboard/subscription">
+                    {subscriptionStatus === 'premium' ? 'Aboneliği Yönet' : 'Yükselt'}
+                  </Link>
+                </Button>
+              </div>
+            </div>
           </CardContent>
-          <CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Tehlikeli Bölge</CardTitle>
+            </div>
+            <CardDescription>
+              Hesabınızı ve tüm verilerinizi kalıcı olarak silme
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Hesabınızı sildiğinizde, tüm verileriniz kalıcı olarak silinecektir ve bu işlem geri alınamaz.
+            </p>
             <Button variant="destructive" onClick={deleteAccount} disabled={loading}>
-              {loading ? "İşleniyor..." : "Hesabı Sil"}
+              {loading ? "İşleniyor..." : "Hesabımı Sil"}
             </Button>
-          </CardFooter>
+          </CardContent>
         </Card>
       </div>
     </div>

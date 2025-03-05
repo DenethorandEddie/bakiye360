@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Target } from "lucide-react";
+import Link from "next/link";
 
 // Define types for our data structures
 interface BudgetGoal {
@@ -63,12 +64,42 @@ export default function BudgetGoalsPage() {
     target: "",
   });
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  // Kullanıcı abonelik durumu
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
 
   useEffect(() => {
     if (!user) {
       setLoading(false);
+      setLoadingSubscription(false);
       return;
     }
+
+    // Kullanıcının abonelik durumunu kontrol et
+    const checkSubscription = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('subscription_status')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Abonelik bilgisi alınamadı:', error);
+          toast.error('Abonelik bilgisi yüklenemedi');
+        }
+
+        if (data) {
+          setSubscriptionStatus(data.subscription_status || 'free');
+        }
+      } catch (error) {
+        console.error('Abonelik kontrolünde hata:', error);
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+
+    checkSubscription();
 
     const fetchData = async () => {
       setLoading(true);
@@ -98,442 +129,417 @@ export default function BudgetGoalsPage() {
           .eq('user_id', user.id);
         
         if (budgetGoalsError) throw budgetGoalsError;
-        console.log("Çekilen işlem sayısı:", budgetGoalsData ? budgetGoalsData.length : 0);
         
-        // 3. Fetch transactions to calculate current expenses
+        if (budgetGoalsData) {
+          const typedGoals = budgetGoalsData.map(goal => ({
+            ...goal,
+            id: String(goal.id),
+            user_id: String(goal.user_id),
+            category_id: String(goal.category_id),
+            target: Number(goal.target),
+            current: Number(goal.current) || 0
+          }));
+          setGoals(typedGoals);
+          console.log("Bütçe hedefleri:", typedGoals);
+        }
+
+        // 3. Fetch transactions for current month to calculate progress
+        const now = new Date();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        
         const { data: transactionsData, error: transactionsError } = await supabase
           .from('transactions')
           .select('*')
           .eq('user_id', user.id)
-          .eq('type', 'expense');
+          .eq('type', 'expense')
+          .gte('date', firstDayOfMonth)
+          .lte('date', lastDayOfMonth);
         
         if (transactionsError) throw transactionsError;
         
-        // Veriyi doğru tiplerle işleme
-        const typedTransactions: Transaction[] = transactionsData ? transactionsData.map((t: any) => ({
-          id: String(t.id),
-          user_id: String(t.user_id),
-          amount: Number(t.amount),
-          type: String(t.type),
-          category_id: String(t.category_id),
-          date: String(t.date),
-          description: t.description ? String(t.description) : undefined,
-          created_at: t.created_at ? String(t.created_at) : undefined
-        })) : [];
-        
-        // 3.1 Sadece mevcut aya ait işlemleri filtrele
-        const today = new Date();
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        
-        const currentMonthTransactions = typedTransactions.filter(transaction => {
-          const transactionDate = new Date(transaction.date);
-          return transactionDate >= startOfMonth && transactionDate <= endOfMonth;
-        });
-        
-        // 3.2 Kategorilere göre harcamaları hesapla (sadece mevcut ay için)
-        const categoryExpenses: Record<string, number> = {};
-        currentMonthTransactions.forEach(transaction => {
-          const categoryId = transaction.category_id;
-          if (categoryId) {
-            categoryExpenses[categoryId] = (categoryExpenses[categoryId] || 0) + transaction.amount;
-          }
-        });
-        
-        setExpenses(categoryExpenses);
-        
-        // 4. Her bir bütçe hedefine mevcut harcama bilgisini ekle
-        if (budgetGoalsData) {
-          // 4.1 Aktif bütçe hedeflerini filtrele
-          const activeGoals = budgetGoalsData.filter(goal => {
-            // Eğer başlangıç ve bitiş tarihi varsa, hedefin şu an aktif olup olmadığını kontrol et
-            if (goal.start_date && goal.end_date) {
-              const startDate = new Date(goal.start_date as string);
-              const endDate = new Date(goal.end_date as string);
-              const now = new Date();
-              return now >= startDate && now <= endDate;
-            }
-            // Tarih bilgisi yoksa varsayılan olarak aktif kabul et
-            return true;
-          });
-        
-          const goalsWithCurrentExpenses = activeGoals.map(goal => {
-            // Kategori ID'sini al
-            const categoryId = goal.category_id as string;
+        if (transactionsData) {
+          // Calculate total expenses by category
+          const categoryExpenses: Record<string, number> = {};
+          
+          transactionsData.forEach((transaction: Transaction) => {
+            const categoryId = String(transaction.category_id);
+            const amount = Number(transaction.amount);
             
-            return {
-              id: goal.id,
-              name: goal.name,
-              category_id: categoryId,
-              target: goal.target_amount, // Veritabanında 'target_amount' olarak saklanıyor
-              user_id: goal.user_id,
-              start_date: goal.start_date,
-              end_date: goal.end_date,
-              current: categoryExpenses[categoryId] || 0
-            } as BudgetGoal;
+            if (!categoryExpenses[categoryId]) {
+              categoryExpenses[categoryId] = 0;
+            }
+            
+            categoryExpenses[categoryId] += amount;
           });
           
-          setGoals(goalsWithCurrentExpenses);
-        } else {
-          setGoals([]);
+          setExpenses(categoryExpenses);
+          console.log("Kategori bazlı harcamalar:", categoryExpenses);
         }
       } catch (error) {
-        console.error('Veri yüklenirken hata oluştu:', error);
-        toast.error('Veriler yüklenirken bir hata oluştu');
+        console.error("Veri yükleme hatası:", error);
+        toast.error("Bütçe hedefleri yüklenirken bir hata oluştu");
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [supabase, user?.id]);
+  }, [supabase, user]);
 
-  const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
 
-  const handleOpenDialog = (goal: any = null) => {
-    if (goal) {
-      setIsEditing(true);
-      setCurrentGoal(goal);
-      setFormData({
-        name: goal.name,
-        category: goal.category_id, // Use category_id for editing
-        target: goal.target.toString(),
-      });
-    } else {
-      setIsEditing(false);
-      setCurrentGoal(null);
+  const handleSelectChange = (value: string) => {
+    setFormData({ ...formData, category: value });
+  };
+
+  const handleCreateBudgetGoal = async () => {
+    // Ücretsiz pakette 1'den fazla bütçe hedefi kontrolü
+    if (subscriptionStatus === 'free' && goals.length >= 1 && !isEditing) {
+      toast.error('Ücretsiz pakette yalnızca 1 bütçe hedefi oluşturabilirsiniz. Premium pakete yükseltin.');
+      setIsDialogOpen(false);
+      return;
+    }
+
+    try {
+      if (!formData.name || !formData.category || !formData.target) {
+        toast.error("Lütfen tüm alanları doldurun");
+        return;
+      }
+
+      if (isEditing && currentGoal) {
+        // Update existing goal
+        const { error } = await supabase
+          .from('budget_goals')
+          .update({
+            name: formData.name,
+            category_id: formData.category,
+            target: parseFloat(formData.target),
+          })
+          .eq('id', currentGoal.id);
+
+        if (error) throw error;
+
+        toast.success("Bütçe hedefi güncellendi");
+        
+        // Update local state
+        setGoals(goals.map(goal => 
+          goal.id === currentGoal.id 
+            ? { 
+                ...goal, 
+                name: formData.name, 
+                category_id: formData.category, 
+                target: parseFloat(formData.target) 
+              } 
+            : goal
+        ));
+      } else {
+        // Create new goal
+        const { data, error } = await supabase
+          .from('budget_goals')
+          .insert({
+            name: formData.name,
+            category_id: formData.category,
+            target: parseFloat(formData.target),
+            current: 0,
+            user_id: user?.id,
+          })
+          .select();
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          toast.success("Yeni bütçe hedefi oluşturuldu");
+          
+          // Add to local state
+          const newGoal: BudgetGoal = {
+            ...data[0],
+            id: String(data[0].id),
+            user_id: String(data[0].user_id),
+            category_id: String(data[0].category_id),
+            target: Number(data[0].target),
+            current: Number(data[0].current) || 0
+          };
+          
+          setGoals([...goals, newGoal]);
+        }
+      }
+
+      // Reset form
       setFormData({
         name: "",
         category: "",
         target: "",
       });
+      setIsEditing(false);
+      setCurrentGoal(null);
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Bütçe hedefi oluşturma hatası:", error);
+      toast.error("Bütçe hedefi oluşturulurken bir hata oluştu");
     }
+  };
+
+  const handleEditBudgetGoal = (goal: BudgetGoal) => {
+    setCurrentGoal(goal);
+    setFormData({
+      name: goal.name,
+      category: goal.category_id,
+      target: goal.target.toString(),
+    });
+    setIsEditing(true);
     setIsDialogOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setIsEditing(false);
-    setCurrentGoal(null);
-    setFormData({
-      name: "",
-      category: "",
-      target: "",
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user) {
-      toast.error("Lütfen giriş yapın");
-      return;
-    }
-    
-    if (!formData.name || !formData.category || !formData.target) {
-      toast.error("Lütfen tüm alanları doldurun");
-      return;
-    }
-    
-    // Hedef tutarın geçerli bir sayı olduğundan emin olalım
-    const targetAmount = parseFloat(formData.target);
-    if (isNaN(targetAmount) || targetAmount <= 0) {
-      toast.error("Lütfen geçerli bir hedef tutar girin");
-      return;
-    }
-    
+  const handleDeleteBudgetGoal = async (goalId: string) => {
     try {
-      // Supabase'in bütçe hedefleri tablosuna gönderilecek veri
-      const newGoalData = {
-        name: formData.name,
-        category_id: formData.category, // This is now a UUID from the database
-        target_amount: targetAmount,
-        start_date: new Date().toISOString().split('T')[0], // Current date as start date
-        end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0], // One month from now as end date
-        user_id: user.id
-      };
-      
-      console.log("Kaydedilecek bütçe hedefi verisi:", newGoalData);
-      
-      if (isEditing && currentGoal) {
-        // Bütçe hedefini güncelle
-        const { error } = await supabase
-          .from('budget_goals')
-          .update({
-            name: formData.name,
-            category_id: formData.category, // This is now a UUID from the database
-            target_amount: targetAmount,
-            // Not updating start_date and end_date during edit to preserve original values
-          })
-          .eq('id', currentGoal.id)
-          .eq('user_id', user.id);
-          
-        if (error) {
-          console.error("Bütçe güncelleme hatası detayları:", error);
-          throw error;
-        }
-        
-        // Yerel state'i güncelle
-        setGoals(goals.map(goal => 
-          goal.id === currentGoal.id 
-            ? { ...goal, name: formData.name, category_id: formData.category, target: targetAmount } 
-            : goal
-        ));
-        
-        toast.success("Bütçe hedefi güncellendi");
-      } else {
-        // Yeni bütçe hedefi ekle
-        const { data, error } = await supabase
-          .from('budget_goals')
-          .insert({
-            name: formData.name,
-            category_id: formData.category, // This is now a UUID from the database
-            target_amount: targetAmount,
-            start_date: new Date().toISOString().split('T')[0], // Current date as start date
-            end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0], // One month from now as end date
-            user_id: user.id
-          })
-          .select();
-          
-        if (error) {
-          console.error("Bütçe ekleme hatası detayları:", error);
-          throw error;
-        }
-        
-        if (!data || data.length === 0) {
-          throw new Error("Bütçe hedefi eklendi ancak veri döndürülmedi");
-        }
-        
-        // Yerel state'i güncelle
-        const newGoal: BudgetGoal = { 
-          id: String(data[0].id),
-          name: String(data[0].name),
-          category_id: formData.category,
-          target: targetAmount,
-          user_id: String(data[0].user_id),
-          current: expenses[formData.category] || 0 
-        };
-        
-        setGoals([...goals, newGoal]);
-        
-        toast.success("Bütçe hedefi eklendi");
-      }
-      
-      // Formu sıfırla ve dialog'u kapat
-      setFormData({ name: "", category: "", target: "" });
-      setIsDialogOpen(false);
-      setIsEditing(false);
-      setCurrentGoal(null);
-    } catch (error) {
-      console.error("Bütçe hedefi kaydedilirken hata oluştu:", error);
-      toast.error("Bütçe hedefi kaydedilirken bir hata oluştu");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      // Veritabanından sil
       const { error } = await supabase
         .from('budget_goals')
         .delete()
-        .eq('id', id)
-        .eq('user_id', user?.id);
-        
+        .eq('id', goalId);
+
       if (error) throw error;
-      
-      // Yerel state'i güncelle
-      setGoals(goals.filter(goal => goal.id !== id));
+
       toast.success("Bütçe hedefi silindi");
+      
+      // Update local state
+      setGoals(goals.filter(goal => goal.id !== goalId));
     } catch (error) {
-      console.error("Bütçe hedefi silinirken hata oluştu:", error);
+      console.error("Bütçe hedefi silme hatası:", error);
       toast.error("Bütçe hedefi silinirken bir hata oluştu");
     }
   };
 
-  const getCategoryLabel = (categoryId: string) => {
-    const category = categories.find((cat) => cat.id === categoryId);
-    return category ? category.name : categoryId;
+  const getProgressPercentage = (goal: BudgetGoal) => {
+    const categoryId = goal.category_id;
+    const spent = expenses[categoryId] || 0;
+    const percentage = (spent / goal.target) * 100;
+    
+    // Limit percentage to 100% for display purposes
+    return Math.min(percentage, 100);
   };
 
-  // Hedefin aktif olup olmadığını kontrol eden fonksiyon
-  const isGoalActive = (goal: BudgetGoal) => {
-    // Eğer başlangıç veya bitiş tarihi yoksa her zaman aktif
-    if (!goal.start_date || !goal.end_date) {
-      return true;
-    }
-    
-    try {
-      const today = new Date();
-      const startDate = goal.start_date ? new Date(goal.start_date) : null;
-      const endDate = goal.end_date ? new Date(goal.end_date) : null;
-      
-      // Eğer startDate veya endDate geçerli bir tarih değilse 
-      if (!startDate || !endDate) {
-        return true;
-      }
-      
-      return today >= startDate && today <= endDate;
-    } catch (error) {
-      console.error("Tarih değerlendirme hatası:", error);
-      return true; // Hata durumunda hedefi aktif kabul et
-    }
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.name : 'Bilinmeyen Kategori';
   };
+
+  const isPremiumEligible = () => {
+    return subscriptionStatus === 'premium' || goals.length < 1;
+  };
+
+  if (loading || loadingSubscription) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-lg text-muted-foreground">Yükleniyor...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-6">
-      <div className="flex flex-col md:flex-row items-start justify-between mb-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Bütçe Hedefleri</h1>
           <p className="text-muted-foreground">
-            Harcama kategorileriniz için bütçe hedefleri belirleyin ve takip edin
+            Harcamalarınızı kontrol altında tutmak için kategori bazlı bütçe hedefleri oluşturun
           </p>
         </div>
-        <div className="mt-4 md:mt-0">
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => handleOpenDialog()}>
-                <Plus className="mr-2 h-4 w-4" />
-                Yeni Hedef
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{isEditing ? "Hedefi Düzenle" : "Yeni Bütçe Hedefi"}</DialogTitle>
-                <DialogDescription>
-                  {isEditing 
-                    ? "Bütçe hedefi bilgilerini güncelleyin" 
-                    : "Yeni bir bütçe hedefi eklemek için aşağıdaki bilgileri doldurun"}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit}>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Hedef Adı</Label>
-                    <Input
-                      id="name"
-                      placeholder="Örn: Aylık Yiyecek Bütçesi"
-                      value={formData.name}
-                      onChange={(e) => handleChange("name", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Kategori</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) => handleChange("category", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Kategori seçin" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="target">Hedef Tutar (₺)</Label>
-                    <Input
-                      id="target"
-                      type="number"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                      value={formData.target}
-                      onChange={(e) => handleChange("target", e.target.value)}
-                    />
+        <Button 
+          onClick={() => {
+            if (subscriptionStatus === 'free' && goals.length >= 1) {
+              toast.error(
+                <div className="space-y-2">
+                  <p>Ücretsiz pakette yalnızca 1 bütçe hedefi oluşturabilirsiniz.</p>
+                  <div className="pt-2">
+                    <Link href="/dashboard/subscription" className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 text-sm font-medium">
+                      Premium'a Yükselt
+                    </Link>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                    İptal
-                  </Button>
-                  <Button type="submit">
-                    {isEditing ? "Güncelle" : "Ekle"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+              );
+              return;
+            }
+            setIsDialogOpen(true);
+            setIsEditing(false);
+            setFormData({
+              name: "",
+              category: "",
+              target: "",
+            });
+          }}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Yeni Bütçe Hedefi
+        </Button>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <p>Yükleniyor...</p>
-        </div>
-      ) : goals.length === 0 ? (
+      {!isPremiumEligible() && (
+        <Card className="mb-6 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="bg-amber-100 dark:bg-amber-900/50 p-2 rounded-full">
+                <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-medium">Bütçe Hedefi Limitine Ulaştınız</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ücretsiz pakette yalnızca 1 bütçe hedefi oluşturabilirsiniz. Daha fazla bütçe hedefi eklemek için{" "}
+                  <Link href="/dashboard/subscription" className="text-primary font-medium hover:underline">
+                    Premium Pakete yükseltin
+                  </Link>.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {goals.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center h-64">
+          <CardContent className="flex flex-col items-center justify-center py-10">
             <Target className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground mb-4">Henüz bir bütçe hedefi oluşturmadınız</p>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button onClick={() => handleOpenDialog()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  İlk Hedefi Oluştur
-                </Button>
-              </DialogTrigger>
-            </Dialog>
+            <h3 className="text-lg font-medium">Henüz bütçe hedefi oluşturmadınız</h3>
+            <p className="text-muted-foreground text-center max-w-md mt-1 mb-4">
+              Bütçe hedefleri ile harcamalarınızı kategorilere göre sınırlandırabilir ve kontrolü elinizde tutabilirsiniz.
+            </p>
+            <Button 
+              onClick={() => {
+                setIsDialogOpen(true);
+                setIsEditing(false);
+                setFormData({
+                  name: "",
+                  category: "",
+                  target: "",
+                });
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              İlk Bütçe Hedefini Oluştur
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
-          {goals.map((goal) => {
-            const progress = (goal.current / goal.target) * 100;
-            const isOverBudget = goal.current > goal.target;
-            
-            return (
-              <Card key={goal.id} className="mb-4">
-                <CardHeader className="flex flex-row items-start justify-between pb-2">
-                  <div>
-                    <CardTitle>{goal.name}</CardTitle>
-                    <CardDescription>{getCategoryLabel(goal.category_id)}</CardDescription>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="icon" onClick={() => handleOpenDialog(goal)}>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {goals.map((goal) => (
+            <Card key={goal.id}>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex justify-between items-center">
+                  <span>{goal.name}</span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditBudgetGoal(goal)}
+                      className="h-8 w-8"
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => handleDelete(goal.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteBudgetGoal(goal.id)}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">İlerleme</span>
-                      <span className={`font-medium ${isOverBudget ? "text-red-500" : ""}`}>
-                        ₺{goal.current.toLocaleString('tr-TR')} / ₺{goal.target.toLocaleString('tr-TR')}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={Math.min(progress, 100)} 
-                      className={isOverBudget ? "bg-red-200" : ""}
-                    />
-                    <div className="text-sm text-right">
-                      {isOverBudget ? (
-                        <span className="text-red-500">
-                          Bütçe aşımı: ₺{(goal.current - goal.target).toLocaleString('tr-TR')}
-                        </span>
-                      ) : (
-                        <span className="text-green-500">
-                          Kalan: ₺{(goal.target - goal.current).toLocaleString('tr-TR')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                </CardTitle>
+                <CardDescription>
+                  {getCategoryName(goal.category_id)}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <div className="mb-2">
+                  <Progress value={getProgressPercentage(goal)} className="h-2" />
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>
+                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(expenses[goal.category_id] || 0)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(goal.target)}
+                  </span>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <div className="text-xs text-muted-foreground w-full">
+                  {getProgressPercentage(goal) >= 100 ? (
+                    <span className="text-destructive font-medium">Bütçe limitini aştınız!</span>
+                  ) : getProgressPercentage(goal) >= 85 ? (
+                    <span className="text-amber-500 dark:text-amber-400 font-medium">Bütçe limitine yaklaştınız!</span>
+                  ) : (
+                    <span>
+                      Kalan:{" "}
+                      {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(goal.target - (expenses[goal.category_id] || 0))}
+                    </span>
+                  )}
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isEditing ? "Bütçe Hedefini Düzenle" : "Yeni Bütçe Hedefi Oluştur"}</DialogTitle>
+            <DialogDescription>
+              Kategoriye özel bir bütçe limiti belirleyin
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Hedef Adı</Label>
+              <Input
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="Aylık market harcaması"
+              />
+            </div>
+            <div>
+              <Label htmlFor="category">Kategori</Label>
+              <Select value={formData.category} onValueChange={handleSelectChange}>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Kategori seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="target">Hedef Tutar (₺)</Label>
+              <Input
+                id="target"
+                name="target"
+                type="number"
+                value={formData.target}
+                onChange={handleInputChange}
+                placeholder="1000"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              İptal
+            </Button>
+            <Button onClick={handleCreateBudgetGoal}>
+              {isEditing ? "Güncelle" : "Oluştur"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
