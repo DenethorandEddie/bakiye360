@@ -28,6 +28,12 @@ const renderActiveShape = (props: any) => {
     fill, payload, percent, value, name
   } = props;
 
+  // Küçük ekranlarda daha küçük yazı boyutları
+  const isMobile = window.innerWidth < 768;
+  const titleSize = isMobile ? '14px' : '16px';
+  const valueSize = isMobile ? '18px' : '22px';
+  const percentSize = isMobile ? '12px' : '14px';
+
   return (
     <g>
       <Sector
@@ -54,7 +60,7 @@ const renderActiveShape = (props: any) => {
         dy={-20} 
         textAnchor="middle" 
         fill={fill}
-        style={{ fontWeight: 'bold', fontSize: '16px' }}
+        style={{ fontWeight: 'bold', fontSize: titleSize }}
       >
         {name}
       </text>
@@ -63,7 +69,7 @@ const renderActiveShape = (props: any) => {
         y={cy} 
         textAnchor="middle" 
         fill={fill}
-        style={{ fontSize: '22px', fontWeight: 'bold' }}
+        style={{ fontSize: valueSize, fontWeight: 'bold' }}
       >
         ₺{value.toLocaleString('tr-TR')}
       </text>
@@ -73,7 +79,7 @@ const renderActiveShape = (props: any) => {
         dy={24} 
         textAnchor="middle" 
         fill="#999"
-        style={{ fontSize: '14px' }}
+        style={{ fontSize: percentSize }}
       >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
@@ -140,7 +146,7 @@ const CustomTooltip = ({ active, payload, label }: {
 }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-background border rounded-lg shadow-md p-3">
+      <div className="bg-background border rounded-lg shadow-md p-2 sm:p-3 text-xs sm:text-sm">
         <p className="font-medium">{`${label}`}</p>
         {payload.map((entry, index) => (
           <p key={`item-${index}`} style={{ color: entry.color }}>
@@ -163,12 +169,12 @@ const CustomRadialBarTooltip = ({ active, payload }) => {
     
     // Tooltip içeriğini tamamen özelleştir
     return (
-      <div className="bg-black bg-opacity-90 text-white rounded-lg shadow-md p-3" style={{ border: 'none' }}>
+      <div className="bg-black bg-opacity-90 text-white rounded-lg shadow-md p-2 sm:p-3 text-xs sm:text-sm" style={{ border: 'none' }}>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: fill }} />
+          <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-sm" style={{ backgroundColor: fill }} />
           <span className="font-medium">{name}</span>
         </div>
-        <p className="text-lg font-bold mt-1">₺{value.toLocaleString('tr-TR')}</p>
+        <p className="text-base sm:text-lg font-bold mt-1">₺{value.toLocaleString('tr-TR')}</p>
       </div>
     );
   }
@@ -202,6 +208,26 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [savingsHistory, setSavingsHistory] = useState<any[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("thisMonth");
+
+  // Mobil ekran kontrolü için state
+  const [isMobileView, setIsMobileView] = useState(false);
+  
+  useEffect(() => {
+    // Ekran boyutunu kontrol et
+    const checkMobileView = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    // İlk render'da kontrol et
+    checkMobileView();
+    
+    // Ekran boyutu değiştiğinde kontrol et
+    window.addEventListener('resize', checkMobileView);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobileView);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -686,7 +712,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px]">
+              <div className="h-[250px] sm:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={monthlyData}
@@ -705,15 +731,17 @@ export default function DashboardPage() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: isMobileView ? 10 : 12 }}
                       axisLine={false}
                       tickLine={false}
+                      interval={isMobileView ? 1 : 0}
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: isMobileView ? 10 : 12 }}
                       tickFormatter={(value) => `₺${value/1000}K`}
+                      width={isMobileView ? 35 : 40}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Area 
@@ -821,7 +849,7 @@ export default function DashboardPage() {
               <CardDescription>Kategorilere göre harcama dağılımı</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[220px] sm:h-[250px]">
+              <div className="h-[200px] sm:h-[220px] md:h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                     <Pie
@@ -830,8 +858,8 @@ export default function DashboardPage() {
                       data={expensesByCategory}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60} 
-                      outerRadius={80}
+                      innerRadius={isMobileView ? 40 : 60} 
+                      outerRadius={isMobileView ? 60 : 80}
                       paddingAngle={2}
                       dataKey="value"
                       onMouseEnter={onPieEnter}
@@ -853,7 +881,7 @@ export default function DashboardPage() {
               <CardDescription>Aylık tasarruf miktarı değişimi</CardDescription>
             </CardHeader>
             <CardContent className="px-2">
-              <div className="h-[250px] sm:h-[300px]">
+              <div className="h-[220px] sm:h-[250px] md:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={savingsHistory}
@@ -867,11 +895,13 @@ export default function DashboardPage() {
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: isMobileView ? 10 : 12 }}
+                      interval={isMobileView ? 1 : 0}
                     />
                     <YAxis 
                       tickFormatter={(value) => `%${value}`} 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: isMobileView ? 10 : 12 }}
+                      width={isMobileView ? 35 : 40}
                     />
                     <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
                     
@@ -879,7 +909,7 @@ export default function DashboardPage() {
                       value: "Hedef %5", 
                       position: "insideBottomRight",
                       fill: "#ff8c00",
-                      fontSize: 12
+                      fontSize: isMobileView ? 10 : 12
                     }} />
                     
                     <Line
@@ -888,8 +918,8 @@ export default function DashboardPage() {
                       name="Tasarruf Oranı"
                       stroke="hsl(var(--chart-3))"
                       strokeWidth={2}
-                      dot={{ r: 4, strokeWidth: 2, fill: 'hsl(var(--chart-3))' }}
-                      activeDot={{ r: 6, strokeWidth: 2 }}
+                      dot={{ r: isMobileView ? 3 : 4, strokeWidth: 2, fill: 'hsl(var(--chart-3))' }}
+                      activeDot={{ r: isMobileView ? 5 : 6, strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -972,13 +1002,13 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>
                     <h3 className="text-lg font-medium mb-4">Gelir-Gider Dengesi</h3>
-                    <div className="h-[300px]">
+                    <div className="h-[250px] sm:h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <RadialBarChart 
                           width={500} 
                           height={300} 
-                          innerRadius="30%" 
-                          outerRadius="90%" 
+                          innerRadius={isMobileView ? "20%" : "30%"} 
+                          outerRadius={isMobileView ? "80%" : "90%"} 
                           data={[
                             {
                               name: 'Gelir',
@@ -1010,12 +1040,13 @@ export default function DashboardPage() {
                             labelList={false}
                           />
                           <Legend 
-                            iconSize={10} 
+                            iconSize={isMobileView ? 8 : 10} 
                             layout="vertical" 
                             verticalAlign="middle" 
-                            align="right"
+                            wrapperStyle={isMobileView ? { fontSize: '12px' } : { fontSize: '14px' }}
+                            align={isMobileView ? "center" : "right"}
                             formatter={(value, entry) => (
-                              <span style={{ color: 'var(--foreground)', fontSize: '14px', marginLeft: '5px' }}>
+                              <span style={{ color: 'var(--foreground)', fontSize: isMobileView ? '12px' : '14px', marginLeft: '5px' }}>
                                 {value}: ₺{entry.payload.value.toLocaleString('tr-TR')}
                               </span>
                             )}
@@ -1028,7 +1059,7 @@ export default function DashboardPage() {
                   
                   <div>
                     <h3 className="text-lg font-medium mb-4">Tasarruf Trendi</h3>
-                    <div className="h-[300px]">
+                    <div className="h-[250px] sm:h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={savingsHistory.map(item => {
@@ -1047,13 +1078,18 @@ export default function DashboardPage() {
                           }}
                         >
                           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                          <XAxis 
+                            dataKey="name" 
+                            tick={{ fontSize: isMobileView ? 10 : 12 }} 
+                            interval={isMobileView ? 1 : 0}
+                          />
                           <YAxis 
                             tickFormatter={(value) => `₺${Math.round(value/1000)}K`} 
-                            tick={{ fontSize: 12 }} 
+                            tick={{ fontSize: isMobileView ? 10 : 12 }} 
                             domain={[(dataMin) => dataMin < 0 ? dataMin * 1.1 : 0, (dataMax) => dataMax * 1.1]}
                             allowDataOverflow={false}
                             includeHidden={true}
+                            width={isMobileView ? 35 : 40}
                           />
                           <Tooltip formatter={(value, name) => [
                             `₺${Number(value).toLocaleString('tr-TR')}`, 
@@ -1081,14 +1117,14 @@ export default function DashboardPage() {
                 <CardDescription>Kategorilere göre harcama dağılımı</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={isMobileView ? 300 : 400}>
                   <BarChart
                     data={expensesByCategory}
                     layout="vertical"
                     margin={{
                       top: 5,
-                      right: 30,
-                      left: 20,
+                      right: isMobileView ? 15 : 30,
+                      left: isMobileView ? 15 : 20,
                       bottom: 5,
                     }}
                   >
@@ -1097,14 +1133,14 @@ export default function DashboardPage() {
                       type="number" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `₺${value.toLocaleString('tr-TR')}`}
+                      tick={{ fontSize: isMobileView ? 10 : 12 }}
+                      tickFormatter={(value) => isMobileView ? `₺${Math.round(value/1000)}K` : `₺${value.toLocaleString('tr-TR')}`}
                     />
                     <YAxis 
                       dataKey="name" 
                       type="category" 
-                      width={100}
-                      tick={{ fontSize: 12 }}
+                      width={isMobileView ? 70 : 100}
+                      tick={{ fontSize: isMobileView ? 10 : 12 }}
                       axisLine={false}
                       tickLine={false}
                     />
