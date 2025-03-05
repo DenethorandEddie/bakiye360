@@ -256,7 +256,7 @@ const CustomSavingsRateTooltip = ({ active, payload, label }) => {
 export default function ReportsPage() {
   const { supabase, user } = useSupabase();
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState("last6Months");
+  const [selectedPeriod, setSelectedPeriod] = useState("thisMonth");
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
@@ -394,7 +394,7 @@ export default function ReportsPage() {
     
     if (selectedPeriod === "thisMonth") {
       // Sadece mevcut ayın verisi
-      const currentMonth = format(new Date(), "MMM", { locale: tr });
+      const currentMonth = format(new Date(), "MMM yyyy", { locale: tr });
       periodFilteredData = trendData.filter(month => 
         formatMonthName(currentMonth) === month.name
       );
@@ -418,7 +418,7 @@ export default function ReportsPage() {
       const [year, month] = selectedMonth.split('-').map(Number);
       const targetDate = new Date(year, month - 1, 1);
       const targetMonthStr = format(targetDate, "MMM yyyy", { locale: tr });
-      periodFilteredData = trendData.filter(month => month.name === targetMonthStr);
+      periodFilteredData = trendData.filter(month => month.name === formatMonthName(targetMonthStr));
     } else {
       // Varsayılan: tüm veri
       periodFilteredData = trendData;
@@ -595,14 +595,14 @@ export default function ReportsPage() {
         // Son 6 ay için boş veri oluştur
         for (let i = 0; i < 6; i++) {
           const date = subMonths(new Date(), i);
-          const monthKey = format(date, "MMM", { locale: tr });
+          const monthKey = format(date, "MMM yyyy", { locale: tr });
           monthlyDataMap[monthKey] = { gelir: 0, gider: 0, tasarruf: 0, oran: 0 };
         }
         
         // İşlemleri aylara göre grupla
         transactionsData.forEach(transaction => {
           const date = new Date(transaction.date);
-          const monthKey = format(date, "MMM", { locale: tr });
+          const monthKey = format(date, "MMM yyyy", { locale: tr });
           
           if (monthlyDataMap[monthKey]) {
             if (transaction.type === 'income') {
@@ -656,7 +656,7 @@ export default function ReportsPage() {
         // Son 6 ay için boş veri oluştur
         for (let i = 0; i < 6; i++) {
           const date = subMonths(new Date(), i);
-          const monthKey = format(date, "MMM", { locale: tr });
+          const monthKey = format(date, "MMM yyyy", { locale: tr });
           categoryTrends[monthKey] = {};
           
           // Her kategori için 0 değeri ata
@@ -670,7 +670,7 @@ export default function ReportsPage() {
           .filter(t => t.type === 'expense')
           .forEach(transaction => {
             const date = new Date(transaction.date);
-            const monthKey = format(date, "MMM", { locale: tr });
+            const monthKey = format(date, "MMM yyyy", { locale: tr });
             
             if (categoryTrends[monthKey]) {
               const categoryId = transaction.category_id;
@@ -1100,7 +1100,12 @@ export default function ReportsPage() {
                   <div className="flex flex-col items-center p-4 rounded-lg bg-muted/30 border border-border">
                     <span className="text-sm text-muted-foreground mb-1">Son Ay</span>
                     <span className="text-2xl font-semibold text-foreground">
-                      %{monthlyData[0]?.gelir > 0 ? ((monthlyData[0].gelir - monthlyData[0].gider) / monthlyData[0].gelir * 100).toFixed(1) : "0.0"}
+                      %{monthlyData.length > 0 && monthlyData[monthlyData.length - 1]?.gelir > 0 
+                        ? ((monthlyData[monthlyData.length - 1].gelir - monthlyData[monthlyData.length - 1].gider) / monthlyData[monthlyData.length - 1].gelir * 100).toFixed(1) 
+                        : monthlyData.length > 0 
+                          ? ((monthlyData[monthlyData.length - 1]?.oran || 0)).toFixed(1)
+                          : "0.0"
+                      }
                     </span>
                   </div>
                 </div>
@@ -1266,45 +1271,51 @@ export default function ReportsPage() {
             <CardContent>
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={filteredTrendData}
-                    margin={{
-                      top: 20,
-                      right: 30,
-                      left: 20,
-                      bottom: 20,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-                    <XAxis 
-                      dataKey="name" 
-                      tick={{ fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `₺${value/1000}K`}
-                    />
-                    <Tooltip content={<CustomTrendTooltip />} />
-                    <Legend />
-                    {Object.keys(filteredTrendData[0] || {})
-                      .filter(key => key !== 'name')
-                      .map((key, index) => (
-                        <Area
-                          key={key}
-                          type="monotone"
-                          dataKey={key}
-                          name={key.charAt(0).toUpperCase() + key.slice(1)}
-                          stroke={COLORS[index % COLORS.length]}
-                          fill={COLORS[index % COLORS.length]}
-                          fillOpacity={0.2}
-                          strokeWidth={2}
-                        />
-                      ))}
-                  </AreaChart>
+                  {filteredTrendData.length > 0 ? (
+                    <AreaChart
+                      data={filteredTrendData}
+                      margin={{
+                        top: 20,
+                        right: 30,
+                        left: 20,
+                        bottom: 20,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(value) => `₺${value/1000}K`}
+                      />
+                      <Tooltip content={<CustomTrendTooltip />} />
+                      <Legend />
+                      {Object.keys(filteredTrendData[0] || {})
+                        .filter(key => key !== 'name')
+                        .map((key, index) => (
+                          <Area
+                            key={key}
+                            type="monotone"
+                            dataKey={key}
+                            name={key.charAt(0).toUpperCase() + key.slice(1)}
+                            stroke={COLORS[index % COLORS.length]}
+                            fill={COLORS[index % COLORS.length]}
+                            fillOpacity={0.2}
+                            strokeWidth={2}
+                          />
+                        ))}
+                    </AreaChart>
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <p className="text-muted-foreground">Seçilen dönem için veri bulunamadı</p>
+                    </div>
+                  )}
                 </ResponsiveContainer>
               </div>
             </CardContent>
@@ -1412,7 +1423,18 @@ export default function ReportsPage() {
                       </div>
                       <span>
                         {filteredCategoryData[0]?.name} kategorisinde harcamalarınız toplam giderlerinizin %{((filteredCategoryData[0]?.value / filteredSummaryStats.totalExpense) * 100).toFixed(1)}'ini oluşturuyor. 
-                        Bu alanda tasarruf yaparak bütçenizi dengeleyebilirsiniz.
+                        {filteredCategoryData[0]?.name === 'Banka' || 
+                         filteredCategoryData[0]?.name === 'Kredi' || 
+                         filteredCategoryData[0]?.name === 'Borç' ? 
+                          'Bu kategorideki harcamaları azaltmak için borç yapılandırması veya daha düşük faizli kredilere geçiş yapabilirsiniz.' : 
+                          filteredCategoryData[0]?.name === 'Kira' || 
+                          filteredCategoryData[0]?.name === 'Konut' ?
+                          'Konut harcamalarınız yüksek görünüyor. Uzun vadede tasarruf için ev sahibi olmayı düşünebilirsiniz.' :
+                          filteredCategoryData[0]?.name === 'Alışveriş' || 
+                          filteredCategoryData[0]?.name === 'Eğlence' || 
+                          filteredCategoryData[0]?.name === 'Yemek' ? 
+                          'Bu alanda yapacağınız küçük tasarruflar bile bütçenizi dengelemenize yardımcı olabilir.' :
+                          'Bu kategorideki harcamalarınızı gözden geçirerek bütçenizde iyileştirme fırsatları yaratabilirsiniz.'}
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
@@ -1420,8 +1442,22 @@ export default function ReportsPage() {
                         <TrendingUp className="h-3 w-3 text-green-500" />
                       </div>
                       <span>
-                        Tasarruf oranınız geçen aya göre {monthlyData[0]?.oran > monthlyData[1]?.oran ? "artış" : "azalış"} göstermiştir. 
-                        {filteredSummaryStats.savingsRate < targetSavingsRate ? ` Tasarruf oranınızı %${targetSavingsRate}'nin üzerine çıkarmayı hedefleyebilirsiniz.` : " Bu olumlu trendi sürdürmeye çalışın."}
+                        {monthlyData.length >= 2 ? (
+                          <>
+                            Tasarruf oranınız geçen aya göre {
+                              monthlyData[monthlyData.length - 1]?.oran > monthlyData[monthlyData.length - 2]?.oran 
+                                ? "artış" 
+                                : "azalış"
+                            } göstermiştir. 
+                            {
+                              monthlyData[monthlyData.length - 1]?.oran > monthlyData[monthlyData.length - 2]?.oran 
+                                ? "Bu olumlu trendi sürdürmeye çalışın." 
+                                : `Tasarruf oranınızı %${targetSavingsRate}'nin üzerine çıkarmayı hedefleyebilirsiniz.`
+                            }
+                          </>
+                        ) : (
+                          <>Tasarruf oranınızı %{targetSavingsRate}'nin üzerine çıkarmayı hedefleyebilirsiniz.</>
+                        )}
                       </span>
                     </li>
                   </ul>

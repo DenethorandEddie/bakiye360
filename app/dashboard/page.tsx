@@ -81,6 +81,36 @@ const renderActiveShape = (props: any) => {
   );
 };
 
+// Custom bar shape renderer for tasarruf trendi
+const renderSavingsBar = (props: any) => {
+  const { x, y, width, height, value } = props;
+  const fill = value >= 0 ? '#2a9d90' : '#e87356';
+  
+  // For positive values: normal positioning
+  // For negative values: Start at zero line and go down
+  const zeroY = y + height; // y position of zero line (for positive bars, this is where the bar ends)
+  
+  // Calculate the proper height and y position
+  // For positive values: Keep original
+  // For negative values: Start at zero line and go down with positive height
+  const barHeight = Math.abs(height);
+  const barY = value >= 0 ? y : zeroY;
+  
+  return (
+    <g>
+      <rect
+        x={x}
+        y={barY}
+        width={width}
+        height={barHeight}
+        fill={fill}
+        rx={4}
+        ry={4}
+      />
+    </g>
+  );
+};
+
 // Ay adlarını düzgün formatlama
 const formatMonthName = (monthStr: string) => {
   // Kısaltılmış ay adlarını tam aya çevir
@@ -152,6 +182,7 @@ interface MonthlyData {
   gider: number;
   oran?: number;
   tasarruf?: number;
+  tasarrufMiktar?: number;
   [key: string]: string | number | undefined;
 }
 
@@ -208,7 +239,7 @@ export default function DashboardPage() {
           for (let i = 0; i < 6; i++) {
             const date = subMonths(new Date(), i);
             const monthKey = format(date, "MMM", { locale: tr });
-            monthlyDataMap[monthKey] = { gelir: 0, gider: 0 };
+            monthlyDataMap[monthKey] = { name: monthKey, gelir: 0, gider: 0 };
           }
           
           // İşlemleri aylara göre grupla
@@ -405,7 +436,7 @@ export default function DashboardPage() {
           for (let i = 0; i < 6; i++) {
             const date = subMonths(new Date(), i);
             const monthKey = format(date, "MMM", { locale: tr });
-            monthlyDataMap[monthKey] = { gelir: 0, gider: 0 };
+            monthlyDataMap[monthKey] = { name: monthKey, gelir: 0, gider: 0 };
           }
           
           // İşlemleri aylara göre grupla
@@ -818,7 +849,7 @@ export default function DashboardPage() {
           {/* Tasarruf Trendi */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Tasarruf Trendi</CardTitle>
+              <CardTitle className="text-lg">Tasarruf Oranı Değişimi</CardTitle>
               <CardDescription>Aylık tasarruf miktarı değişimi</CardDescription>
             </CardHeader>
             <CardContent className="px-2">
@@ -983,29 +1014,31 @@ export default function DashboardPage() {
                             layout="vertical" 
                             verticalAlign="middle" 
                             align="right"
-                            wrapperStyle={{ fontSize: '12px' }}
-                            formatter={(value) => `${value}`}
+                            formatter={(value, entry) => (
+                              <span style={{ color: 'var(--foreground)', fontSize: '14px', marginLeft: '5px' }}>
+                                {value}: ₺{entry.payload.value.toLocaleString('tr-TR')}
+                              </span>
+                            )}
                           />
-                          <Tooltip 
-                            content={<CustomRadialBarTooltip />}
-                            wrapperStyle={{ zIndex: 1000 }}
-                            cursor={false}
-                            coordinate={{ x: 0, y: 0 }}
-                            isAnimationActive={false}
-                            animationDuration={0}
-                            filterNull={true}
-                          />
+                          <Tooltip content={<CustomRadialBarTooltip />} />
                         </RadialBarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
                   
-                  <div className="col-span-full xl:col-span-4">
-                    <h3 className="text-lg font-medium mb-4">Tasarruf Oranı Değişimi</h3>
-                    <div className="h-[300px] sm:h-[400px]">
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Tasarruf Trendi</h3>
+                    <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={savingsHistory}
+                        <BarChart
+                          data={savingsHistory.map(item => {
+                            const matchingMonth = monthlyData.find(m => m.name === item.name);
+                            const tasarrufMiktar = matchingMonth ? (item.oran / 100) * matchingMonth.gelir : 0;
+                            return {
+                              ...item,
+                              tasarrufMiktar
+                            };
+                          })}
                           margin={{
                             top: 10,
                             right: 10,
@@ -1015,34 +1048,24 @@ export default function DashboardPage() {
                         >
                           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                           <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                          <YAxis tickFormatter={(value) => `%${value}`} tick={{ fontSize: 12 }} />
-                          <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
-                          
-                          <ReferenceLine y={5} stroke="#ff8c00" strokeDasharray="3 3" label={{ 
-                            value: "Hedef %5", 
-                            position: "insideBottomRight",
-                            fill: "#ff8c00",
-                            fontSize: 12
-                          }} />
-                          
-                          <Line
-                            type="monotone"
-                            dataKey="oran"
-                            name="Tasarruf Oranı"
-                            stroke="#f59e0b"
-                            strokeWidth={2}
-                            dot={{ r: 4, strokeWidth: 2 }}
-                            activeDot={{ r: 6, strokeWidth: 2 }}
-                            fill="url(#colorOran)"
+                          <YAxis 
+                            tickFormatter={(value) => `₺${Math.round(value/1000)}K`} 
+                            tick={{ fontSize: 12 }} 
+                            domain={[(dataMin) => dataMin < 0 ? dataMin * 1.1 : 0, (dataMax) => dataMax * 1.1]}
+                            allowDataOverflow={false}
+                            includeHidden={true}
                           />
-                          
-                          <defs>
-                            <linearGradient id="colorOran" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                        </LineChart>
+                          <Tooltip formatter={(value, name) => [
+                            `₺${Number(value).toLocaleString('tr-TR')}`, 
+                            'Tasarruf Miktarı'
+                          ]} />
+                          <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                          <Bar
+                            dataKey="tasarrufMiktar"
+                            name="Tasarruf Miktarı"
+                            shape={renderSavingsBar}
+                          />
+                        </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
@@ -1171,19 +1194,6 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Son 30 Gün Gelir-Gider Dağılımı */}
-      <Card className="col-span-3">
-        <CardHeader>
-          <CardTitle>Son 30 Gün Gelir-Gider Dağılımı</CardTitle>
-          <CardDescription>Kategori bazında gelir ve giderleriniz</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="expense" className="h-full space-y-6">
-            {/* ... existing code ... */}
-          </Tabs>
-        </CardContent>
-      </Card>
 
       {/* Masaüstü Görünüm - Son Bölümler */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-9">
