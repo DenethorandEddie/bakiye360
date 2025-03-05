@@ -23,7 +23,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Menu, User, LogOut, BarChart3, Target, Calendar, CreditCard, Home } from "lucide-react";
+import { Menu, User, LogOut, BarChart3, Target, Calendar, CreditCard, Home, Shield } from "lucide-react";
 
 const navigation = [
   { name: "Ana Sayfa", href: "/dashboard", icon: Home },
@@ -33,11 +33,12 @@ const navigation = [
 ];
 
 export function Header() {
-  const { user, signOut } = useSupabase();
+  const { user, signOut, supabase } = useSupabase();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const { theme, systemTheme } = useTheme();
   const [currentLogo, setCurrentLogo] = useState("/logo.png");
+  const [isAdmin, setIsAdmin] = useState(false);
   
   useEffect(() => {
     if (theme === "dark" || (theme === "system" && systemTheme === "dark")) {
@@ -46,6 +47,29 @@ export function Header() {
       setCurrentLogo("/logo.png");
     }
   }, [theme, systemTheme]);
+
+  useEffect(() => {
+    // Check if user is admin
+    async function checkAdminRole() {
+      if (!user) return;
+      
+      try {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+          
+        if (!error && profile?.role === "admin") {
+          setIsAdmin(true);
+        }
+      } catch (err) {
+        console.error("Admin role check error:", err);
+      }
+    }
+    
+    checkAdminRole();
+  }, [supabase, user]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -90,6 +114,21 @@ export function Header() {
                     </Link>
                   );
                 })}
+                
+                {isAdmin && (
+                  <Link
+                    href="/dashboard/admin"
+                    onClick={() => setIsOpen(false)}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md ${
+                      pathname === "/dashboard/admin"
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <Shield className="h-4 w-4" />
+                    Yönetici Paneli
+                  </Link>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
@@ -120,6 +159,19 @@ export function Header() {
               </Link>
             );
           })}
+          
+          {isAdmin && (
+            <Link
+              href="/dashboard/admin"
+              className={`text-sm font-medium transition-colors ${
+                pathname.startsWith("/dashboard/admin")
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Yönetici Paneli
+            </Link>
+          )}
         </nav>
         <div className="flex items-center gap-2">
           <ModeToggle />
@@ -139,6 +191,14 @@ export function Header() {
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/settings">Ayarlar</Link>
               </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/admin">
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>Yönetici Paneli</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />

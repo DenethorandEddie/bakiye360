@@ -7,22 +7,73 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { User, Mail, Key } from "lucide-react";
+import { User, Mail, Key, Database } from "lucide-react";
 
 export default function ProfilePage() {
   const { supabase, user } = useSupabase();
   const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [profile, setProfile] = useState({
     fullName: "",
     email: user?.email || "",
     phone: "",
+    emailNotifications: false,
   });
   const [passwords, setPasswords] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+
+  // Profil verilerini yükle
+  useEffect(() => {
+    async function loadProfileData() {
+      if (!supabase || !user) {
+        setLoadingProfile(false);
+        return;
+      }
+
+      try {
+        console.log("Profil verisi alınıyor, kullanıcı ID:", user.id);
+        
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Profil verisi yüklenirken hata:', error.message, error.details, error.hint);
+          
+          // Profil kaydı yoksa, sıfır verilerle devam et
+          if (error.code === 'PGRST116') {
+            console.log('Profil kaydı bulunamadı, yeni kayıt oluşturulacak');
+            return;
+          }
+          return;
+        }
+
+        console.log("Alınan profil verisi:", data);
+
+        if (data) {
+          setProfile({
+            fullName: data.full_name || "",
+            email: user.email || "",
+            phone: data.phone || "",
+            emailNotifications: data.email_notifications || false,
+          });
+        }
+      } catch (error) {
+        console.error('Profil yüklenirken hata:', error);
+      } finally {
+        setLoadingProfile(false);
+      }
+    }
+
+    loadProfileData();
+  }, [supabase, user]);
 
   const handleProfileChange = (field: string, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -41,22 +92,34 @@ export default function ProfilePage() {
         throw new Error("Oturum bilgisi bulunamadı");
       }
 
-      // Profil bilgilerini Supabase'e kaydet
+      console.log("Profil güncelleniyor:", {
+        fullName: profile.fullName,
+        phone: profile.phone,
+        userId: user.id
+      });
+
+      // Profil bilgilerini Supabase'e kaydet - upsert kullanarak
       const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id,  // Önemli: id alanı kullanıcı id'si ile aynı olmalı
           full_name: profile.fullName,
-          email: profile.email,
-          phone: profile.phone
-        })
-        .eq('id', user.id);
+          phone: profile.phone,
+          email_notifications: profile.emailNotifications,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'  // id alanında çakışma olursa güncelle
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Güncelleme hatası:", error.message, error.details, error.hint);
+        throw error;
+      }
 
       toast.success("Profil bilgileriniz güncellendi");
     } catch (error) {
       console.error("Profile update error:", error);
-      toast.error("Profil güncellenirken bir hata oluştu");
+      toast.error(`Profil güncellenirken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
     } finally {
       setLoading(false);
     }
@@ -103,6 +166,49 @@ export default function ProfilePage() {
       setLoading(false);
     }
   };
+
+  const checkDatabaseSchema = async () => {
+    try {
+      if (!supabase) {
+        throw new Error("Oturum bilgisi bulunamadı");
+      }
+
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+
+      if (error) {
+        console.error('Veritabanı şeması kontrol edilirken hata:', error.message, error.details, error.hint);
+        throw error;
+      }
+
+      console.log('Veritabanı şeması kontrol edildi, alınan veri:', data);
+
+      if (data) {
+        setProfile({
+          fullName: data.full_name || "",
+          email: user.email || "",
+          phone: data.phone || "",
+          emailNotifications: data.email_notifications || false,
+        });
+      }
+
+      toast.success('Veritabanı şeması başarıyla kontrol edildi');
+    } catch (error) {
+      console.error('Veritabanı şeması kontrol edilirken hata:', error);
+      toast.error('Veritabanı şeması kontrol edilirken bir hata oluştu');
+    }
+  };
+
+  // Ana içerik yerine yükleniyor göster
+  if (loadingProfile) {
+    return (
+      <div className="container py-6 flex justify-center items-center min-h-[500px]">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Profil bilgileri yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-6">
@@ -157,10 +263,48 @@ export default function ProfilePage() {
                   onChange={(e) => handleProfileChange("phone", e.target.value)}
                 />
               </div>
+              <div className="flex items-center justify-between py-2">
+                <div className="space-y-0.5">
+                  <Label htmlFor="emailNotifications" className="text-base">
+                    E-posta Bildirimleri
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Önemli güncellemeler ve bildirimler için e-posta almak istiyorum.
+                  </p>
+                </div>
+                <Switch
+                  id="emailNotifications"
+                  checked={profile.emailNotifications}
+                  onCheckedChange={(checked) => handleProfileChange("emailNotifications", checked.toString())}
+                />
+              </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Güncelleniyor..." : "Profili Güncelle"}
+            <CardFooter className="flex flex-col items-start gap-4">
+              <Button disabled={loading} className="w-full md:w-auto">
+                {loading ? (
+                  <>
+                    <span className="mr-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    </span>
+                    Kaydediliyor...
+                  </>
+                ) : (
+                  "Kaydet"
+                )}
               </Button>
             </CardFooter>
           </form>

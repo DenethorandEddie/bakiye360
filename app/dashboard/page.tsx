@@ -9,7 +9,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 import { Progress } from "@/components/ui/progress";
 import { format, subMonths, parseISO } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditCard, Loader2, Calendar, DollarSign, BarChart3, PieChart as PieChartIcon, ArrowUp, ArrowDown, PercentIcon, TrendingDown, MinusIcon } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditCard, Loader2, Calendar, DollarSign, BarChart3, PieChart as PieChartIcon, ArrowUp, ArrowDown, PercentIcon, TrendingDown, MinusIcon, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 // Grafik renkleri - daha profesyonel ve uyumlu renkler
@@ -208,6 +208,7 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [savingsHistory, setSavingsHistory] = useState<any[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("thisMonth");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Mobil ekran kontrolü için state
   const [isMobileView, setIsMobileView] = useState(false);
@@ -556,6 +557,29 @@ export default function DashboardPage() {
     fetchData();
   }, [supabase, user?.id]);
 
+  useEffect(() => {
+    // Check if user is admin
+    async function checkAdminRole() {
+      if (!user) return;
+      
+      try {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+          
+        if (!error && profile?.role === "admin") {
+          setIsAdmin(true);
+        }
+      } catch (err) {
+        console.error("Admin role check error:", err);
+      }
+    }
+    
+    checkAdminRole();
+  }, [supabase, user]);
+
   // Demo kategorileri
   const getCategoryName = (categoryId: string) => {
     const categories: Record<string, string> = {
@@ -597,6 +621,14 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex space-x-2">
+          {isAdmin && (
+            <Button variant="outline" asChild className="mr-2">
+              <Link href="/dashboard/admin">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Yönetici Paneli
+              </Link>
+            </Button>
+          )}
           <Button asChild>
             <Link href="/dashboard/transactions/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -903,7 +935,10 @@ export default function DashboardPage() {
                       tick={{ fontSize: isMobileView ? 10 : 12 }}
                       width={isMobileView ? 35 : 40}
                     />
-                    <Tooltip formatter={(value) => [`%${Number(value).toFixed(1)}`, 'Tasarruf Oranı']} />
+                    <Tooltip formatter={(value, name) => [
+                      `%${Number(value).toFixed(1)}`, 
+                      'Tasarruf Oranı'
+                    ]} />
                     
                     <ReferenceLine y={5} stroke="#ff8c00" strokeDasharray="3 3" label={{ 
                       value: "Hedef %5", 
