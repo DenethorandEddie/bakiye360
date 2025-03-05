@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 // Stripe promise dışarıda oluşturuluyor (her render'da yeniden oluşturulmaması için)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
@@ -22,6 +23,21 @@ export default function SubscriptionPage() {
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   
   const supabase = createClientComponentClient();
+  const searchParams = useSearchParams();
+
+  // URL parametrelerini kontrol et
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+    
+    if (success === 'true') {
+      toast.success('Aboneliğiniz başarıyla oluşturuldu! Premium özelliklere erişebilirsiniz.');
+    }
+    
+    if (canceled === 'true') {
+      toast.error('Ödeme işlemi iptal edildi. İsterseniz daha sonra tekrar deneyebilirsiniz.');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function checkSubscriptionStatus() {
@@ -72,7 +88,18 @@ export default function SubscriptionPage() {
     }
     
     checkSubscriptionStatus();
-  }, [supabase]);
+    
+    // Başarılı ödeme durumunda da abonelik durumunu kontrol et
+    const success = searchParams.get('success');
+    if (success === 'true') {
+      // Kısa bir gecikme ekleyerek webhook'un işlenmesi için zaman tanı
+      const timer = setTimeout(() => {
+        checkSubscriptionStatus();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [supabase, searchParams]);
   
   const handleSubscribe = async () => {
     if (!userId) {
@@ -237,7 +264,7 @@ export default function SubscriptionPage() {
               <CardHeader>
                 <CardTitle>Premium Paket</CardTitle>
                 <CardDescription>Gelişmiş finansal analiz ve planlama</CardDescription>
-                <div className="mt-2 text-3xl font-bold">₺29.99 <span className="text-sm font-normal">/ay</span></div>
+                <div className="mt-2 text-3xl font-bold">₺149.99 <span className="text-sm font-normal">/ay</span></div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

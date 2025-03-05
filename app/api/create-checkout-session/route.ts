@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 // Stripe API anahtarı
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2023-10-16", // Güncel Stripe API versiyonu
+  apiVersion: "2023-10-16" as any, // Linter hatası için type assertion kullanıyoruz
 });
 
 export async function POST(request: Request) {
@@ -41,10 +41,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // Uygulama URL'sini al
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    
+    if (!appUrl) {
+      console.error("NEXT_PUBLIC_APP_URL çevre değişkeni bulunamadı");
+      return NextResponse.json(
+        { error: "Uygulama yapılandırması eksik" },
+        { status: 500 }
+      );
+    }
+
+    console.log("Kullanılan APP URL:", appUrl);
+
     // Ödeme başarıyla tamamlandığında yönlendirilecek URL
-    const successUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/subscription?success=true`;
+    const successUrl = `${appUrl}/dashboard/subscription?success=true`;
     // Ödeme iptal edildiğinde yönlendirilecek URL
-    const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/subscription?canceled=true`;
+    const cancelUrl = `${appUrl}/dashboard/subscription?canceled=true`;
 
     // Stripe Checkout Session oluştur
     const session = await stripe.checkout.sessions.create({
