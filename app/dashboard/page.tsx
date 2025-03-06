@@ -12,6 +12,7 @@ import { tr } from "date-fns/locale";
 import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditCard, Loader2, Calendar, DollarSign, BarChart3, PieChart as PieChartIcon, ArrowUp, ArrowDown, PercentIcon, TrendingDown, MinusIcon, ShieldCheck, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
+import { sendBudgetAlertEmail } from "@/app/utils/email";
 
 // Grafik renkleri - daha profesyonel ve uyumlu renkler
 const COLORS = [
@@ -514,7 +515,6 @@ export default function DashboardPage() {
           }
           
           // Eğer veritabanından bütçe hedefleri çekilebildiyse onları kullan
-          // Yoksa boş dizi kullan
           if (budgetGoalsData && budgetGoalsData.length > 0) {
             // Aktif bütçe hedeflerini filtrele
             const activeGoals = budgetGoalsData.filter(goal => {
@@ -536,12 +536,24 @@ export default function DashboardPage() {
               const categoryId = goal.category_id || '';
               const category = allCategories.find(c => c.id === categoryId);
               const categoryName = category ? category.name : categoryId;
-              
+              const currentAmount = expenseCategoriesIdMap[categoryId] || 0;
+
+              // Bütçe aşımı kontrolü ve email gönderimi
+              if (currentAmount > goal.target_amount) {
+                sendBudgetAlertEmail(
+                  user.id,
+                  goal.name,
+                  categoryName,
+                  currentAmount,
+                  goal.target_amount
+                );
+              }
+
               return {
                 ...goal,
-                target: goal.target_amount || 0, // Veritabanında target_amount olarak saklanıyor
-                category: categoryName, // Kategori adını gösteriyoruz
-                current: expenseCategoriesIdMap[categoryId] || 0 // Sadece mevcut aya ait harcamalar
+                target: goal.target_amount || 0,
+                category: categoryName,
+                current: currentAmount
               };
             });
             setBudgetGoals(goalsWithExpenses);

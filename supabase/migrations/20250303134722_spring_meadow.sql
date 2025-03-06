@@ -56,3 +56,35 @@ CREATE POLICY "Users can delete own budget goals"
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS budget_goals_user_id_idx ON budget_goals(user_id);
 CREATE INDEX IF NOT EXISTS budget_goals_category_id_idx ON budget_goals(category_id);
+
+-- Create notification_settings table
+CREATE TABLE IF NOT EXISTS notification_settings (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    budget_alerts BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    UNIQUE(user_id)
+);
+
+-- Enable RLS on notification_settings table
+ALTER TABLE notification_settings ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for notification_settings
+CREATE POLICY "Users can view their own notification settings"
+ON notification_settings
+FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own notification settings"
+ON notification_settings
+FOR UPDATE
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own notification settings"
+ON notification_settings
+FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+-- Create index for notification_settings
+CREATE INDEX IF NOT EXISTS notification_settings_user_id_idx ON notification_settings(user_id);
