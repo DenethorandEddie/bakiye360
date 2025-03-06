@@ -112,6 +112,8 @@ export async function POST(request: Request) {
         
         // Eğer settings mevcutsa güncelle, yoksa yeni oluştur
         if (existingSettings) {
+          console.log("Mevcut user_settings bulundu, güncellenecek bilgiler:", userSettingsData);
+          
           const { error: updateError } = await supabase
             .from('user_settings')
             .update(userSettingsData)
@@ -120,8 +122,17 @@ export async function POST(request: Request) {
           if (updateError) {
             console.error("User settings güncellenirken hata:", updateError);
           } else {
-            console.log("✅ User settings başarıyla güncellendi!");
+            console.log("✅ User settings başarıyla güncellendi! Yeni abonelik durumu: PREMIUM");
           }
+          
+          // Güncelleme sonrasında kontrol et
+          const { data: updatedData } = await supabase
+            .from('user_settings')
+            .select('subscription_status')
+            .eq('user_id', userId)
+            .single();
+            
+          console.log("Güncelleme sonrası user_settings:", updatedData);
         } else {
           // Yeni settings oluştur
           const { error: insertError } = await supabase

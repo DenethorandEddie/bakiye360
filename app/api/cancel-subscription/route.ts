@@ -90,6 +90,17 @@ export async function POST(request: Request) {
     if (settingsError) {
       console.error("User settings güncellenirken hata:", settingsError);
       // İşlemi durdurmuyoruz, çünkü subscriptions tablosu birincil kaynaktır
+    } else {
+      console.log("✅ User settings'te abonelik durumu FREE olarak güncellendi");
+      
+      // Güncelleme sonrası kontrol et
+      const { data: updatedSettings } = await supabase
+        .from('user_settings')
+        .select('subscription_status')
+        .eq('user_id', user.id)
+        .single();
+        
+      console.log("Abonelik iptali sonrası user_settings:", updatedSettings);
     }
 
     return NextResponse.json({ 
