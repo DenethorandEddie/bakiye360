@@ -313,6 +313,11 @@ export default function TransactionsPage() {
               Bu ay {subscriptionStatus.monthlyTransactionCount}/30 işlem girişi yaptınız
             </p>
           )}
+          {subscriptionStatus.isPremium && (
+            <p className="text-sm text-primary">
+              Premium kullanıcı: Sınırsız işlem hakkınız var
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button
