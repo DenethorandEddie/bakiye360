@@ -17,15 +17,16 @@ const supabase = createClient(
 
 async function sendNotifications() {
   try {
-    // Bugünün tarihini al (Türkiye saati)
-    const today = new Date();
-    today.setHours(today.getHours() + 3); // UTC+3 için
+    // Yarının tarihini al (Türkiye saati)
+    const tomorrow = new Date();
+    tomorrow.setHours(tomorrow.getHours() + 3); // UTC+3 için
+    tomorrow.setDate(tomorrow.getDate() + 1); // Yarının tarihi
     
-    const formattedDate = today.toISOString().split('T')[0];
+    const formattedDate = tomorrow.toISOString().split('T')[0];
     
     console.log(`${formattedDate} tarihli ödemeler için bildirimler gönderiliyor...`);
 
-    // Bugünün ödemelerini bul
+    // Yarının ödemelerini bul
     const { data: payments, error: paymentsError } = await supabase
       .from('scheduled_payments')
       .select(`
@@ -42,7 +43,7 @@ async function sendNotifications() {
     }
 
     if (!payments || payments.length === 0) {
-      console.log('Bugün için planlanmış ödeme bulunmuyor.');
+      console.log('Yarın için planlanmış ödeme bulunmuyor.');
       return;
     }
 
@@ -68,10 +69,10 @@ async function sendNotifications() {
         .insert([
           {
             to: data.email,
-            subject: `Bugünkü Ödemeleriniz - ${formattedDate}`,
+            subject: `Yarınki Ödemeleriniz - ${formattedDate}`,
             html: `
               <h2>Merhaba ${data.firstName},</h2>
-              <p>Bugün için planlanmış ${data.payments.length} adet ödemeniz bulunmaktadır:</p>
+              <p>Yarın için planlanmış ${data.payments.length} adet ödemeniz bulunmaktadır:</p>
               <ul>
                 ${data.payments.map(p => `
                   <li>
