@@ -4,6 +4,9 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from "next/headers";
 
+// App Router için modern config yapısı
+export const dynamic = 'force-dynamic';
+
 // Supabase client oluştur
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -20,7 +23,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 export async function POST(request: Request) {
   try {
-    // Text formatında payload al
+    // Raw request body'yi al - Next.js App Router bodyParser'ı otomatik devre dışı bırakır
     const payload = await request.text();
     
     // Stripe imzasını al
@@ -97,11 +100,4 @@ export async function POST(request: Request) {
     console.error("Genel webhook hatası:", error);
     return NextResponse.json({ error: "Webhook işleme hatası" }, { status: 500 });
   }
-}
-
-// Webhook route için config
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}; 
+} 
