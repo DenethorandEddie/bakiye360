@@ -3,26 +3,27 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Home,
-  ListTodo,
-  BarChart3,
-  Target,
-  Settings,
-  LogOut,
-  User,
-  CreditCard,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
-  Sun,
-  Moon,
-  X
-} from "lucide-react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useTheme } from "next-themes";
+
+// Lucide ikonlarını dinamik olarak import edelim
+const Home = dynamic(() => import("lucide-react").then((mod) => mod.Home), { ssr: false });
+const ListTodo = dynamic(() => import("lucide-react").then((mod) => mod.ListTodo), { ssr: false });
+const BarChart3 = dynamic(() => import("lucide-react").then((mod) => mod.BarChart3), { ssr: false });
+const Target = dynamic(() => import("lucide-react").then((mod) => mod.Target), { ssr: false });
+const Settings = dynamic(() => import("lucide-react").then((mod) => mod.Settings), { ssr: false });
+const LogOut = dynamic(() => import("lucide-react").then((mod) => mod.LogOut), { ssr: false });
+const User = dynamic(() => import("lucide-react").then((mod) => mod.User), { ssr: false });
+const CreditCard = dynamic(() => import("lucide-react").then((mod) => mod.CreditCard), { ssr: false });
+const ChevronLeft = dynamic(() => import("lucide-react").then((mod) => mod.ChevronLeft), { ssr: false });
+const ChevronRight = dynamic(() => import("lucide-react").then((mod) => mod.ChevronRight), { ssr: false });
+const Menu = dynamic(() => import("lucide-react").then((mod) => mod.Menu), { ssr: false });
+const Sun = dynamic(() => import("lucide-react").then((mod) => mod.Sun), { ssr: false });
+const Moon = dynamic(() => import("lucide-react").then((mod) => mod.Moon), { ssr: false });
+const X = dynamic(() => import("lucide-react").then((mod) => mod.X), { ssr: false });
 
 // Sidebar context
 export const SidebarContext = createContext({
@@ -32,6 +33,11 @@ export const SidebarContext = createContext({
 
 export function useSidebar() {
   return useContext(SidebarContext);
+}
+
+// Bir yükleme bileşeni oluşturalım - ikonlar yüklenirken bunu göstereceğiz
+function LoadingPlaceholder() {
+  return <div className="h-5 w-5 rounded-full bg-muted animate-pulse"></div>;
 }
 
 export default function DashboardLayout({
@@ -46,9 +52,15 @@ export default function DashboardLayout({
   const { theme, setTheme } = useTheme();
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClientSide, setIsClientSide] = useState(false);
 
   // Mobil görünüm için sidebar durumu
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Client-side rendering kontrolü
+  useEffect(() => {
+    setIsClientSide(true);
+  }, []);
 
   // Mobil menü açıkken body'ye class ekle/çıkar
   useEffect(() => {
@@ -194,6 +206,21 @@ export default function DashboardLayout({
     settingsItems.push({ name: "Abonelik", href: "/dashboard/subscription", icon: CreditCard });
   }
 
+  // Client tarafı render kontrolü yaparak hydration hatalarını önle
+  if (!isClientSide) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <div className="flex-1 p-4 md:p-6 pt-16 lg:pt-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
+            <div className="h-64 bg-muted rounded w-full mb-4"></div>
+            <div className="h-32 bg-muted rounded w-full"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarContext.Provider value={{ isSidebarExpanded, toggleSidebar }}>
       <div className="flex min-h-screen bg-background">
@@ -205,7 +232,7 @@ export default function DashboardLayout({
             onClick={toggleMobileMenu} 
             className="bg-background shadow-md h-10 w-10 rounded-full p-0"
           >
-            <Menu className="h-5 w-5" />
+            {isClientSide && <Menu className="h-5 w-5" />}
           </Button>
         </div>
         
@@ -220,7 +247,7 @@ export default function DashboardLayout({
         >
           {/* Mobil kapatma butonu */}
           <button onClick={toggleMobileMenu} className="mobile-close lg:hidden">
-            <X size={16} />
+            {isClientSide && <X size={16} />}
           </button>
 
           {/* Logo Bölümü */}
@@ -249,7 +276,7 @@ export default function DashboardLayout({
             className="toggle-button"
             aria-label={isSidebarExpanded ? "Sidebar'ı daralt" : "Sidebar'ı genişlet"}
           >
-            {isSidebarExpanded ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
+            {isClientSide && (isSidebarExpanded ? <ChevronLeft size={12} /> : <ChevronRight size={12} />)}
           </button>
 
           {/* Ana Navigasyon */}
@@ -265,7 +292,7 @@ export default function DashboardLayout({
                 )}
               >
                 <span className="nav-item-icon">
-                  <item.icon size={18} />
+                  {isClientSide ? <item.icon size={18} /> : <LoadingPlaceholder />}
                 </span>
                 <span className="nav-item-text font-medium">{item.name}</span>
               </Link>
@@ -283,7 +310,7 @@ export default function DashboardLayout({
                   )}
                 >
                   <span className="nav-item-icon">
-                    <item.icon size={18} />
+                    {isClientSide ? <item.icon size={18} /> : <LoadingPlaceholder />}
                   </span>
                   <span className="nav-item-text font-medium">{item.name}</span>
                 </Link>
@@ -300,7 +327,7 @@ export default function DashboardLayout({
               aria-label={theme === "light" ? "Karanlık moda geç" : "Aydınlık moda geç"}
             >
               <span className="nav-item-icon">
-                {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+                {isClientSide && (theme === "light" ? <Moon size={18} /> : <Sun size={18} />)}
               </span>
               {isSidebarExpanded && (
                 <span className="nav-item-text font-medium">
@@ -312,7 +339,7 @@ export default function DashboardLayout({
             {/* Çıkış Yap */}
             <button onClick={handleSignOut} className="logout-button">
               <span className="nav-item-icon">
-                <LogOut size={18} />
+                {isClientSide && <LogOut size={18} />}
               </span>
               {isSidebarExpanded && (
                 <span className="nav-item-text font-medium">Çıkış Yap</span>

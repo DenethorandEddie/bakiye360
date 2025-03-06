@@ -1,10 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { useSidebar } from "@/app/dashboard/layout";
-import { Bell, User } from "lucide-react";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+
+// Lucide ikonlarını dinamik olarak import edelim
+const Bell = dynamic(() => import("lucide-react").then((mod) => mod.Bell), { ssr: false });
+const User = dynamic(() => import("lucide-react").then((mod) => mod.User), { ssr: false });
 
 export default function Header() {
   const { theme } = useTheme();
@@ -28,6 +32,12 @@ export default function Header() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
   const [userName, setUserName] = useState("");
+  const [isClientSide, setIsClientSide] = useState(false);
+  
+  // Client-side rendering kontrolü
+  useEffect(() => {
+    setIsClientSide(true);
+  }, []);
   
   // Kullanıcı bilgilerini al
   useEffect(() => {
@@ -180,7 +190,7 @@ export default function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="relative">
-              <Bell className="h-4 w-4" />
+              {isClientSide && <Bell className="h-4 w-4" />}
               {hasUnread && (
                 <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
               )}
@@ -252,7 +262,7 @@ export default function Header() {
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/dashboard/profile">
-                <User className="mr-2 h-4 w-4" />
+                {isClientSide && <User className="mr-2 h-4 w-4" />}
                 <span>Profil</span>
               </Link>
             </DropdownMenuItem>
