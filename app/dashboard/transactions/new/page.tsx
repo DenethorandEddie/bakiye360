@@ -43,6 +43,7 @@ export default function NewTransactionPage() {
   const { supabase, user } = useSupabase();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [isPremium, setIsPremium] = useState(false);
   const [reachedTransactionLimit, setReachedTransactionLimit] = useState(false);
@@ -429,22 +430,39 @@ export default function NewTransactionPage() {
                   {loadingCategories ? (
                     <div className="w-full h-10 bg-gray-200 animate-pulse rounded-md"></div>
                   ) : (
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) => handleChange("category", value)}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Kategori seçin" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select
+                        value={formData.category}
+                        onValueChange={(value) => handleChange("category", value)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Kategori seçin" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {!isPremium && (
+                        <div className="mt-2 text-xs p-2 rounded bg-amber-50 border border-amber-200 text-amber-700 flex items-start">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 mt-0.5 flex-shrink-0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                          <span>
+                            Premium aboneliğe geçerek çok daha fazla kategoriye erişebilir ve işlemlerinizi daha detaylı kategorize edebilirsiniz.
+                            <button 
+                              onClick={() => router.push("/dashboard/subscription")} 
+                              className="ml-1 underline font-medium hover:text-amber-800"
+                            >
+                              Premium'a geç
+                            </button>
+                          </span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 

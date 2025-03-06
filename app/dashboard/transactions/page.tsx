@@ -45,7 +45,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [categoryFilter, setcategoryFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [categories, setCategories] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
@@ -82,29 +82,43 @@ export default function TransactionsPage() {
         // Kullanıcının işlemlerini al
         const { data, error } = await supabase
           .from("transactions")
-          .select("*")
+          .select(`
+            *,
+            categories(name)
+          `)
           .eq("user_id", user.id)
           .order("date", { ascending: false });
 
         if (error) {
-          console.error(error);
+          console.error("İşlemler alınırken hata:", error);
           toast.error("İşlemler alınırken bir hata oluştu");
           return;
         }
 
-        if (!data) {
+        if (!data || data.length === 0) {
           setTransactions([]);
           setFilteredTransactions([]);
           return;
         }
-
+        
+        // İşlemlerin kategori bilgilerini düzenle
+        const processedData = data.map(transaction => {
+          // categories ilişkisi varsa kategori adını al, yoksa null kullan
+          const categoryName = transaction.categories ? transaction.categories.name : "Kategorisiz";
+          return {
+            ...transaction,
+            category: categoryName
+          };
+        });
+        
         // Kategorileri topla (benzersiz)
-        const uniqueCategories = Array.from(new Set(data.map((item) => item.category)));
+        const uniqueCategories = Array.from(new Set(processedData.map(item => item.category))).filter(Boolean);
+        console.log("Benzersiz kategoriler:", uniqueCategories);
         setCategories(uniqueCategories);
 
         // İşlemleri ayarla
-        setTransactions(data);
-        filterTransactions(data, searchTerm, typeFilter, categoryFilter, dateRange);
+        setTransactions(processedData);
+        filterTransactions(processedData, searchTerm, typeFilter, categoryFilter, dateRange);
       } catch (error) {
         console.error("İşlemler alınırken bir hata oluştu:", error);
         toast.error("İşlemler alınırken bir hata oluştu");
@@ -177,8 +191,8 @@ export default function TransactionsPage() {
     if (search) {
       filtered = filtered.filter(
         (transaction) =>
-          transaction.description.toLowerCase().includes(search.toLowerCase()) ||
-          transaction.category.toLowerCase().includes(search.toLowerCase())
+          (transaction.description?.toLowerCase() || '').includes(search.toLowerCase()) ||
+          (transaction.category?.toLowerCase() || '').includes(search.toLowerCase())
       );
     }
 
@@ -225,7 +239,7 @@ export default function TransactionsPage() {
 
   // Kategori değiştiğinde işlemleri filtrele
   const handleCategoryChange = (value: string) => {
-    setcategoryFilter(value);
+    setCategoryFilter(value);
   };
 
   return (
@@ -256,8 +270,8 @@ export default function TransactionsPage() {
               >
                 <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
                 Premium'a Yükselt
-              </Button>
-            </div>
+          </Button>
+        </div>
           </AlertDescription>
         </Alert>
       )}
@@ -324,7 +338,7 @@ export default function TransactionsPage() {
                 onDateRangeChange={handleDateRangeChange}
               />
             </div>
-          </div>
+            </div>
         </CardContent>
       </Card>
 

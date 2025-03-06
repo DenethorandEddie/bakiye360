@@ -90,7 +90,7 @@ export default function DashboardLayout({
           setIsLoading(false);
           return;
         }
-        
+
         // 1. Önce subscriptions tablosundan kontrol et
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from('subscriptions')
@@ -368,7 +368,7 @@ export default function DashboardLayout({
             </div>
           </div>
         </main>
-      </div>
+    </div>
     </SidebarContext.Provider>
   );
 }
