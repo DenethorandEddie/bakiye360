@@ -480,16 +480,16 @@ export default function Home() {
               <div className="p-6 rounded-lg border bg-card shadow-sm">
                 <div className="flex items-center mb-4">
                   <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center mr-3">
-                    <span className="font-bold text-white">ZA</span>
+                    <span className="font-bold text-white">AK</span>
                   </div>
                   <div>
-                    <h4 className="font-bold">Zeynep Aydın</h4>
-                    <p className="text-sm text-muted-foreground">Finans Uzmanı, İzmir</p>
+                    <h4 className="font-bold">Ahmet Koç</h4>
+                    <p className="text-sm text-muted-foreground">Muhasebe Müdürü, Borusan Otomotiv</p>
                   </div>
                 </div>
                 <p className="text-muted-foreground">
-                  "Bakiye360'ı kullanmaya başladıktan sonra harcamalarımı çok daha iyi kontrol edebiliyorum. 
-                  Artık her ay düzenli olarak tasarruf edebiliyorum."
+                  "Bakiye360'ı kullanmaya başladıktan sonra hem kişisel hem de aile bütçemizi çok daha iyi yönetebiliyorum. 
+                  Özellikle kategori bazlı harcama takibi ve bütçe hedefleri sayesinde gereksiz harcamaları kolayca tespit edebiliyorum."
                 </p>
                 <div className="flex mt-4">
                   {[...Array(5)].map((_, i) => (
@@ -502,16 +502,16 @@ export default function Home() {
               <div className="p-6 rounded-lg border bg-card shadow-sm">
                 <div className="flex items-center mb-4">
                   <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center mr-3">
-                    <span className="font-bold text-white">EY</span>
+                    <span className="font-bold text-white">MÖ</span>
                   </div>
                   <div>
-                    <h4 className="font-bold">Eren Yılmaz</h4>
-                    <p className="text-sm text-muted-foreground">KOBİ Sahibi, İstanbul</p>
+                    <h4 className="font-bold">Mehmet Özdemir</h4>
+                    <p className="text-sm text-muted-foreground">Restoran İşletmecisi, İstanbul</p>
                   </div>
                 </div>
                 <p className="text-muted-foreground">
-                  "Bütçe hedefleri özelliği sayesinde harcamalarımı kategorilere göre sınırlandırabiliyorum. 
-                  Görsel raporlar finansal durumumu anlamama çok yardımcı oluyor."
+                  "İşletmemizin günlük nakit akışını takip etmek için mükemmel bir uygulama. 
+                  Tekrarlayan ödemeleri otomatik olarak kaydedebilmek ve gelir-gider raporlarını anlık görebilmek işimi çok kolaylaştırıyor."
                 </p>
                 <div className="flex mt-4">
                   {[...Array(5)].map((_, i) => (
@@ -524,16 +524,16 @@ export default function Home() {
               <div className="p-6 rounded-lg border bg-card shadow-sm">
                 <div className="flex items-center mb-4">
                   <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center mr-3">
-                    <span className="font-bold text-white">SK</span>
+                    <span className="font-bold text-white">DY</span>
                   </div>
                   <div>
-                    <h4 className="font-bold">Selin Kaya</h4>
-                    <p className="text-sm text-muted-foreground">Yazılım Mühendisi, Ankara</p>
+                    <h4 className="font-bold">Deniz Yılmaz</h4>
+                    <p className="text-sm text-muted-foreground">Uzaktan Çalışan UX Tasarımcı</p>
                   </div>
                 </div>
                 <p className="text-muted-foreground">
-                  "Kullanımı çok kolay ve sezgisel bir arayüze sahip. Artık tüm finansal işlemlerimi tek bir yerden 
-                  yönetebiliyorum. Kesinlikle tavsiye ederim!"
+                  "Serbest çalışan olarak düzensiz gelirlerimi yönetmek zordu. Bakiye360 sayesinde aylık bütçemi 
+                  planlayabiliyor ve tasarruflarımı düzenli olarak takip edebiliyorum. Arayüzü de çok kullanıcı dostu!"
                 </p>
                 <div className="flex mt-4">
                   {[...Array(5)].map((_, i) => (
