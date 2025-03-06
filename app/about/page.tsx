@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { ArrowLeft, Users, Lightbulb, Target, Shield, Award, Clock, TrendingUp } from "lucide-react";
+import { ArrowLeft, Users, Lightbulb, Target, Shield, Award, Clock, TrendingUp, Calendar, Sparkles, Rocket, Brain } from "lucide-react";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 // Animasyon varyantları
 const fadeIn = {
@@ -104,194 +105,174 @@ export default function AboutPage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center">
+    <div className="container mx-auto py-8 px-4">
+      <div className="mb-8">
+        <Button variant="ghost" asChild className="mb-4">
           <Link href="/" className="flex items-center">
-            <Image 
-              src={currentTheme === "dark" ? "/logo_dark.png" : "/logo.png"} 
-              alt="Bakiye360 Logo" 
-              width={110} 
-              height={28} 
-              className="h-auto"
-              priority
-            />
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Ana Sayfaya Dön
           </Link>
-          <div className="ml-auto flex items-center space-x-4">
-            <Link 
-              href="/" 
-              className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Ana Sayfaya Dön
-            </Link>
+        </Button>
+        <h1 className="text-4xl font-bold mb-4">Hakkımızda</h1>
+        <p className="text-muted-foreground text-lg mb-8">
+          Bakiye360, kişisel ve işletme finanslarını yönetmek için modern ve kullanıcı dostu bir platform olarak 
+          2024 yılında kuruldu. Amacımız, kullanıcılarımızın finansal hedeflerine ulaşmalarına yardımcı olmak ve 
+          finansal özgürlük yolculuklarında onlara rehberlik etmektir.
+        </p>
+      </div>
+
+      {/* Misyon ve Vizyon */}
+      <div className="grid md:grid-cols-2 gap-8 mb-16">
+        <div className="p-6 rounded-lg border bg-card">
+          <h2 className="text-2xl font-bold mb-4">Misyonumuz</h2>
+          <p className="text-muted-foreground">
+            Finansal özgürlüğe giden yolda kullanıcıları güçlendirmek, harcama davranışlarını optimize etmek ve 
+            yatırım potansiyellerini maksimize etmek için kullanıcı dostu, güvenli ve akıllı bir finansal yönetim aracı sunmak.
+          </p>
+        </div>
+        <div className="p-6 rounded-lg border bg-card">
+          <h2 className="text-2xl font-bold mb-4">Vizyonumuz</h2>
+          <p className="text-muted-foreground">
+            Türkiye'nin en güvenilir ve kapsamlı kişisel finans yönetim platformu olmak ve yapay zeka destekli 
+            çözümlerimizle kullanıcılarımızın finansal refahını artırmak.
+          </p>
+        </div>
+      </div>
+
+      {/* Tarihçe */}
+      <div className="mb-16">
+        <h2 className="text-3xl font-bold mb-8">Tarihçemiz ve Hedeflerimiz</h2>
+        <div className="space-y-8">
+          {/* 2024 Q3 */}
+          <div className="flex gap-4">
+            <div className="flex-none">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xl font-bold">2024 Q3</h3>
+                <span className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">Başlangıç</span>
+              </div>
+              <p className="text-muted-foreground">
+                Bakiye360'ın ilk versiyonu yayınlandı. Temel bütçe takibi, gelir-gider yönetimi ve 
+                kategori bazlı harcama analizi özellikleri kullanıma sunuldu.
+              </p>
+            </div>
+          </div>
+
+          {/* 2024 Q4 */}
+          <div className="flex gap-4">
+            <div className="flex-none">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xl font-bold">2024 Q4</h3>
+                <span className="px-2 py-1 text-xs rounded-full bg-green-500/10 text-green-500">Büyüme</span>
+              </div>
+              <p className="text-muted-foreground">
+                Premium üyelik sistemi ve gelişmiş raporlama özellikleri eklendi. İlk 1000 aktif kullanıcıya ulaşıldı.
+              </p>
+            </div>
+          </div>
+
+          {/* 2025 Q1 */}
+          <div className="flex gap-4">
+            <div className="flex-none">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xl font-bold">2025 Q1</h3>
+                <span className="px-2 py-1 text-xs rounded-full bg-blue-500/10 text-blue-500">Yenilik</span>
+              </div>
+              <p className="text-muted-foreground">
+                Mobil uygulama lansmanı ve otomatik kategorizasyon sistemi devreye alındı. 
+                Banka entegrasyonları için altyapı çalışmaları başlatıldı.
+              </p>
+            </div>
+          </div>
+
+          {/* 2025 Q2 */}
+          <div className="flex gap-4">
+            <div className="flex-none">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Award className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xl font-bold">2025 Q2</h3>
+                <span className="px-2 py-1 text-xs rounded-full bg-purple-500/10 text-purple-500">Genişleme</span>
+              </div>
+              <p className="text-muted-foreground">
+                Banka entegrasyonları tamamlandı ve canlıya alındı. İşletmeler için özel çözümler geliştirildi.
+                10.000 aktif kullanıcı hedefine ulaşıldı.
+              </p>
+            </div>
+          </div>
+
+          {/* 2025 Q3 */}
+          <div className="flex gap-4">
+            <div className="flex-none">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Brain className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xl font-bold">2025 Q3</h3>
+                <span className="px-2 py-1 text-xs rounded-full bg-yellow-500/10 text-yellow-500">Gelecek Hedef</span>
+              </div>
+              <p className="text-muted-foreground">
+                Yapay Zeka entegrasyonu ile kişiselleştirilmiş finansal tahminler, akıllı bütçe önerileri ve 
+                otomatik tasarruf stratejileri sunulması planlanıyor. Hedef: Kullanıcıların finansal kararlarında 
+                yapay zeka destekli öngörüler ve öneriler sağlamak.
+              </p>
+            </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="py-20 md:py-28 bg-gradient-to-b from-background to-muted/50">
-          <div className="container px-4 md:px-6">
-            <motion.div 
-              className="max-w-3xl mx-auto text-center"
-              initial="hidden"
-              animate="visible"
-              variants={fadeIn}
-            >
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl mb-6">
-                Bakiye360 Hakkında
-              </h1>
-              <p className="text-xl text-muted-foreground mb-8">
-                Finansal özgürlüğünüze giden yolda güvenilir partneriniz.
-              </p>
-            </motion.div>
+      {/* Değerlerimiz */}
+      <div>
+        <h2 className="text-3xl font-bold mb-8">Değerlerimiz</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="p-6 rounded-lg border bg-card">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Güvenlik</h3>
+            <p className="text-muted-foreground">
+              Kullanıcılarımızın finansal verilerinin güvenliği ve gizliliği bizim için en önemli önceliktir.
+            </p>
           </div>
-        </section>
-
-        {/* Vision & Mission */}
-        <section className="py-16 bg-background">
-          <div className="container px-4 md:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
-              <motion.div 
-                className="space-y-4"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeIn}
-              >
-                <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
-                  <TrendingUp className="h-8 w-8 text-primary" />
-                </div>
-                <h2 className="text-3xl font-bold tracking-tighter">Vizyonumuz</h2>
-                <p className="text-lg text-muted-foreground">
-                  Bakiye360 olarak, her bireyin finansal kararlarını bilinçli bir şekilde almasını ve 
-                  finansal hedeflerine ulaşmasını sağlayan en kapsamlı ve kullanıcı dostu çözümü sunmayı hedefliyoruz.
-                </p>
-              </motion.div>
-              
-              <motion.div 
-                className="space-y-4"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeIn}
-              >
-                <div className="inline-block p-2 bg-primary/10 rounded-lg mb-4">
-                  <Target className="h-8 w-8 text-primary" />
-                </div>
-                <h2 className="text-3xl font-bold tracking-tighter">Misyonumuz</h2>
-                <p className="text-lg text-muted-foreground">
-                  İnsanların finansal verilerini güvenli bir şekilde analiz eden, 
-                  akıllı içgörüler sunan ve finansal okuryazarlığı artıran teknolojiler geliştirerek 
-                  herkesin finansal özgürlüğe ulaşmasına yardımcı olmak.
-                </p>
-              </motion.div>
+          <div className="p-6 rounded-lg border bg-card">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Target className="h-6 w-6 text-primary" />
             </div>
+            <h3 className="text-xl font-bold mb-2">Yenilikçilik</h3>
+            <p className="text-muted-foreground">
+              Sürekli gelişen teknoloji ve kullanıcı ihtiyaçlarına uygun yenilikçi çözümler geliştiriyoruz.
+            </p>
           </div>
-        </section>
-
-        {/* Values */}
-        <section className="py-16 bg-muted/30">
-          <div className="container px-4 md:px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold tracking-tighter mb-4">Değerlerimiz</h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Bakiye360 olarak, tüm kararlarımızı ve ürün geliştirme süreçlerimizi şekillendiren temel değerlerimiz:
-              </p>
+          <div className="p-6 rounded-lg border bg-card">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Users className="h-6 w-6 text-primary" />
             </div>
-            
-            <motion.div 
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8"
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              {values.map((value, index) => (
-                <motion.div 
-                  key={index} 
-                  className="bg-background rounded-lg p-6 shadow-sm border hover:shadow-md transition-shadow"
-                  variants={fadeIn}
-                >
-                  <div className="mb-4">{value.icon}</div>
-                  <h3 className="text-lg font-semibold mb-2">{value.title}</h3>
-                  <p className="text-muted-foreground">{value.description}</p>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </section>
-
-        {/* History & Milestones */}
-        <section className="py-16 bg-muted/30">
-          <div className="container px-4 md:px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold tracking-tighter mb-4">Tarihçemiz</h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Bakiye360'ın kuruluşundan bugüne kadar olan yolculuğu:
-              </p>
-            </div>
-            
-            <div className="relative max-w-3xl mx-auto">
-              {/* Timeline line */}
-              <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-border"></div>
-              
-              {/* Timeline items */}
-              <motion.div 
-                className="space-y-12"
-                variants={staggerContainer}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-              >
-                {milestones.map((milestone, index) => (
-                  <motion.div 
-                    key={index} 
-                    className={`relative flex items-center ${index % 2 === 0 ? 'flex-row-reverse' : ''}`}
-                    variants={fadeIn}
-                  >
-                    <div className="flex-1"></div>
-                    <div className="z-10 flex items-center justify-center w-10 h-10 bg-primary text-primary-foreground rounded-full shadow-sm mx-4">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <div className={`flex-1 ${index % 2 === 0 ? 'text-right' : ''}`}>
-                      <div className="bg-background rounded-lg p-5 shadow-sm border">
-                        <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-2">
-                          {milestone.year}
-                        </span>
-                        <h3 className="text-lg font-semibold mb-2">{milestone.title}</h3>
-                        <p className="text-muted-foreground">{milestone.description}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t py-12 md:py-16">
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-8">
-            <div className="flex items-center">
-              <Image 
-                src={currentTheme === "dark" ? "/logo_dark.png" : "/logo.png"} 
-                alt="Bakiye360 Logo" 
-                width={110} 
-                height={28} 
-                className="h-auto"
-              />
-            </div>
-            <p className="text-sm text-muted-foreground text-center md:text-right">
-              &copy; {new Date().getFullYear()} Bakiye360. Tüm hakları saklıdır.
+            <h3 className="text-xl font-bold mb-2">Kullanıcı Odaklılık</h3>
+            <p className="text-muted-foreground">
+              Her geliştirmemizde kullanıcılarımızın ihtiyaç ve geri bildirimlerini ön planda tutuyoruz.
             </p>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 } 
