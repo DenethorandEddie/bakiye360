@@ -50,6 +50,21 @@ async function updateUserSubscriptionStatus(
       updated_at: new Date().toISOString()
     };
     
+    // Premium aboneliğe geçince bildirim ayarlarını otomatik aç
+    if (status === 'premium') {
+      updateData.email_notifications = true;
+      updateData.budget_alerts = true;
+      updateData.monthly_reports = true;
+      console.log(`Premium abonelik için bildirim ayarları otomatik olarak açıldı. Kullanıcı: ${userId}`);
+    } 
+    // Ücretsiz sürüme geçince bildirim ayarlarını kapat
+    else if (status === 'free') {
+      updateData.email_notifications = false;
+      updateData.budget_alerts = false;
+      updateData.monthly_reports = false;
+      console.log(`Ücretsiz plan için bildirim ayarları otomatik olarak kapatıldı. Kullanıcı: ${userId}`);
+    }
+    
     if (subscriptionId) {
       updateData.stripe_subscription_id = subscriptionId;
     }
@@ -87,9 +102,9 @@ async function updateUserSubscriptionStatus(
         stripe_customer_id: customerId || null,
         subscription_period_start: periodStart || null,
         subscription_period_end: periodEnd || null,
-        email_notifications: true,
-        budget_alerts: true,
-        monthly_reports: true,
+        email_notifications: status === 'premium', // Premium ise true, değilse false
+        budget_alerts: status === 'premium', // Premium ise true, değilse false
+        monthly_reports: status === 'premium', // Premium ise true, değilse false
         app_preferences: { currency: 'TRY', language: 'tr' },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

@@ -35,7 +35,11 @@ BEGIN
       stripe_subscription_id = COALESCE(p_stripe_subscription_id, stripe_subscription_id),
       stripe_customer_id = COALESCE(p_stripe_customer_id, stripe_customer_id),
       subscription_period_start = CASE WHEN p_subscription_period_start IS NOT NULL THEN p_subscription_period_start::TIMESTAMPTZ ELSE subscription_period_start END,
-      subscription_period_end = CASE WHEN p_subscription_period_end IS NOT NULL THEN p_subscription_period_end::TIMESTAMPTZ ELSE subscription_period_end END
+      subscription_period_end = CASE WHEN p_subscription_period_end IS NOT NULL THEN p_subscription_period_end::TIMESTAMPTZ ELSE subscription_period_end END,
+      -- Premium durumuna göre bildirim ayarlarını otomatik güncelle
+      email_notifications = CASE WHEN p_status = 'premium' THEN TRUE ELSE FALSE END,
+      budget_alerts = CASE WHEN p_status = 'premium' THEN TRUE ELSE FALSE END,
+      monthly_reports = CASE WHEN p_status = 'premium' THEN TRUE ELSE FALSE END
     WHERE user_id = p_user_id;
   ELSE
     -- Kayıt yoksa oluştur
@@ -59,9 +63,9 @@ BEGIN
       p_stripe_customer_id,
       CASE WHEN p_subscription_period_start IS NOT NULL THEN p_subscription_period_start::TIMESTAMPTZ ELSE NULL END,
       CASE WHEN p_subscription_period_end IS NOT NULL THEN p_subscription_period_end::TIMESTAMPTZ ELSE NULL END,
-      TRUE, -- email_notifications
-      TRUE, -- budget_alerts
-      TRUE, -- monthly_reports
+      CASE WHEN p_status = 'premium' THEN TRUE ELSE FALSE END, -- email_notifications
+      CASE WHEN p_status = 'premium' THEN TRUE ELSE FALSE END, -- budget_alerts
+      CASE WHEN p_status = 'premium' THEN TRUE ELSE FALSE END, -- monthly_reports
       '{"currency": "TRY", "language": "tr"}', -- app_preferences
       v_now,
       v_now

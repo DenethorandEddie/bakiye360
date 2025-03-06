@@ -145,6 +145,19 @@ async function updateUserSubscriptionDirect() {
       updated_at: new Date().toISOString()
     };
     
+    // Premium durumuna göre bildirim ayarlarını otomatik güncelle
+    if (status === 'premium') {
+      updateData.email_notifications = true;
+      updateData.budget_alerts = true;
+      updateData.monthly_reports = true;
+      console.log('Premium abonelik için bildirim ayarları otomatik olarak açıldı.');
+    } else if (status === 'free') {
+      updateData.email_notifications = false;
+      updateData.budget_alerts = false;
+      updateData.monthly_reports = false;
+      console.log('Ücretsiz plan için bildirim ayarları otomatik olarak kapatıldı.');
+    }
+    
     // Stripe bilgilerini ekle
     if (stripeSubscriptionId) {
       updateData.stripe_subscription_id = stripeSubscriptionId;
@@ -166,9 +179,9 @@ async function updateUserSubscriptionDirect() {
     // Mevcut kayıt yoksa varsayılan değerleri ekle
     if (!existingSettings) {
       Object.assign(updateData, {
-        email_notifications: true,
-        budget_alerts: true,
-        monthly_reports: true,
+        email_notifications: status === 'premium', // Premium ise true, değilse false
+        budget_alerts: status === 'premium', // Premium ise true, değilse false
+        monthly_reports: status === 'premium', // Premium ise true, değilse false
         app_preferences: { currency: 'TRY', language: 'tr' },
         created_at: new Date().toISOString()
       });
