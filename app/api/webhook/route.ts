@@ -13,7 +13,7 @@ const adminSupabase = createClient(
 
 // Stripe API anahtarı
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2023-10-16" as any, // Linter hatası için type assertion
+  apiVersion: "2025-02-24.acacia" as any, // Güncel API sürümü
 });
 
 // Webhook gizli anahtarı - Stripe'dan gelen olayların doğrulanmasında kullanılır
