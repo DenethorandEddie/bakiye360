@@ -61,14 +61,36 @@ export async function POST(request: Request) {
     // Stripe'dan aboneliği iptal et
     await stripe.subscriptions.cancel(subscription.stripe_subscription_id);
 
-    // Veritabanında abonelik durumunu güncelle
-    await supabase
+    // 1. Veritabanında subscriptions tablosundaki abonelik durumunu güncelle
+    const { error: subUpdateError } = await supabase
       .from('subscriptions')
       .update({
         status: 'canceled',
         updated_at: new Date().toISOString()
       })
       .eq('id', subscriptionId);
+      
+    if (subUpdateError) {
+      console.error("Abonelik güncellenirken hata:", subUpdateError);
+      return NextResponse.json(
+        { error: "Abonelik güncellenirken hata oluştu" },
+        { status: 500 }
+      );
+    }
+    
+    // 2. User settings tablosunu da güncelle
+    const { error: settingsError } = await supabase
+      .from('user_settings')
+      .update({
+        subscription_status: 'free',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id);
+      
+    if (settingsError) {
+      console.error("User settings güncellenirken hata:", settingsError);
+      // İşlemi durdurmuyoruz, çünkü subscriptions tablosu birincil kaynaktır
+    }
 
     return NextResponse.json({ 
       success: true,
