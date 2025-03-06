@@ -1,25 +1,19 @@
 /** @type {import('next').NextConfig} */
+
 const nextConfig = {
-  // TypeScript hataları deployment'ı engellemeyecek
-  typescript: {
-    ignoreBuildErrors: true,
+  images: {
+    domains: ['wemufsahwsnmeyuedczw.supabase.co'],
   },
-  // ESLint hataları deployment'ı engellemeyecek
-  eslint: {
-    ignoreDuringBuilds: true,
+  experimental: {
+    serverActions: true,
   },
-  images: { unoptimized: true },
-  reactStrictMode: true,
-  // Derleme hatalarını engellemek için
-  swcMinify: false,
-  webpack: (config, { isServer }) => {
-    // ws modülü için uyarıları gizle
-    config.ignoreWarnings = [
-      { module: /node_modules\/ws/ }
-    ];
-    config.optimization.minimize = false;
+  webpack: (config) => {
+    config.externals.push({
+      'utf-8-validate': 'commonjs utf-8-validate',
+      'bufferutil': 'commonjs bufferutil',
+    });
     return config;
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
