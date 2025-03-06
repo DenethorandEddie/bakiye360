@@ -34,9 +34,41 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { theme, setTheme } = useTheme();
+  const [isPremium, setIsPremium] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Mobil görünüm için sidebar durumu
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Kullanıcının abonelik durumunu kontrol et
+  useEffect(() => {
+    async function checkSubscription() {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Kullanıcının abonelik durumunu kontrol et
+        const { data: subscription, error: subscriptionError } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .single();
+
+        setIsPremium(!!subscription);
+      } catch (error) {
+        console.error("Abonelik durumu kontrol edilirken bir hata oluştu:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    checkSubscription();
+  }, [supabase]);
 
   const isActive = (path: string) => {
     if (path === "/dashboard" && pathname === "/dashboard") {
@@ -233,28 +265,30 @@ export default function DashboardLayout({
               )}
             </Tooltip>
 
-            {/* Abonelik */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  href="/dashboard/subscription"
-                  className={cn(
-                    "flex items-center justify-center h-9 px-2 text-sm font-medium rounded-md transition-colors",
-                    isActive("/dashboard/subscription")
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted"
-                  )}
-                >
-                  <CreditCard className={cn("h-4 w-4", !isSidebarCollapsed && "mr-2")} />
-                  {!isSidebarCollapsed && <span>Abonelik</span>}
-                </Link>
-              </TooltipTrigger>
-              {isSidebarCollapsed && (
-                <TooltipContent side="right">
-                  <p>Abonelik</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
+            {/* Abonelik - Sadece ücretsiz kullanıcılar için göster */}
+            {!isPremium && !isLoading && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/dashboard/subscription"
+                    className={cn(
+                      "flex items-center justify-center h-9 px-2 text-sm font-medium rounded-md transition-colors",
+                      isActive("/dashboard/subscription")
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    <CreditCard className={cn("h-4 w-4", !isSidebarCollapsed && "mr-2")} />
+                    {!isSidebarCollapsed && <span>Abonelik</span>}
+                  </Link>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    <p>Abonelik</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            )}
 
             {/* Profil */}
             <Tooltip>

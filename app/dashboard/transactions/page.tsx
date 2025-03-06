@@ -227,7 +227,7 @@ export default function TransactionsPage() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">İşlemler</h1>
 
-      {reachedTransactionLimit && (
+      {reachedTransactionLimit && !subscriptionStatus.isPremium && (
         <Alert className="mb-6 border-amber-500 bg-amber-500/10">
           <AlertCircle className="h-5 w-5 text-amber-500" />
           <AlertTitle>İşlem limiti aşıldı</AlertTitle>
@@ -318,9 +318,9 @@ export default function TransactionsPage() {
           <Button
             variant="default"
             onClick={() => window.location.href = "/dashboard/transactions/new"}
-            disabled={reachedTransactionLimit}
+            disabled={reachedTransactionLimit && !subscriptionStatus.isPremium}
           >
-            {reachedTransactionLimit ? "İşlem Limiti Aşıldı" : "Yeni İşlem Ekle"}
+            {reachedTransactionLimit && !subscriptionStatus.isPremium ? "İşlem Limiti Aşıldı" : "Yeni İşlem Ekle"}
           </Button>
         </div>
       </div>

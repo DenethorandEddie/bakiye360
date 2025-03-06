@@ -3,9 +3,12 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import Stripe from "stripe";
 
+// App Router için modern config
+export const dynamic = 'force-dynamic';
+
 // Stripe API anahtarı
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2023-10-16" as any, // Linter hatası için type assertion
+  apiVersion: "2025-02-24.acacia" as any, // Güncel API versiyonu
 });
 
 export async function POST(request: Request) {

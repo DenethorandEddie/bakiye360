@@ -23,6 +23,15 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
+  const [subscriptionDetails, setSubscriptionDetails] = useState<{
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+    stripeSubscriptionId: string | null;
+  }>({
+    currentPeriodStart: null,
+    currentPeriodEnd: null,
+    stripeSubscriptionId: null
+  });
   const [settings, setSettings] = useState({
     notifications: {
       email: true,
@@ -57,6 +66,25 @@ export default function SettingsPage() {
           console.error('Ayarlar yüklenirken hata:', userSettingsError.message);
           toast.error('Bildirim ayarları yüklenirken bir hata oluştu');
           return;
+        }
+
+        // Abonelik bilgilerini kontrol et
+        const { data: subscriptionData, error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single();
+        
+        if (subscriptionData) {
+          setSubscriptionStatus('premium');
+          setSubscriptionDetails({
+            currentPeriodStart: subscriptionData.current_period_start as string,
+            currentPeriodEnd: subscriptionData.current_period_end as string,
+            stripeSubscriptionId: subscriptionData.stripe_subscription_id as string
+          });
+        } else {
+          setSubscriptionStatus('free');
         }
 
         // Eğer user_settings tablosunda kayıt varsa
@@ -215,6 +243,17 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Tarih formatını düzenle
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Bilgi yok";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   // İçerik yüklenirken yükleme spinner'ı göster
@@ -419,6 +458,25 @@ export default function SettingsPage() {
                   </Link>
                 </Button>
               </div>
+
+              {subscriptionStatus === 'premium' && (
+                <div className="mt-4 border rounded-md p-4 bg-muted/20">
+                  <h4 className="font-medium mb-2">Premium Abonelik Detayları</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Abonelik başlangıç:</span>
+                      <span className="text-sm font-medium">{formatDate(subscriptionDetails.currentPeriodStart)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Sonraki ödeme tarihi:</span>
+                      <span className="text-sm font-medium">{formatDate(subscriptionDetails.currentPeriodEnd)}</span>
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      Aboneliğiniz sonraki ödeme tarihinde otomatik olarak yenilenecektir.
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
