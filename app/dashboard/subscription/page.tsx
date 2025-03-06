@@ -57,53 +57,77 @@ export default function SubscriptionPage() {
         
         setUserId(user.id);
         
-        // 1. Kullanıcının abonelik durumunu subscriptions tablosundan kontrol et
-        const { data: subscription, error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle();
-          
-        if (subscriptionError && subscriptionError.code !== 'PGRST116') {
-          console.error("Abonelik durumu alınamadı:", subscriptionError);
-          setError("Abonelik durumu kontrol edilirken bir hata oluştu.");
-          setLoading(false);
-          return;
-        }
-        
-        // Aktif abonelik varsa
-        if (subscription) {
-          console.log("Aktif abonelik bulundu:", subscription);
-          setIsPremium(true);
-          setSubscriptionId(subscription.id);
-          setLoading(false);
-          return;
-        }
-        
-        // 2. Eğer subscriptions'da yoksa, user_settings tablosundan kontrol et
+        // 1. Birincil kaynak olarak user_settings tablosundan subscription_status'e bak
         const { data: userSettings, error: userSettingsError } = await supabase
           .from('user_settings')
-          .select('subscription_status')
+          .select('subscription_status, stripe_subscription_id')
           .eq('user_id', user.id)
           .single();
           
-        if (userSettingsError && userSettingsError.code !== 'PGRST116') {
+        if (userSettingsError) {
           console.error("User settings bilgisi alınamadı:", userSettingsError);
-        }
-        
-        if (userSettings && userSettings.subscription_status === 'premium') {
-          console.log("User settings tablosunda premium abonelik bulundu");
-          setIsPremium(true);
+          
+          // User settings bulunamadıysa, aktif bir abonelik var mı kontrol et
+          // Bu sadece yedek bir kontrol olarak çalışır
+          const { data: subscription, error: subscriptionError } = await supabase
+            .from('subscriptions')
+            .select('id, status')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .maybeSingle();
+            
+          if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+            console.error("Abonelik durumu alınamadı:", subscriptionError);
+            setError("Abonelik durumu kontrol edilirken bir hata oluştu.");
+            setLoading(false);
+            return;
+          }
+          
+          if (subscription) {
+            console.log("Aktif abonelik bulundu, ancak user_settings güncellenmemiş:", subscription);
+            setIsPremium(true);
+            setSubscriptionId(subscription.id);
+            
+            // User settings güncellemesi yap - API endpoint'i kullan
+            try {
+              const response = await fetch('/api/subscription/update-status', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  user_id: user.id,
+                  status: 'premium',
+                  stripe_subscription_id: subscription.id
+                }),
+              });
+              
+              if (!response.ok) {
+                console.error("Kullanıcı ayarları güncellenemedi:", await response.text());
+              } else {
+                console.log("Kullanıcı ayarları güncellendi");
+              }
+            } catch (error) {
+              console.error("Kullanıcı ayarları güncellenirken hata:", error);
+            }
+          } else {
+            console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
+            setIsPremium(false);
+          }
         } else {
-          console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
-          setIsPremium(false);
-          setSubscriptionId(null);
+          // User settings bulundu
+          if (userSettings.subscription_status === 'premium') {
+            console.log("User settings tablosunda premium abonelik bulundu");
+            setIsPremium(true);
+            setSubscriptionId(userSettings.stripe_subscription_id || null);
+          } else {
+            console.log("User settings tablosunda abonelik free olarak ayarlanmış");
+            setIsPremium(false);
+          }
         }
-        
       } catch (error) {
-        console.error("Beklenmeyen bir hata oluştu:", error);
-        setError("Beklenmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
+        console.error("Abonelik durumu kontrol edilirken hata:", error);
+        setError("Abonelik durumu kontrol edilirken bir hata oluştu.");
       } finally {
         setLoading(false);
       }
@@ -196,9 +220,43 @@ export default function SubscriptionPage() {
         throw new Error(errorData.error || "Abonelik iptal edilemedi.");
       }
       
+      // Abonelik iptal edildikten sonra user_settings tablosunu güncelle
+      // Not: Abonelik süresi dolana kadar kullanıcı premium olarak kalacak
+      // Ancak cancel_at_period_end bayrağı true olacak
+      if (userId) {
+        try {
+          // User settings tablosunu doğrudan güncelleme yapmıyoruz çünkü kullanıcı
+          // dönem sonuna kadar premium kalacak. Bu, subscriptions güncellendikçe
+          // webhook ile otomatik olarak güncellenecek.
+          
+          // Ancak aboneliğin iptal edildiğine dair bir bildirim ekleyelim
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: userId,
+              title: 'Aboneliğiniz İptal Edildi',
+              content: 'Aboneliğiniz başarıyla iptal edildi. Mevcut ödeme dönem sonuna kadar premium özelliklere erişiminiz devam edecektir.',
+              read: false,
+              created_at: new Date().toISOString(),
+              link: '/dashboard/subscription'
+            });
+          
+          console.log("Abonelik iptal bildirimi eklendi");
+        } catch (notifError) {
+          console.error("Bildirim eklenirken hata:", notifError);
+          // Bildirim hatası kritik değil, devam et
+        }
+      }
+      
       // Başarılı yanıt
-      setIsPremium(false);
+      // Not: Burada isPremium'u false yapmıyoruz çünkü kullanıcı dönem sonuna kadar premium kalmaya devam edecek
+      // setIsPremium(false);
       toast.success("Aboneliğiniz başarıyla iptal edildi. Mevcut dönem sonuna kadar premium özelliklerden yararlanabilirsiniz.");
+      
+      // Abonelik durumunu güncellemek için sayfayı yeniden yükle
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
     } catch (error) {
       console.error("Abonelik iptali hatası:", error);
