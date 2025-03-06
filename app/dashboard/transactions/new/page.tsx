@@ -58,6 +58,50 @@ export default function NewTransactionPage() {
     isRecurring: false,
   });
 
+  // Kullanıcının abonelik durumunu kontrol et
+  const checkSubscription = async () => {
+    try {
+      setLoadingSubscription(true);
+      
+      // 1. User settings tablosundan abonelik durumunu kontrol et
+      const { data: userSettings, error: settingsError } = await supabase
+        .from('user_settings')
+        .select('subscription_status')
+        .eq('user_id', user.id)
+        .single();
+
+      console.log("User settings tablosundan abonelik durumu sorgulanıyor...");
+      
+      if (settingsError) {
+        if (settingsError.code === 'PGRST116') {
+          console.log("Kullanıcının settings kaydı bulunamadı");
+        } else {
+          console.error('Abonelik bilgisi alınamadı:', settingsError);
+        }
+      }
+      
+      if (userSettings) {
+        console.log("User settings tablosundan alınan abonelik durumu:", userSettings.subscription_status);
+      } else {
+        console.log("User settings bulunamadı, varsayılan olarak free olarak ayarlanıyor");
+      }
+
+      if (userSettings && userSettings.subscription_status === 'premium') {
+        setIsPremium(true);
+        console.log("Kullanıcı premium aboneliğe sahip olarak işaretlendi");
+      } else {
+        setIsPremium(false);
+        console.log("Kullanıcı ücretsiz planda olarak işaretlendi");
+      }
+    } catch (error) {
+      console.error('Abonelik kontrolünde beklenmeyen hata:', error);
+      setIsPremium(false); // Hata durumunda varsayılan olarak free
+    } finally {
+      setLoadingSubscription(false);
+      console.log("Abonelik durumu kontrol edildi. Premium:", isPremium);
+    }
+  };
+
   // Premium kullanıcı ve işlem limiti kontrolü
   useEffect(() => {
     const checkSubscriptionStatus = async () => {
@@ -176,10 +220,15 @@ export default function NewTransactionPage() {
         // Eğer free plan kullanıcısı ise, sadece temel kategorileri göster
         if (!isPremium) {
           console.log("Free plan kullanıcısı için temel kategoriler filtreleniyor");
+          console.log("Premium durumu:", isPremium);
+          console.log("Filtreleme öncesi kategori sayısı:", allCategories.length);
+          
           allCategories = allCategories.filter(cat => 
             freeBasicCategories.includes(String(cat.name)) || // Tip güvenliği için String dönüşümü
             String(cat.name).includes('Diğer')                // Tip güvenliği için String dönüşümü
           );
+          
+          console.log("Filtreleme sonrası kategori sayısı:", allCategories.length);
           
           // Eğer filtreleme sonrası herhangi bir kategori kalmadıysa, tüm kategorileri göster
           if (allCategories.length === 0) {
@@ -187,7 +236,9 @@ export default function NewTransactionPage() {
             allCategories = [...userCategories, ...generalCategories];
           }
         } else {
-          console.log("Premium kullanıcı için tüm kategoriler gösteriliyor");
+          console.log("Premium kullanıcı - tüm kategoriler gösteriliyor");
+          console.log("Premium durumu:", isPremium);
+          console.log("Toplam kategori sayısı:", allCategories.length);
         }
 
         setCategories(allCategories);

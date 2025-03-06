@@ -78,6 +78,8 @@ export default function BudgetGoalsPage() {
     // Kullanıcının abonelik durumunu kontrol et
     const checkSubscription = async () => {
       try {
+        console.log("Bütçe Hedefleri - Abonelik durumu kontrol ediliyor...");
+        
         // SADECE user_settings tablosundan abonelik durumunu kontrol et
         const { data, error } = await supabase
           .from('user_settings')
@@ -85,21 +87,30 @@ export default function BudgetGoalsPage() {
           .eq('user_id', user.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Abonelik bilgisi alınamadı:', error);
-          toast.error('Abonelik bilgisi yüklenemedi');
+        console.log("Bütçe Hedefleri - User settings tablosundan sorgu yapıldı");
+        
+        if (error) {
+          if (error.code === 'PGRST116') {
+            console.log("Bütçe Hedefleri - Kullanıcının settings kaydı bulunamadı");
+          } else {
+            console.error('Bütçe Hedefleri - Abonelik bilgisi alınamadı:', error);
+            toast.error('Abonelik bilgisi yüklenemedi');
+          }
         }
 
-        if (data && data.subscription_status) {
+        if (data) {
+          console.log("Bütçe Hedefleri - User settings tablosundan abonelik durumu:", data.subscription_status);
           setSubscriptionStatus(String(data.subscription_status));
         } else {
+          console.log("Bütçe Hedefleri - User settings bulunamadı, varsayılan 'free' olarak ayarlanıyor");
           setSubscriptionStatus('free');
         }
       } catch (error) {
-        console.error('Abonelik kontrolünde hata:', error);
+        console.error('Bütçe Hedefleri - Abonelik kontrolünde beklenmeyen hata:', error);
         setSubscriptionStatus('free'); // Hata durumunda varsayılan olarak free
       } finally {
         setLoadingSubscription(false);
+        console.log("Bütçe Hedefleri - Abonelik durumu kontrol edildi. Durum:", subscriptionStatus);
       }
     };
 
@@ -108,16 +119,6 @@ export default function BudgetGoalsPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Free plan kullanıcıları için temel gider kategorileri
-        const freeCategoriesMap = {
-          'Yiyecek': true,
-          'Ulaşım': true,
-          'Konut': true,
-          'Faturalar': true,
-          'Banka': true,
-          'Diğer': true
-        };
-        
         // 1. First fetch expense categories
         const { data: categoriesData, error: categoriesError } = await supabase
           .from('categories')
@@ -133,12 +134,20 @@ export default function BudgetGoalsPage() {
             name: String(cat.name)
           }));
           
+          console.log("Toplam kategori sayısı:", typedCategories.length);
+          console.log("Abonelik durumu:", subscriptionStatus);
+          
+          // Free plan kullanıcıları için temel kategoriler
+          const freeBasicCategories = [
+            'Yiyecek', 'Ulaşım', 'Konut', 'Faturalar', 'Banka', 'Diğer Gider', 'Diğer'
+          ];
+          
           // Eğer free plan kullanıcısı ise, sadece temel kategorileri filtrele
           if (subscriptionStatus !== 'premium') {
             console.log("Free plan kullanıcısı için temel kategoriler filtreleniyor");
             typedCategories = typedCategories.filter(cat => 
-              freeCategoriesMap[cat.name] || // İsim temel kategorilerden biri mi?
-              cat.name.includes('Diğer')     // Veya Diğer kategorisi mi?
+              freeBasicCategories.includes(String(cat.name)) || // Temel kategorileri dahil et
+              String(cat.name).includes('Diğer')                // "Diğer" içeren kategorileri dahil et
             );
             
             // Eğer filtreleme sonrası herhangi bir kategori kalmadıysa
@@ -153,8 +162,8 @@ export default function BudgetGoalsPage() {
             console.log("Premium kullanıcı için tüm kategoriler gösteriliyor");
           }
           
+          console.log("Filtreleme sonrası kategori sayısı:", typedCategories.length);
           setCategories(typedCategories);
-          console.log("Kategori bilgileri:", typedCategories);
         }
 
         // 2. Then fetch budget goals
