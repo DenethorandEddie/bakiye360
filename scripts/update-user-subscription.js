@@ -3,12 +3,14 @@
  * 
  * Bu script, belirli bir kullanıcının abonelik durumunu manuel olarak güncellemek için kullanılır.
  * Örnek Kullanım:
- * node scripts/update-user-subscription.js [userId] [status] [stripe_subscription_id] [stripe_customer_id]
+ * node scripts/update-user-subscription.js [userId] [status] [stripe_subscription_id] [stripe_customer_id] [period_start] [period_end]
  * 
  * - userId: Kullanıcı ID'si (zorunlu)
  * - status: Abonelik durumu ('premium' veya 'free') (zorunlu)
  * - stripe_subscription_id: Stripe Abonelik ID'si (opsiyonel)
  * - stripe_customer_id: Stripe Müşteri ID'si (opsiyonel)
+ * - period_start: Abonelik başlangıç tarihi (ISO format) (opsiyonel)
+ * - period_end: Abonelik bitiş tarihi (ISO format) (opsiyonel)
  */
 
 const fetch = require('node-fetch');
@@ -23,17 +25,30 @@ const userId = args[0];
 const status = args[1];
 const stripeSubscriptionId = args[2] || null;
 const stripeCustomerId = args[3] || null;
+const periodStart = args[4] || null;
+const periodEnd = args[5] || null;
 
 // Argüman kontrolü
 if (!userId || !status || !['premium', 'free'].includes(status)) {
   console.error(`
-Kullanım: node scripts/update-user-subscription.js [userId] [status] [stripe_subscription_id] [stripe_customer_id]
+Kullanım: node scripts/update-user-subscription.js [userId] [status] [stripe_subscription_id] [stripe_customer_id] [period_start] [period_end]
 
 - userId: Kullanıcı ID'si (zorunlu)
 - status: Abonelik durumu ('premium' veya 'free') (zorunlu)
 - stripe_subscription_id: Stripe Abonelik ID'si (opsiyonel)
 - stripe_customer_id: Stripe Müşteri ID'si (opsiyonel)
+- period_start: Abonelik başlangıç tarihi (ISO format) (opsiyonel)
+- period_end: Abonelik bitiş tarihi (ISO format) (opsiyonel)
+
+Örnek: node scripts/update-user-subscription.js abc123 premium sub_123456 cus_123456 "2023-05-01T00:00:00Z" "2023-06-01T00:00:00Z"
   `);
+  process.exit(1);
+}
+
+// Tarih formatı kontrolü
+if ((periodStart && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(periodStart)) ||
+    (periodEnd && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(periodEnd))) {
+  console.error('HATA: Tarihler ISO formatında olmalıdır (YYYY-MM-DDTHH:MM:SSZ)');
   process.exit(1);
 }
 
@@ -85,7 +100,9 @@ async function updateUserSubscriptionAPI() {
         user_id: userId,
         status: status,
         stripe_subscription_id: stripeSubscriptionId,
-        stripe_customer_id: stripeCustomerId
+        stripe_customer_id: stripeCustomerId,
+        subscription_period_start: periodStart,
+        subscription_period_end: periodEnd
       }),
     });
     
@@ -137,6 +154,15 @@ async function updateUserSubscriptionDirect() {
       updateData.stripe_customer_id = stripeCustomerId;
     }
     
+    // Abonelik dönemi tarihlerini ekle
+    if (periodStart) {
+      updateData.subscription_period_start = periodStart;
+    }
+    
+    if (periodEnd) {
+      updateData.subscription_period_end = periodEnd;
+    }
+    
     // Mevcut kayıt yoksa varsayılan değerleri ekle
     if (!existingSettings) {
       Object.assign(updateData, {
@@ -178,6 +204,8 @@ async function main() {
   Yeni Durum: ${status}
   Stripe Abonelik ID: ${stripeSubscriptionId || 'Belirtilmedi'}
   Stripe Müşteri ID: ${stripeCustomerId || 'Belirtilmedi'}
+  Abonelik Başlangıç: ${periodStart || 'Belirtilmedi'}
+  Abonelik Bitiş: ${periodEnd || 'Belirtilmedi'}
 ========================================================
 `);
 

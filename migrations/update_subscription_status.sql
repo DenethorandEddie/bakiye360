@@ -3,7 +3,9 @@ CREATE OR REPLACE FUNCTION update_user_subscription_status(
   p_user_id UUID,
   p_status TEXT,
   p_stripe_subscription_id TEXT DEFAULT NULL,
-  p_stripe_customer_id TEXT DEFAULT NULL
+  p_stripe_customer_id TEXT DEFAULT NULL,
+  p_subscription_period_start TEXT DEFAULT NULL,
+  p_subscription_period_end TEXT DEFAULT NULL
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -31,7 +33,9 @@ BEGIN
       subscription_status = p_status,
       updated_at = v_now,
       stripe_subscription_id = COALESCE(p_stripe_subscription_id, stripe_subscription_id),
-      stripe_customer_id = COALESCE(p_stripe_customer_id, stripe_customer_id)
+      stripe_customer_id = COALESCE(p_stripe_customer_id, stripe_customer_id),
+      subscription_period_start = CASE WHEN p_subscription_period_start IS NOT NULL THEN p_subscription_period_start::TIMESTAMPTZ ELSE subscription_period_start END,
+      subscription_period_end = CASE WHEN p_subscription_period_end IS NOT NULL THEN p_subscription_period_end::TIMESTAMPTZ ELSE subscription_period_end END
     WHERE user_id = p_user_id;
   ELSE
     -- Kayıt yoksa oluştur
@@ -40,6 +44,8 @@ BEGIN
       subscription_status,
       stripe_subscription_id,
       stripe_customer_id,
+      subscription_period_start,
+      subscription_period_end,
       email_notifications,
       budget_alerts,
       monthly_reports,
@@ -51,6 +57,8 @@ BEGIN
       p_status,
       p_stripe_subscription_id,
       p_stripe_customer_id,
+      CASE WHEN p_subscription_period_start IS NOT NULL THEN p_subscription_period_start::TIMESTAMPTZ ELSE NULL END,
+      CASE WHEN p_subscription_period_end IS NOT NULL THEN p_subscription_period_end::TIMESTAMPTZ ELSE NULL END,
       TRUE, -- email_notifications
       TRUE, -- budget_alerts
       TRUE, -- monthly_reports

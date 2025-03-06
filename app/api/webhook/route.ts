@@ -22,7 +22,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 // Kullanıcı abonelik durumunu güncelleyen yardımcı fonksiyon
-async function updateUserSubscriptionStatus(userId: string, status: 'premium' | 'free', subscriptionId?: string, customerId?: string) {
+async function updateUserSubscriptionStatus(
+  userId: string, 
+  status: 'premium' | 'free', 
+  subscriptionId?: string, 
+  customerId?: string,
+  periodStart?: string,
+  periodEnd?: string
+) {
   console.log(`Supabase user_settings tablosu direkt güncelleniyor. Kullanıcı: ${userId}, Durum: ${status}`);
   
   try {
@@ -51,6 +58,15 @@ async function updateUserSubscriptionStatus(userId: string, status: 'premium' | 
       updateData.stripe_customer_id = customerId;
     }
     
+    // Abonelik dönemi tarihlerini ekle (varsa)
+    if (periodStart) {
+      updateData.subscription_period_start = periodStart;
+    }
+    
+    if (periodEnd) {
+      updateData.subscription_period_end = periodEnd;
+    }
+    
     // Eğer kayıt varsa güncelle
     if (existingSettings) {
       const { error: updateError } = await supabase
@@ -69,6 +85,8 @@ async function updateUserSubscriptionStatus(userId: string, status: 'premium' | 
         subscription_status: status,
         stripe_subscription_id: subscriptionId || null,
         stripe_customer_id: customerId || null,
+        subscription_period_start: periodStart || null,
+        subscription_period_end: periodEnd || null,
         email_notifications: true,
         budget_alerts: true,
         monthly_reports: true,
@@ -193,7 +211,9 @@ export async function POST(request: Request) {
             userId,
             'premium',
             subscriptionId,
-            customerId
+            customerId,
+            periodStart,
+            periodEnd
           );
           
           if (!subscriptionUpdateSuccess) {
@@ -208,6 +228,8 @@ export async function POST(request: Request) {
                   subscription_status: 'premium',
                   stripe_customer_id: customerId,
                   stripe_subscription_id: subscriptionId,
+                  subscription_period_start: periodStart,
+                  subscription_period_end: periodEnd,
                   updated_at: new Date().toISOString()
                 });
                 
@@ -228,7 +250,9 @@ export async function POST(request: Request) {
                   p_user_id: userId,
                   p_status: 'premium',
                   p_stripe_subscription_id: subscriptionId,
-                  p_stripe_customer_id: customerId
+                  p_stripe_customer_id: customerId,
+                  p_subscription_period_start: periodStart,
+                  p_subscription_period_end: periodEnd
                 }
               );
               
@@ -355,7 +379,9 @@ export async function POST(request: Request) {
             userId,
             subscriptionStatusForUser as 'premium' | 'free',
             subscriptionId,
-            customerId
+            customerId,
+            periodStart,
+            periodEnd
           );
           
           if (!subscriptionUpdateSuccess) {
@@ -371,6 +397,8 @@ export async function POST(request: Request) {
                   subscription_status: subscriptionStatusForUser,
                   stripe_customer_id: customerId,
                   stripe_subscription_id: subscriptionId,
+                  subscription_period_start: periodStart,
+                  subscription_period_end: periodEnd,
                   updated_at: new Date().toISOString()
                 });
                 
@@ -392,7 +420,9 @@ export async function POST(request: Request) {
                   p_user_id: userId,
                   p_status: subscriptionStatusForUser,
                   p_stripe_subscription_id: subscriptionId,
-                  p_stripe_customer_id: customerId
+                  p_stripe_customer_id: customerId,
+                  p_subscription_period_start: periodStart,
+                  p_subscription_period_end: periodEnd
                 }
               );
               
