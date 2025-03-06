@@ -32,7 +32,7 @@ interface BudgetGoal {
   id: string;
   name: string;
   category_id: string; // Veritabanındaki kategori ID'si
-  target: number;
+  target: number; // Bu veritabanında 'target_amount' olarak saklanıyor
   current: number;
   user_id: string;
   start_date?: string | null;
@@ -78,6 +78,7 @@ export default function BudgetGoalsPage() {
     // Kullanıcının abonelik durumunu kontrol et
     const checkSubscription = async () => {
       try {
+        // SADECE user_settings tablosundan abonelik durumunu kontrol et
         const { data, error } = await supabase
           .from('user_settings')
           .select('subscription_status')
@@ -89,11 +90,14 @@ export default function BudgetGoalsPage() {
           toast.error('Abonelik bilgisi yüklenemedi');
         }
 
-        if (data) {
-          setSubscriptionStatus(data.subscription_status || 'free');
+        if (data && data.subscription_status) {
+          setSubscriptionStatus(String(data.subscription_status));
+        } else {
+          setSubscriptionStatus('free');
         }
       } catch (error) {
         console.error('Abonelik kontrolünde hata:', error);
+        setSubscriptionStatus('free'); // Hata durumunda varsayılan olarak free
       } finally {
         setLoadingSubscription(false);
       }
@@ -104,6 +108,16 @@ export default function BudgetGoalsPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Free plan kullanıcıları için temel gider kategorileri
+        const freeCategoriesMap = {
+          'Yiyecek': true,
+          'Ulaşım': true,
+          'Konut': true,
+          'Faturalar': true,
+          'Banka': true,
+          'Diğer': true
+        };
+        
         // 1. First fetch expense categories
         const { data: categoriesData, error: categoriesError } = await supabase
           .from('categories')
@@ -114,10 +128,31 @@ export default function BudgetGoalsPage() {
         if (categoriesError) throw categoriesError;
         
         if (categoriesData) {
-          const typedCategories = categoriesData.map(cat => ({
+          let typedCategories = categoriesData.map(cat => ({
             id: String(cat.id),
             name: String(cat.name)
           }));
+          
+          // Eğer free plan kullanıcısı ise, sadece temel kategorileri filtrele
+          if (subscriptionStatus !== 'premium') {
+            console.log("Free plan kullanıcısı için temel kategoriler filtreleniyor");
+            typedCategories = typedCategories.filter(cat => 
+              freeCategoriesMap[cat.name] || // İsim temel kategorilerden biri mi?
+              cat.name.includes('Diğer')     // Veya Diğer kategorisi mi?
+            );
+            
+            // Eğer filtreleme sonrası herhangi bir kategori kalmadıysa
+            if (typedCategories.length === 0) {
+              console.log("Filtrelemeden sonra kategori kalmadı, tüm kategoriler gösteriliyor");
+              typedCategories = categoriesData.map(cat => ({
+                id: String(cat.id),
+                name: String(cat.name)
+              }));
+            }
+          } else {
+            console.log("Premium kullanıcı için tüm kategoriler gösteriliyor");
+          }
+          
           setCategories(typedCategories);
           console.log("Kategori bilgileri:", typedCategories);
         }
@@ -131,13 +166,15 @@ export default function BudgetGoalsPage() {
         if (budgetGoalsError) throw budgetGoalsError;
         
         if (budgetGoalsData) {
-          const typedGoals = budgetGoalsData.map(goal => ({
-            ...goal,
+          const typedGoals: BudgetGoal[] = budgetGoalsData.map(goal => ({
             id: String(goal.id),
+            name: String(goal.name),
             user_id: String(goal.user_id),
             category_id: String(goal.category_id),
-            target: Number(goal.target),
-            current: Number(goal.current) || 0
+            target: Number(goal.target_amount || 0),
+            current: Number(goal.current || 0),
+            start_date: goal.start_date ? String(goal.start_date) : null,
+            end_date: goal.end_date ? String(goal.end_date) : null
           }));
           setGoals(typedGoals);
           console.log("Bütçe hedefleri:", typedGoals);
@@ -162,15 +199,17 @@ export default function BudgetGoalsPage() {
           // Calculate total expenses by category
           const categoryExpenses: Record<string, number> = {};
           
-          transactionsData.forEach((transaction: Transaction) => {
-            const categoryId = String(transaction.category_id);
-            const amount = Number(transaction.amount);
-            
-            if (!categoryExpenses[categoryId]) {
-              categoryExpenses[categoryId] = 0;
+          (transactionsData as any[]).forEach((transaction) => {
+            if (transaction && transaction.category_id && transaction.amount) {
+              const categoryId = String(transaction.category_id);
+              const amount = Number(transaction.amount);
+              
+              if (!categoryExpenses[categoryId]) {
+                categoryExpenses[categoryId] = 0;
+              }
+              
+              categoryExpenses[categoryId] += amount;
             }
-            
-            categoryExpenses[categoryId] += amount;
           });
           
           setExpenses(categoryExpenses);
@@ -197,11 +236,15 @@ export default function BudgetGoalsPage() {
   };
 
   const handleCreateBudgetGoal = async () => {
-    // Ücretsiz pakette 1'den fazla bütçe hedefi kontrolü
-    if (subscriptionStatus === 'free' && goals.length >= 1 && !isEditing) {
-      toast.error('Ücretsiz pakette yalnızca 1 bütçe hedefi oluşturabilirsiniz. Premium pakete yükseltin.');
-      setIsDialogOpen(false);
-      return;
+    // Free kullanıcı için hedef sayısı kontrolü
+    if (!isEditing && subscriptionStatus !== 'premium') {
+      const existingGoalsCount = goals.length;
+      
+      if (existingGoalsCount >= 1) {
+        toast.error("Ücretsiz pakette maksimum 1 bütçe hedefi oluşturabilirsiniz. Premium paketimize geçerek sınırsız hedef oluşturabilirsiniz.");
+        setIsDialogOpen(false);
+        return;
+      }
     }
 
     try {
@@ -217,7 +260,7 @@ export default function BudgetGoalsPage() {
           .update({
             name: formData.name,
             category_id: formData.category,
-            target: parseFloat(formData.target),
+            target_amount: parseFloat(formData.target),
           })
           .eq('id', currentGoal.id);
 
@@ -232,7 +275,7 @@ export default function BudgetGoalsPage() {
                 ...goal, 
                 name: formData.name, 
                 category_id: formData.category, 
-                target: parseFloat(formData.target) 
+                target: parseFloat(formData.target) // Bu değer artık veritabanında target_amount olarak saklanacak
               } 
             : goal
         ));
@@ -243,9 +286,10 @@ export default function BudgetGoalsPage() {
           .insert({
             name: formData.name,
             category_id: formData.category,
-            target: parseFloat(formData.target),
-            current: 0,
+            target_amount: parseFloat(formData.target),
             user_id: user?.id,
+            start_date: new Date().toISOString(),
+            end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString(),
           })
           .select();
 
@@ -254,14 +298,16 @@ export default function BudgetGoalsPage() {
         if (data && data.length > 0) {
           toast.success("Yeni bütçe hedefi oluşturuldu");
           
-          // Add to local state
+          // Doğru şekilde BudgetGoal oluştur, name alanını da dahil et
           const newGoal: BudgetGoal = {
-            ...data[0],
             id: String(data[0].id),
+            name: String(data[0].name),
             user_id: String(data[0].user_id),
             category_id: String(data[0].category_id),
-            target: Number(data[0].target),
-            current: Number(data[0].current) || 0
+            target: Number(data[0].target_amount),
+            current: Number(data[0].current) || 0,
+            start_date: data[0].start_date ? String(data[0].start_date) : null,
+            end_date: data[0].end_date ? String(data[0].end_date) : null
           };
           
           setGoals([...goals, newGoal]);
@@ -340,64 +386,62 @@ export default function BudgetGoalsPage() {
   }
 
   return (
-    <div className="container py-6">
+    <div className="container max-w-6xl py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bütçe Hedefleri</h1>
+          <h1 className="text-3xl font-bold">Bütçe Hedefleri</h1>
           <p className="text-muted-foreground">
-            Harcamalarınızı kontrol altında tutmak için kategori bazlı bütçe hedefleri oluşturun
+            Kategori bazlı harcama hedefleri oluşturun ve takip edin
           </p>
         </div>
         <Button 
           onClick={() => {
-            if (subscriptionStatus === 'free' && goals.length >= 1) {
-              toast.error(
-                <div className="space-y-2">
-                  <p>Ücretsiz pakette yalnızca 1 bütçe hedefi oluşturabilirsiniz.</p>
-                  <div className="pt-2">
-                    <Link href="/dashboard/subscription" className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 text-sm font-medium">
-                      Premium'a Yükselt
-                    </Link>
-                  </div>
-                </div>
-              );
+            // Free kullanıcı ve zaten 1 veya daha fazla hedef varsa engelle
+            if (subscriptionStatus !== 'premium' && goals.length >= 1) {
+              toast.error("Ücretsiz pakette maksimum 1 bütçe hedefi oluşturabilirsiniz. Premium paketimize geçerek sınırsız hedef oluşturabilirsiniz.");
               return;
             }
-            setIsDialogOpen(true);
-            setIsEditing(false);
+            
             setFormData({
               name: "",
               category: "",
               target: "",
             });
+            setIsEditing(false);
+            setCurrentGoal(null);
+            setIsDialogOpen(true);
           }}
+          disabled={loading || loadingSubscription || (subscriptionStatus !== 'premium' && goals.length >= 1)}
         >
           <Plus className="mr-2 h-4 w-4" />
-          Yeni Bütçe Hedefi
+          Yeni Hedef
         </Button>
       </div>
-
-      {!isPremiumEligible() && (
-        <Card className="mb-6 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="bg-amber-100 dark:bg-amber-900/50 p-2 rounded-full">
-                <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <h3 className="font-medium">Bütçe Hedefi Limitine Ulaştınız</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Ücretsiz pakette yalnızca 1 bütçe hedefi oluşturabilirsiniz. Daha fazla bütçe hedefi eklemek için{" "}
-                  <Link href="/dashboard/subscription" className="text-primary font-medium hover:underline">
-                    Premium Pakete yükseltin
-                  </Link>.
-                </p>
-              </div>
+      
+      {/* Free kullanıcı için bilgilendirme mesajı */}
+      {!loadingSubscription && subscriptionStatus !== 'premium' && (
+        <div className="mb-6 bg-muted p-4 rounded-lg">
+          <h3 className="font-medium flex items-center">
+            <Target className="h-4 w-4 mr-2 text-primary" />
+            Ücretsiz Paket Bilgisi
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Ücretsiz pakette maksimum 1 bütçe hedefi oluşturabilirsiniz. 
+            {goals.length >= 1 ? " Şu anda maksimum hedef sayısına ulaştınız." : ""}
+            {goals.length > 1 ? " Premium'dan ücretsiz pakete geçtiğiniz için mevcut hedefleriniz korunmuştur." : ""}
+          </p>
+          {goals.length >= 1 && (
+            <div className="mt-2">
+              <Link href="/dashboard/subscription">
+                <Button variant="outline" size="sm">
+                  Premium'a Yükselt
+                </Button>
+              </Link>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
-
+      
       {goals.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-10">

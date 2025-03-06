@@ -44,6 +44,10 @@ export default function NewTransactionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
+  const [isPremium, setIsPremium] = useState(false);
+  const [reachedTransactionLimit, setReachedTransactionLimit] = useState(false);
+  const [checkingLimit, setCheckingLimit] = useState(false);
+  const [monthlyTransactionCount, setMonthlyTransactionCount] = useState(0);
   const [formData, setFormData] = useState({
     description: "",
     amount: "",
@@ -54,75 +58,151 @@ export default function NewTransactionPage() {
     isRecurring: false,
   });
 
+  // Premium kullanıcı ve işlem limiti kontrolü
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (!user) return;
+      
+      setCheckingLimit(true);
+      
+      try {
+        // İlk önce premium durumunu kontrol et (hızlı bir sorgu)
+        const { data: userSettings, error: userSettingsError } = await supabase
+          .from("user_settings")
+          .select("subscription_status")
+          .eq("user_id", user.id)
+          .single();
+          
+        let isPremiumUser = false;
+        
+        if (userSettings && userSettings.subscription_status === 'premium') {
+          console.log("User settings tablosunda premium abonelik bulundu");
+          isPremiumUser = true;
+          setIsPremium(true);
+          
+          // Premium kullanıcı ise hemen yükleme durumunu kapat
+          setCheckingLimit(false);
+          return; // Premium kullanıcı için limit kontrolü yapmaya gerek yok
+        }
+        
+        setIsPremium(false);
+        
+        // Premium değilse, bu ayki işlem sayısını kontrol et
+        const currentMonthStart = new Date();
+        currentMonthStart.setDate(1);
+        currentMonthStart.setHours(0, 0, 0, 0);
+        
+        const currentMonthEnd = new Date();
+        currentMonthEnd.setMonth(currentMonthEnd.getMonth() + 1);
+        currentMonthEnd.setDate(0);
+        currentMonthEnd.setHours(23, 59, 59, 999);
+        
+        const { count, error: countError } = await supabase
+          .from("transactions")
+          .select("*", { count: "exact", head: true }) // Sadece sayım için head: true kullan
+          .eq("user_id", user.id)
+          .gte("date", currentMonthStart.toISOString())
+          .lte("date", currentMonthEnd.toISOString());
+          
+        if (countError) {
+          console.error("İşlem sayısı alınamadı:", countError);
+        }
+        
+        const monthlyCount = count || 0;
+        setMonthlyTransactionCount(monthlyCount);
+        
+        // Premium olmayan kullanıcı için limit kontrolü
+        if (!isPremiumUser) {
+          const isOverLimit = monthlyCount >= 30;
+          setReachedTransactionLimit(isOverLimit);
+          
+          if (isOverLimit) {
+            console.log("Aylık işlem limiti aşıldı:", monthlyCount);
+            const wasFormerlyPremium = monthlyCount > 30;
+            
+            if (wasFormerlyPremium) {
+              toast.error("Premium üyeliğiniz sona erdiği için ve aylık 30 işlem limitini aşmış durumdasınız. Mevcut işlemleriniz korunacak, ancak yeni işlem ekleyemezsiniz.");
+            } else {
+              toast.error("Aylık 30 işlem limitine ulaştınız. Premium'a yükseltmek için abonelik sayfasını ziyaret edin.");
+            }
+            
+            // Limit aşıldıysa ana sayfaya yönlendir
+            router.push("/dashboard/transactions");
+          }
+        }
+      } catch (error) {
+        console.error("Abonelik kontrolü sırasında hata:", error);
+      } finally {
+        setCheckingLimit(false);
+      }
+    };
+    
+    checkSubscriptionStatus();
+  }, [supabase, user, router]);
+
   // Kategorileri yükle
   useEffect(() => {
     const fetchCategories = async () => {
       setLoadingCategories(true);
-      
-      // Her durumda gösterilecek varsayılan kategoriler
-      const defaultCategories = [
-        { id: 'f1', name: "Yiyecek", type: "expense" },
-        { id: 'f2', name: "Ulaşım", type: "expense" },
-        { id: 'f3', name: "Konut", type: "expense" },
-        { id: 'f4', name: "Eğlence", type: "expense" },
-        { id: 'f5', name: "Faturalar", type: "expense" },
-        { id: 'f6', name: "Maaş", type: "income" },
-        { id: 'f7', name: "Yatırım", type: "income" },
-        { id: 'f8', name: "Diğer", type: "expense" },
-      ];
-      
       try {
-        // Gerçek Supabase sorgusu
-        // Önce kullanıcıya özel kategorileri al
-        let userCategories: any[] = [];
-        if (user?.id) {
-          const { data: userCats, error: userCatsError } = await supabase
+        // Paralel veri çekme işlemi - Daha hızlı yükleme için
+        const [userCategoriesResponse, generalCategoriesResponse] = await Promise.all([
+          // User-specific categories
+          supabase
             .from('categories')
             .select('*')
-            .eq('user_id', user.id);
+            .eq('user_id', user.id)
+            .eq('type', formData.type),
+            
+          // General categories  
+          supabase
+            .from('categories')
+            .select('*')
+            .is('user_id', null)
+            .eq('type', formData.type)
+        ]);
+
+        const userCategories = userCategoriesResponse.data || [];
+        const generalCategories = generalCategoriesResponse.data || [];
+
+        // Merge user-specific and general categories
+        let allCategories = [...userCategories, ...generalCategories];
+
+        // Free plan kullanıcıları için temel kategoriler
+        const freeBasicCategories = [
+          'Yiyecek', 'Ulaşım', 'Konut', 'Faturalar', 'Banka', 'Maaş', 'Diğer'
+        ];
+
+        // Eğer free plan kullanıcısı ise, sadece temel kategorileri göster
+        if (!isPremium) {
+          console.log("Free plan kullanıcısı için temel kategoriler filtreleniyor");
+          allCategories = allCategories.filter(cat => 
+            freeBasicCategories.includes(String(cat.name)) || // Tip güvenliği için String dönüşümü
+            String(cat.name).includes('Diğer')                // Tip güvenliği için String dönüşümü
+          );
           
-          if (userCatsError) {
-            console.error("Kullanıcı kategorileri yükleme hatası:", userCatsError);
-          } else {
-            userCategories = userCats || [];
+          // Eğer filtreleme sonrası herhangi bir kategori kalmadıysa, tüm kategorileri göster
+          if (allCategories.length === 0) {
+            console.log("Filtrelemeden sonra kategori kalmadı, tüm kategoriler gösteriliyor");
+            allCategories = [...userCategories, ...generalCategories];
           }
-        }
-        
-        // Genel kategorileri al (user_id = null)
-        const { data: generalCats, error: generalCatsError } = await supabase
-          .from('categories')
-          .select('*')
-          .is('user_id', null);
-          
-        if (generalCatsError) {
-          console.error("Genel kategoriler yükleme hatası:", generalCatsError);
-          console.error("Hata detayları:", generalCatsError.details, generalCatsError.hint, generalCatsError.message);
-          throw generalCatsError;
-        }
-        
-        // İki kategori listesini birleştir
-        const allCategories = [...userCategories, ...(generalCats || [])];
-        
-        if (allCategories.length === 0) {
-          console.warn("Hiç kategori bulunamadı. Varsayılan kategorilere dönülüyor.");
-          // Kategori bulunamazsa varsayılan kategorileri göster
-          setCategories(defaultCategories);
         } else {
-          setCategories(allCategories);
+          console.log("Premium kullanıcı için tüm kategoriler gösteriliyor");
         }
+
+        setCategories(allCategories);
       } catch (error) {
-        console.error("Kategori yükleme hatası:", error);
+        console.error("Kategorileri yükleme hatası:", error);
         toast.error("Kategoriler yüklenirken bir hata oluştu");
-        
-        // Hata olursa varsayılan kategorileri göster
-        setCategories(defaultCategories);
       } finally {
         setLoadingCategories(false);
       }
     };
 
-    fetchCategories();
-  }, [supabase, user]);
+    if (user) {
+      fetchCategories();
+    }
+  }, [supabase, user, formData.type, isPremium]);
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -179,11 +259,6 @@ export default function NewTransactionPage() {
     }
   };
 
-  // Seçilen işlem tipine göre kategorileri filtrele
-  const filteredCategories = categories.filter(
-    category => category.type === formData.type || category.type === 'both'
-  );
-
   return (
     <div className="container py-6">
       <div className="mb-6">
@@ -193,162 +268,217 @@ export default function NewTransactionPage() {
         </p>
       </div>
 
-      <Card className="max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle>İşlem Detayları</CardTitle>
-          <CardDescription>
-            Lütfen işlem bilgilerini eksiksiz doldurun
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="type">İşlem Türü</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value) => handleChange("type", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="İşlem türü seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Gelir</SelectItem>
-                  <SelectItem value="expense">Gider</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Açıklama</Label>
-              <Input
-                id="description"
-                placeholder="İşlem açıklaması"
-                value={formData.description}
-                onChange={(e) => handleChange("description", e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amount">Tutar (₺)</Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) => handleChange("amount", e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="category">Kategori</Label>
-              {loadingCategories ? (
-                <div className="flex items-center space-x-2 h-10 px-3 border rounded-md">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  <span className="text-muted-foreground text-sm">Kategoriler yükleniyor...</span>
-                </div>
-              ) : (
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => handleChange("category", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Kategori seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="date">Tarih</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.date ? (
-                      format(formData.date, "d MMMM yyyy", { locale: tr })
-                    ) : (
-                      <span>Tarih seçin</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.date}
-                    onSelect={(date) => {
-                      if (date) {
-                        // Seçilen tarihin UTC gün başlangıcını oluştur (günü korumak için)
-                        const selectedDate = new Date(date);
-                        selectedDate.setHours(12, 0, 0, 0); // Günü korumak için ortada bir saat belirle
-                        handleChange("date", selectedDate);
-                      } else {
-                        handleChange("date", null);
-                      }
-                    }}
-                    initialFocus
-                    locale={tr}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notlar</Label>
-              <Textarea
-                id="notes"
-                placeholder="İşlem hakkında ek notlar"
-                value={formData.notes}
-                onChange={(e) => handleChange("notes", e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="recurring"
-                checked={formData.isRecurring}
-                onCheckedChange={(checked) => handleChange("isRecurring", checked)}
-              />
-              <Label htmlFor="recurring">Tekrarlayan İşlem</Label>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push("/dashboard/transactions")}
-            >
-              İptal
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
+      {checkingLimit ? (
+        <Card className="max-w-2xl mx-auto p-6">
+          <div className="flex justify-center items-center">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Kontrol ediliyor...</span>
+          </div>
+        </Card>
+      ) : reachedTransactionLimit && !isPremium ? (
+        <Card className="max-w-2xl mx-auto p-6">
+          <CardHeader>
+            <CardTitle className="text-center text-amber-500">İşlem Limiti Aşıldı</CardTitle>
+            <CardDescription className="text-center">
+              {monthlyTransactionCount > 30 ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Kaydediliyor...
+                  Premium üyeliğiniz sona erdiği için yeni işlem ekleyemiyorsunuz.
+                  <p className="mt-2">
+                    Bu ay toplam <strong>{monthlyTransactionCount}</strong> işlem girdiniz, 
+                    ücretsiz pakette ise aylık 30 işlem hakkınız vardır.
+                  </p>
+                  <p className="mt-2">
+                    Mevcut işlemleriniz korunmaktadır ve görüntüleyebilirsiniz, ancak
+                    yeni işlem eklemek için premium üyeliğinizi yenilemeniz gerekiyor.
+                  </p>
                 </>
               ) : (
-                "Kaydet"
+                <>
+                  Ücretsiz pakette aylık 30 işlem girişi yapabilirsiniz. Bu ay için işlem limitinize ulaştınız.
+                </>
               )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => router.push("/dashboard/subscription")}>
+              Premium'a Yükselt
             </Button>
-          </CardFooter>
+          </CardContent>
+        </Card>
+      ) : (
+        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>İşlem Detayları</CardTitle>
+              <CardDescription>
+                {formData.type === "income" ? "Gelir" : "Gider"} detaylarını doldurun
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* İşlem Türü Seçimi */}
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  type="button"
+                  variant={formData.type === "income" ? "default" : "outline"}
+                  className={formData.type === "income" ? "bg-green-500 hover:bg-green-600" : ""}
+                  onClick={() => {
+                    handleChange("type", "income");
+                    handleChange("category", ""); // Kategori seçimini sıfırla
+                  }}
+                  disabled={isLoading}
+                >
+                  Gelir
+                </Button>
+                <Button
+                  type="button"
+                  variant={formData.type === "expense" ? "default" : "outline"}
+                  className={formData.type === "expense" ? "bg-red-500 hover:bg-red-600" : ""}
+                  onClick={() => {
+                    handleChange("type", "expense");
+                    handleChange("category", ""); // Kategori seçimini sıfırla
+                  }}
+                  disabled={isLoading}
+                >
+                  Gider
+                </Button>
+              </div>
+
+              {/* Diğer form alanları - kategoriler yüklenene kadar skeleton gösterimi */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="description">Açıklama</Label>
+                  <Input
+                    id="description"
+                    placeholder="İşlem açıklaması"
+                    value={formData.description}
+                    onChange={(e) => handleChange("description", e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="amount">Tutar (₺)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) => handleChange("amount", e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="category">Kategori</Label>
+                  
+                  {loadingCategories ? (
+                    <div className="w-full h-10 bg-gray-200 animate-pulse rounded-md"></div>
+                  ) : (
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => handleChange("category", value)}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Kategori seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="date">Tarih</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date ? (
+                          format(formData.date, "d MMMM yyyy", { locale: tr })
+                        ) : (
+                          <span>Tarih seçin</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.date}
+                        onSelect={(date) => {
+                          if (date) {
+                            // Seçilen tarihin UTC gün başlangıcını oluştur (günü korumak için)
+                            const selectedDate = new Date(date);
+                            selectedDate.setHours(12, 0, 0, 0); // Günü korumak için ortada bir saat belirle
+                            handleChange("date", selectedDate);
+                          } else {
+                            handleChange("date", null);
+                          }
+                        }}
+                        initialFocus
+                        locale={tr}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notlar</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="İşlem hakkında ek notlar"
+                    value={formData.notes}
+                    onChange={(e) => handleChange("notes", e.target.value)}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="recurring"
+                    checked={formData.isRecurring}
+                    onCheckedChange={(checked) => handleChange("isRecurring", checked)}
+                  />
+                  <Label htmlFor="recurring">Tekrarlayan İşlem</Label>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/dashboard/transactions")}
+              >
+                İptal
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Kaydediliyor...
+                  </>
+                ) : (
+                  "Kaydet"
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
         </form>
-      </Card>
+      )}
     </div>
   );
 }

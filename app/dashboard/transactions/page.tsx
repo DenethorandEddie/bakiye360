@@ -119,13 +119,19 @@ export default function TransactionsPage() {
   // Abonelik durumunu ve bu ayki işlem sayısını kontrol et
   const checkSubscriptionStatus = async (userId: string) => {
     try {
-      // Kullanıcının abonelik durumunu kontrol et
-      const { data: subscription, error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .select("*")
+      // SADECE user_settings tablosundan abonelik durumunu kontrol et
+      const { data: userSettings, error: userSettingsError } = await supabase
+        .from("user_settings")
+        .select("subscription_status")
         .eq("user_id", userId)
-        .eq("status", "active")
         .single();
+        
+      let isPremium = false;
+      
+      if (userSettings && userSettings.subscription_status === 'premium') {
+        console.log("User settings tablosunda premium abonelik bulundu");
+        isPremium = true;
+      }
 
       // Bu ayki işlemlerin sayısını kontrol et
       const currentMonthStart = startOfMonth(new Date()).toISOString();
@@ -142,7 +148,6 @@ export default function TransactionsPage() {
         console.error("İşlem sayısı alınamadı:", countError);
       }
 
-      const isPremium = !!subscription;
       const monthlyTransactionCount = count || 0;
       
       setSubscriptionStatus({
@@ -232,7 +237,17 @@ export default function TransactionsPage() {
           <AlertCircle className="h-5 w-5 text-amber-500" />
           <AlertTitle>İşlem limiti aşıldı</AlertTitle>
           <AlertDescription>
-            Ücretsiz pakette aylık 30 işlem girişi yapabilirsiniz. Bu ay için işlem limitinize ulaştınız.
+            {subscriptionStatus.monthlyTransactionCount > 30 ? (
+              <>
+                Premium üyeliğiniz sona erdiği için yeni işlem ekleyemiyorsunuz. 
+                Bu ay {subscriptionStatus.monthlyTransactionCount} işlem girdiniz, ücretsiz pakette ise aylık 30 işlem hakkınız vardır.
+                Mevcut işlemlerinizi görüntüleyebilir veya düzenleyebilirsiniz, ancak yeni işlem eklemek için premium üyeliğinizi yenilemeniz gerekiyor.
+              </>
+            ) : (
+              <>
+                Ücretsiz pakette aylık 30 işlem girişi yapabilirsiniz. Bu ay için işlem limitinize ulaştınız.
+              </>
+            )}
             <div className="mt-2">
               <Button
                 variant="outline"
@@ -243,6 +258,16 @@ export default function TransactionsPage() {
                 Premium'a Yükselt
               </Button>
             </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {subscriptionStatus.isPremium && (
+        <Alert className="mb-6 border-primary bg-primary/10">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <AlertTitle>Premium Özellik Aktif</AlertTitle>
+          <AlertDescription>
+            Premium üyeliğiniz sayesinde sınırsız işlem girişi yapabilirsiniz. Bu ay şu ana kadar {subscriptionStatus.monthlyTransactionCount} işlem girdiniz.
           </AlertDescription>
         </Alert>
       )}

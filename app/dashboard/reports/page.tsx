@@ -77,7 +77,8 @@ import {
   Palette,
   Target,
   Wallet,
-  InfoIcon
+  InfoIcon,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
@@ -273,6 +274,8 @@ export default function ReportsPage() {
   });
   const [isCopied, setIsCopied] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
   
   // Initialize customizeSettings with saved targetSavingsRate if available
   const [customizeSettings, setCustomizeSettings] = useState(() => {
@@ -505,6 +508,50 @@ export default function ReportsPage() {
       savingsRate
     };
   }, [selectedPeriod, selectedMonth, transactions]);
+
+  // Abonelik durumu kontrolü
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (!user) {
+        setLoadingSubscription(false);
+        return;
+      }
+      
+      try {
+        // SADECE user_settings tablosundan abonelik durumunu kontrol et
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('subscription_status')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Abonelik bilgisi alınamadı:', error);
+        }
+
+        if (data && data.subscription_status) {
+          setSubscriptionStatus(String(data.subscription_status));
+        } else {
+          setSubscriptionStatus('free');
+        }
+      } catch (error) {
+        console.error('Abonelik kontrolü hatası:', error);
+        setSubscriptionStatus('free'); // Hata durumunda varsayılan free
+      } finally {
+        setLoadingSubscription(false);
+      }
+    };
+    
+    checkSubscription();
+  }, [supabase, user]);
+  
+  // Premium olmayan kullanıcı için zorunlu olarak "thisMonth" periyoduna sınırla
+  useEffect(() => {
+    if (!loadingSubscription && subscriptionStatus !== 'premium' && selectedPeriod !== 'thisMonth') {
+      setSelectedPeriod('thisMonth');
+      toast.info('Ücretsiz pakette sadece bu ay için raporlar görüntülenebilir. Geçmiş dönem raporları için premium pakete geçebilirsiniz.');
+    }
+  }, [loadingSubscription, subscriptionStatus, selectedPeriod]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -739,9 +786,13 @@ export default function ReportsPage() {
   };
 
   const handlePeriodChange = (value: string) => {
+    // Premium olmayan kullanıcı için sadece "thisMonth" periyoduna izin ver
+    if (subscriptionStatus !== 'premium' && value !== 'thisMonth') {
+      toast.info('Ücretsiz pakette sadece bu ay için raporlar görüntülenebilir. Geçmiş dönem raporları için premium pakete geçebilirsiniz.');
+      return;
+    }
+    
     setSelectedPeriod(value);
-    // No need to reload the page or fetch data again here
-    // The useEffect with the dependencies will handle that
   };
 
   const handleMonthChange = (value: string) => {
@@ -1123,10 +1174,34 @@ export default function ReportsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="thisMonth">Bu Ay</SelectItem>
-                <SelectItem value="last3Months">Son 3 Ay</SelectItem>
-                <SelectItem value="last6Months">Son 6 Ay</SelectItem>
-                <SelectItem value="thisYear">Bu Yıl</SelectItem>
-                <SelectItem value="custom">Özel</SelectItem>
+                <SelectItem 
+                  value="last3Months" 
+                  disabled={subscriptionStatus !== 'premium'}
+                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
+                >
+                  Son 3 Ay {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
+                </SelectItem>
+                <SelectItem 
+                  value="last6Months" 
+                  disabled={subscriptionStatus !== 'premium'}
+                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
+                >
+                  Son 6 Ay {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
+                </SelectItem>
+                <SelectItem 
+                  value="thisYear" 
+                  disabled={subscriptionStatus !== 'premium'}
+                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
+                >
+                  Bu Yıl {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
+                </SelectItem>
+                <SelectItem 
+                  value="custom" 
+                  disabled={subscriptionStatus !== 'premium'}
+                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
+                >
+                  Özel Tarih {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
+                </SelectItem>
               </SelectContent>
             </Select>
             

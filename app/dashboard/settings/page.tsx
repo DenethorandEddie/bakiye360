@@ -55,7 +55,7 @@ export default function SettingsPage() {
       try {
         console.log("Kullanıcı ayarları yükleniyor...");
         
-        // İlk olarak user_settings tablosundan ayarları al
+        // SADECE user_settings tablosundan kullanıcı bilgilerini alalım
         const { data: userSettingsData, error: userSettingsError } = await supabase
           .from('user_settings')
           .select('*')
@@ -63,68 +63,81 @@ export default function SettingsPage() {
           .single();
         
         if (userSettingsError && userSettingsError.code !== 'PGRST116') {
-          console.error('Ayarlar yüklenirken hata:', userSettingsError.message);
-          toast.error('Bildirim ayarları yüklenirken bir hata oluştu');
+          console.error('User settings alınamadı:', userSettingsError.message);
+          toast.error('Kullanıcı ayarları yüklenirken bir hata oluştu');
+          setSettingsLoading(false);
           return;
         }
-
-        // Abonelik bilgilerini kontrol et
-        const { data: subscriptionData, error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .single();
         
-        if (subscriptionData) {
-          setSubscriptionStatus('premium');
-          setSubscriptionDetails({
-            currentPeriodStart: subscriptionData.current_period_start as string,
-            currentPeriodEnd: subscriptionData.current_period_end as string,
-            stripeSubscriptionId: subscriptionData.stripe_subscription_id as string
-          });
-        } else {
-          setSubscriptionStatus('free');
-        }
-
-        // Eğer user_settings tablosunda kayıt varsa
+        // Abonelik durumunu subscription_status'a göre belirle
         if (userSettingsData) {
-          console.log("Mevcut kullanıcı ayarları:", userSettingsData);
+          console.log("Kullanıcı ayarları bulundu:", userSettingsData);
           
           // Abonelik durumunu ayarla
-          setSubscriptionStatus(userSettingsData.subscription_status || 'free');
+          const status = userSettingsData.subscription_status ? String(userSettingsData.subscription_status) : 'free';
+          setSubscriptionStatus(status);
+          console.log("Abonelik durumu:", status);
           
-          // Profil bilgilerini güncelle
+          // Abonelik premium ise detayları ayarla
+          if (status === 'premium') {
+            setSubscriptionDetails({
+              currentPeriodStart: userSettingsData.subscription_period_start ? String(userSettingsData.subscription_period_start) : null,
+              currentPeriodEnd: userSettingsData.subscription_period_end ? String(userSettingsData.subscription_period_end) : null,
+              stripeSubscriptionId: userSettingsData.stripe_subscription_id ? String(userSettingsData.stripe_subscription_id) : null
+            });
+            
+            console.log("Abonelik tarih detayları:", {
+              başlangıç: userSettingsData.subscription_period_start,
+              bitiş: userSettingsData.subscription_period_end
+            });
+          } else {
+            // Free kullanıcı için abonelik detaylarını sıfırla
+            setSubscriptionDetails({
+              currentPeriodStart: null,
+              currentPeriodEnd: null,
+              stripeSubscriptionId: null
+            });
+          }
+          
+          // Kullanıcı ayarlarını güncelle
           setSettings({
             notifications: {
-              email: typeof userSettingsData.email_notifications === 'boolean' ? userSettingsData.email_notifications : true,
-              budgetAlerts: typeof userSettingsData.budget_alerts === 'boolean' ? userSettingsData.budget_alerts : true,
-              monthlyReports: typeof userSettingsData.monthly_reports === 'boolean' ? userSettingsData.monthly_reports : true,
+              email: typeof userSettingsData.email_notifications === 'boolean' ? userSettingsData.email_notifications : false,
+              budgetAlerts: typeof userSettingsData.budget_alerts === 'boolean' ? userSettingsData.budget_alerts : false,
+              monthlyReports: typeof userSettingsData.monthly_reports === 'boolean' ? userSettingsData.monthly_reports : false,
             },
             preferences: {
-              currency: userSettingsData.app_preferences?.currency || "TRY",
-              language: userSettingsData.app_preferences?.language || "tr",
+              currency: userSettingsData.app_preferences && typeof userSettingsData.app_preferences === 'object' ? 
+                (userSettingsData.app_preferences as any).currency || "TRY" : "TRY",
+              language: userSettingsData.app_preferences && typeof userSettingsData.app_preferences === 'object' ? 
+                (userSettingsData.app_preferences as any).language || "tr" : "tr",
             }
           });
         } else {
-          console.log("Kullanıcı ayarları bulunamadı, varsayılan değerler kullanılacak");
+          console.log("Kullanıcı ayarları bulunamadı, varsayılan ayarlar kullanılacak");
+          setSubscriptionStatus('free');
           
-          // Varsayılan ayarlarla devam et ve veritabanına yeni kayıt oluştur
-          await saveSettingsToSupabase({
+          // Varsayılan ayarlar ve yeni kayıt
+          const defaultSettings = {
             notifications: {
-              email: true,
-              budgetAlerts: true,
-              monthlyReports: true,
+              email: false,
+              budgetAlerts: false,
+              monthlyReports: false,
             },
             preferences: {
               currency: "TRY",
               language: "tr",
             }
-          });
+          };
+          
+          setSettings(defaultSettings);
+          
+          // Yeni kullanıcı için varsayılan ayarları kaydet
+          await saveSettingsToSupabase(defaultSettings);
         }
       } catch (error) {
-        console.error('Ayarlar yüklenirken hata:', error);
-        toast.error('Bildirim ayarları yüklenirken bir hata oluştu');
+        console.error('Ayarlar yüklenirken beklenmeyen hata:', error);
+        toast.error('Ayarlar yüklenirken bir hata oluştu');
       } finally {
         setSettingsLoading(false);
       }
@@ -132,6 +145,61 @@ export default function SettingsPage() {
 
     loadUserSettings();
   }, [supabase, user]);
+
+  // Abonelik durumu değiştiğinde bildirim ayarlarını güncelle
+  useEffect(() => {
+    const updateSettingsForFreePlan = async () => {
+      // Abonelik henüz yüklenmemişse işlem yapma
+      if (settingsLoading) {
+        return;
+      }
+      
+      // Sadece free plan ve bildirim ayarları açıksa güncelleme yap
+      // Bu şekilde sonsuz döngüyü engelleyeceğiz
+      if (subscriptionStatus === 'free' && 
+          (settings.notifications.email || 
+           settings.notifications.budgetAlerts || 
+           settings.notifications.monthlyReports)) {
+        
+        console.log("Free plan için bildirim ayarları kapatılıyor...");
+        
+        // Supabase'e kaydet (önce veritabanını güncelle)
+        if (supabase && user) {
+          try {
+            const { error } = await supabase
+              .from('user_settings')
+              .update({
+                email_notifications: false,
+                budget_alerts: false,
+                monthly_reports: false,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
+              
+            if (error) {
+              console.error('Free plan ayarları güncellenirken hata:', error);
+            } else {
+              console.log('Bildirim ayarları free plan için kapatıldı');
+              
+              // Veritabanı güncellendikten sonra UI'ı güncelle
+              setSettings(prev => ({
+                ...prev,
+                notifications: {
+                  email: false,
+                  budgetAlerts: false,
+                  monthlyReports: false,
+                }
+              }));
+            }
+          } catch (error) {
+            console.error('Free plan ayarları güncellenirken beklenmeyen hata:', error);
+          }
+        }
+      }
+    };
+    
+    updateSettingsForFreePlan();
+  }, [subscriptionStatus, settingsLoading, supabase, user]);
 
   const handleNotificationChange = async (field: string, value: boolean) => {
     // Ücretsiz planda değişiklik yapılmasını engelle
@@ -178,24 +246,67 @@ export default function SettingsPage() {
     }
 
     try {
-      // Kullanıcı ayarlarını Supabase'e kaydet
-      const { error } = await supabase
+      // Önce mevcut ayarları al
+      const { data: existingSettings, error: fetchError } = await supabase
         .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          email_notifications: settingsToSave.notifications.email,
-          budget_alerts: settingsToSave.notifications.budgetAlerts,
-          monthly_reports: settingsToSave.notifications.monthlyReports,
-          app_preferences: {
-            currency: settingsToSave.preferences.currency,
-            language: settingsToSave.preferences.language,
-          }
-        });
-
-      if (error) {
-        console.error('Ayarlar kaydedilirken hata:', error);
-        toast.error('Ayarlar kaydedilirken bir hata oluştu');
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Mevcut ayarlar alınamadı:', fetchError);
+        toast.error('Ayarlar güncellenirken bir hata oluştu');
         return;
+      }
+      
+      // Güncellenecek ayarlar
+      const updatedSettings = {
+        user_id: user.id,
+        email_notifications: settingsToSave.notifications.email,
+        budget_alerts: settingsToSave.notifications.budgetAlerts,
+        monthly_reports: settingsToSave.notifications.monthlyReports,
+        app_preferences: {
+          currency: settingsToSave.preferences.currency,
+          language: settingsToSave.preferences.language,
+        },
+        updated_at: new Date().toISOString()
+      };
+      
+      // Eğer zaten kayıtlı settings varsa, mevcut abonelik bilgilerini koru
+      if (existingSettings) {
+        console.log("Mevcut ayarlar bulundu, güncelleniyor:", existingSettings);
+        
+        // Mevcut değerleri güncelleme işlemlerini korumak için
+        const { error } = await supabase
+          .from('user_settings')
+          .update(updatedSettings)
+          .eq('user_id', user.id);
+  
+        if (error) {
+          console.error('Ayarlar güncellenirken hata:', error);
+          toast.error('Ayarlar kaydedilirken bir hata oluştu');
+          return;
+        }
+      } else {
+        // Yeni kayıt oluştur
+        console.log("Ayarlar ilk kez oluşturuluyor");
+        
+        // Varsayılan abonelik durumunu ekle (eğer ayarlar ilk kez oluşturuluyorsa)
+        const newSettings = {
+          ...updatedSettings,
+          subscription_status: 'free', // Varsayılan olarak ücretsiz
+          created_at: new Date().toISOString()
+        };
+        
+        const { error } = await supabase
+          .from('user_settings')
+          .insert(newSettings);
+  
+        if (error) {
+          console.error('Ayarlar oluşturulurken hata:', error);
+          toast.error('Ayarlar kaydedilirken bir hata oluştu');
+          return;
+        }
       }
 
       toast.success('Ayarlar başarıyla kaydedildi');
@@ -225,12 +336,20 @@ export default function SettingsPage() {
     try {
       setLoading(true);
 
-      // Kullanıcının verilerini sil (cascade ile otomatik silinebilir veya manuel silme işlemleri)
-      // Bu örnek için sadece auth.users tablosundan siliyoruz
-      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      // Hesap silme işlemi için API'ye istek gönder
+      const response = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id
+        }),
+      });
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Hesap silinemedi");
       }
 
       // Oturumu kapat
@@ -239,7 +358,7 @@ export default function SettingsPage() {
       window.location.href = "/";
     } catch (error) {
       console.error('Hesap silme hatası:', error);
-      toast.error('Hesabınız silinirken bir hata oluştu');
+      toast.error(error instanceof Error ? error.message : 'Hesabınız silinirken bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -247,13 +366,25 @@ export default function SettingsPage() {
 
   // Tarih formatını düzenle
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return "Bilgi yok";
-    const date = new Date(dateString);
-    return date.toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    if (!dateString) return "Tarih bilgisi bulunamadı";
+    
+    try {
+      const date = new Date(dateString);
+      // Geçerli bir tarih mi kontrol et
+      if (isNaN(date.getTime())) {
+        console.error("Geçersiz tarih formatı:", dateString);
+        return "Geçersiz tarih formatı";
+      }
+      
+      return date.toLocaleDateString('tr-TR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error("Tarih formatlanırken hata:", error);
+      return "Tarih işlenemedi";
+    }
   };
 
   // İçerik yüklenirken yükleme spinner'ı göster
@@ -380,57 +511,6 @@ export default function SettingsPage() {
               </div>
             )}
           </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Languages className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Uygulama Tercihleri</CardTitle>
-            </div>
-            <CardDescription>
-              Uygulama için tercih ettiğiniz ayarları belirleyin
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="language">Dil</Label>
-              <Select
-                value={settings.preferences.language}
-                onValueChange={(value) => handlePreferenceChange("language", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Bir dil seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tr">Türkçe</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="currency">Para Birimi</Label>
-              <Select
-                value={settings.preferences.currency}
-                onValueChange={(value) => handlePreferenceChange("currency", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Bir para birimi seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TRY">Türk Lirası (₺)</SelectItem>
-                  <SelectItem value="USD">US Dollar ($)</SelectItem>
-                  <SelectItem value="EUR">Euro (€)</SelectItem>
-                  <SelectItem value="GBP">Pound Sterling (£)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={saveSettings} disabled={loading}>
-              {loading ? "Kaydediliyor..." : "Tercihleri Kaydet"}
-            </Button>
-          </CardFooter>
         </Card>
 
         <Card>

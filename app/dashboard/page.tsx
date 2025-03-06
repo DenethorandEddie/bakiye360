@@ -209,25 +209,28 @@ export default function DashboardPage() {
   const [savingsHistory, setSavingsHistory] = useState<any[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("thisMonth");
   const [isAdmin, setIsAdmin] = useState(false);
-
-  // Mobil ekran kontrolü için state
-  const [isMobileView, setIsMobileView] = useState(false);
+  const [showAdminWarning, setShowAdminWarning] = useState(false);
   
+  // Mobil görünüm için durum
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Kaç ay veri gösterileceği (mobil için 3, masaüstü için 6)
+  const [monthsToShow, setMonthsToShow] = useState(6);
+  
+  // Ekran boyutu değişikliğini takip et
   useEffect(() => {
-    // Ekran boyutunu kontrol et
     const checkMobileView = () => {
-      setIsMobileView(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setMonthsToShow(mobile ? 3 : 6); // Mobil için 3, masaüstü için 6 ay göster
     };
     
-    // İlk render'da kontrol et
+    // İlk yükleme
     checkMobileView();
     
     // Ekran boyutu değiştiğinde kontrol et
     window.addEventListener('resize', checkMobileView);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobileView);
-    };
+    return () => window.removeEventListener('resize', checkMobileView);
   }, []);
 
   useEffect(() => {
@@ -612,24 +615,22 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container py-6">
-      <div className="flex flex-col md:flex-row items-start justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Genel Bakış</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Genel Bakış</h1>
           <p className="text-muted-foreground">
             Finansal durumunuza genel bir bakış
           </p>
         </div>
-        <div className="mt-4 md:mt-0 flex space-x-2">
-          {isAdmin && (
-            <Button variant="outline" asChild className="mr-2">
-              <Link href="/dashboard/admin">
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                Yönetici Paneli
-              </Link>
-            </Button>
-          )}
-          <Button asChild>
+        <div className="flex gap-2 self-start">
+          <Button asChild variant="outline" size={isMobile ? "sm" : "default"}>
+            <Link href="/dashboard/reports">
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Raporlar
+            </Link>
+          </Button>
+          <Button asChild size={isMobile ? "sm" : "default"}>
             <Link href="/dashboard/transactions/new">
               <Plus className="mr-2 h-4 w-4" />
               Yeni İşlem
@@ -729,7 +730,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Gelir ve Gider Trendi</CardTitle>
-                  <CardDescription>Son 6 aylık gelir ve gider karşılaştırması</CardDescription>
+                  <CardDescription>Son {monthsToShow} aylık gelir ve gider karşılaştırması</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1">
@@ -747,8 +748,13 @@ export default function DashboardPage() {
               <div className="h-[250px] sm:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
-                    data={monthlyData}
-                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    data={monthlyData.slice(-monthsToShow)}
+                    margin={{
+                      top: 10,
+                      right: isMobile ? 5 : 20,
+                      left: isMobile ? -20 : 0,
+                      bottom: 0,
+                    }}
                   >
                     <defs>
                       <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -760,39 +766,42 @@ export default function DashboardPage() {
                         <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: isMobileView ? 10 : 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                      interval={isMobileView ? 1 : 0}
+                      tickFormatter={(value) => formatMonthName(value)} 
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                      axisLine={{ stroke: '#888', strokeWidth: 1 }}
+                      tickLine={{ stroke: '#888', strokeWidth: 1 }}
                     />
                     <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: isMobileView ? 10 : 12 }}
                       tickFormatter={(value) => `₺${value/1000}K`}
-                      width={isMobileView ? 35 : 40}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                      width={isMobile ? 40 : 60}
+                      axisLine={{ stroke: '#888', strokeWidth: 1 }}
+                      tickLine={{ stroke: '#888', strokeWidth: 1 }}
                     />
                     <Tooltip content={<CustomTooltip />} />
+                    <Legend 
+                      formatter={(value) => value === 'gelir' ? 'Gelir' : 'Gider'} 
+                      iconSize={isMobile ? 8 : 10}
+                      wrapperStyle={{ fontSize: isMobile ? 10 : 12 }}
+                    />
                     <Area 
                       type="monotone" 
                       dataKey="gelir" 
-                      name="Gelir" 
-                      stroke="hsl(var(--chart-2))" 
-                      fillOpacity={1}
-                      fill="url(#colorIncome)"
-                      strokeWidth={2}
+                      stackId="1" 
+                      stroke="#2a9d90" 
+                      fill="#2a9d90"
+                      fillOpacity={0.6} 
                     />
                     <Area 
                       type="monotone" 
                       dataKey="gider" 
-                      name="Gider" 
-                      stroke="hsl(var(--chart-1))" 
-                      fillOpacity={1}
-                      fill="url(#colorExpense)"
-                      strokeWidth={2}
+                      stackId="2" 
+                      stroke="#e87356" 
+                      fill="#e87356"
+                      fillOpacity={0.6} 
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -890,8 +899,8 @@ export default function DashboardPage() {
                       data={expensesByCategory}
                       cx="50%"
                       cy="50%"
-                      innerRadius={isMobileView ? 40 : 60} 
-                      outerRadius={isMobileView ? 60 : 80}
+                      innerRadius={isMobile ? 40 : 60} 
+                      outerRadius={isMobile ? 60 : 80}
                       paddingAngle={2}
                       dataKey="value"
                       onMouseEnter={onPieEnter}
@@ -927,13 +936,13 @@ export default function DashboardPage() {
                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: isMobileView ? 10 : 12 }}
-                      interval={isMobileView ? 1 : 0}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                      interval={isMobile ? 1 : 0}
                     />
                     <YAxis 
                       tickFormatter={(value) => `%${value}`} 
-                      tick={{ fontSize: isMobileView ? 10 : 12 }}
-                      width={isMobileView ? 35 : 40}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                      width={isMobile ? 35 : 40}
                     />
                     <Tooltip formatter={(value, name) => [
                       `%${Number(value).toFixed(1)}`, 
@@ -944,7 +953,7 @@ export default function DashboardPage() {
                       value: "Hedef %5", 
                       position: "insideBottomRight",
                       fill: "#ff8c00",
-                      fontSize: isMobileView ? 10 : 12
+                      fontSize: isMobile ? 10 : 12
                     }} />
                     
                     <Line
@@ -953,8 +962,8 @@ export default function DashboardPage() {
                       name="Tasarruf Oranı"
                       stroke="hsl(var(--chart-3))"
                       strokeWidth={2}
-                      dot={{ r: isMobileView ? 3 : 4, strokeWidth: 2, fill: 'hsl(var(--chart-3))' }}
-                      activeDot={{ r: isMobileView ? 5 : 6, strokeWidth: 2 }}
+                      dot={{ r: isMobile ? 3 : 4, strokeWidth: 2, fill: 'hsl(var(--chart-3))' }}
+                      activeDot={{ r: isMobile ? 5 : 6, strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1012,19 +1021,12 @@ export default function DashboardPage() {
       {/* Detaylı Analizler */}
       <div className="mt-6">
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="bg-muted/60">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Genel Bakış
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="flex items-center gap-2">
-              <PieChartIcon className="h-4 w-4" />
-              Kategoriler
-            </TabsTrigger>
-            <TabsTrigger value="goals" className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Hedefler
-            </TabsTrigger>
+          <TabsList className="w-full flex justify-start overflow-x-auto py-1 gap-1 sm:gap-2">
+            <TabsTrigger value="overview" className="flex-shrink-0 text-xs sm:text-sm">Genel</TabsTrigger>
+            <TabsTrigger value="income-expense" className="flex-shrink-0 text-xs sm:text-sm">Gelir/Gider</TabsTrigger>
+            <TabsTrigger value="categories" className="flex-shrink-0 text-xs sm:text-sm">Kategori Dağılımı</TabsTrigger>
+            <TabsTrigger value="savings" className="flex-shrink-0 text-xs sm:text-sm">Tasarruf Trendi</TabsTrigger>
+            <TabsTrigger value="budget" className="flex-shrink-0 text-xs sm:text-sm">Bütçe Hedefleri</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">
@@ -1042,8 +1044,8 @@ export default function DashboardPage() {
                         <RadialBarChart 
                           width={500} 
                           height={300} 
-                          innerRadius={isMobileView ? "20%" : "30%"} 
-                          outerRadius={isMobileView ? "80%" : "90%"} 
+                          innerRadius={isMobile ? "20%" : "30%"} 
+                          outerRadius={isMobile ? "80%" : "90%"} 
                           data={[
                             {
                               name: 'Gelir',
@@ -1075,13 +1077,13 @@ export default function DashboardPage() {
                             labelList={false}
                           />
                           <Legend 
-                            iconSize={isMobileView ? 8 : 10} 
+                            iconSize={isMobile ? 8 : 10} 
                             layout="vertical" 
                             verticalAlign="middle" 
-                            wrapperStyle={isMobileView ? { fontSize: '12px' } : { fontSize: '14px' }}
-                            align={isMobileView ? "center" : "right"}
+                            wrapperStyle={isMobile ? { fontSize: '12px' } : { fontSize: '14px' }}
+                            align={isMobile ? "center" : "right"}
                             formatter={(value, entry) => (
-                              <span style={{ color: 'var(--foreground)', fontSize: isMobileView ? '12px' : '14px', marginLeft: '5px' }}>
+                              <span style={{ color: 'var(--foreground)', fontSize: isMobile ? '12px' : '14px', marginLeft: '5px' }}>
                                 {value}: ₺{entry.payload.value.toLocaleString('tr-TR')}
                               </span>
                             )}
@@ -1115,16 +1117,16 @@ export default function DashboardPage() {
                           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                           <XAxis 
                             dataKey="name" 
-                            tick={{ fontSize: isMobileView ? 10 : 12 }} 
-                            interval={isMobileView ? 1 : 0}
+                            tick={{ fontSize: isMobile ? 10 : 12 }} 
+                            interval={isMobile ? 1 : 0}
                           />
                           <YAxis 
                             tickFormatter={(value) => `₺${Math.round(value/1000)}K`} 
-                            tick={{ fontSize: isMobileView ? 10 : 12 }} 
+                            tick={{ fontSize: isMobile ? 10 : 12 }} 
                             domain={[(dataMin) => dataMin < 0 ? dataMin * 1.1 : 0, (dataMax) => dataMax * 1.1]}
                             allowDataOverflow={false}
                             includeHidden={true}
-                            width={isMobileView ? 35 : 40}
+                            width={isMobile ? 35 : 40}
                           />
                           <Tooltip formatter={(value, name) => [
                             `₺${Number(value).toLocaleString('tr-TR')}`, 
@@ -1145,6 +1147,78 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
           
+          <TabsContent value="income-expense" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gelir-Gider Analizi</CardTitle>
+                <CardDescription>Gelir ve giderlerin aylık dağılımı</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[250px] sm:h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={monthlyData}
+                      margin={{
+                        top: 10,
+                        right: 10,
+                        left: 0,
+                        bottom: 0,
+                      }}
+                    >
+                      <defs>
+                        <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0.1}/>
+                        </linearGradient>
+                        <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <XAxis 
+                        dataKey="name" 
+                        tickFormatter={(value) => formatMonthName(value)} 
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                        axisLine={{ stroke: '#888', strokeWidth: 1 }}
+                        tickLine={{ stroke: '#888', strokeWidth: 1 }}
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => `₺${value/1000}K`}
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                        width={isMobile ? 40 : 60}
+                        axisLine={{ stroke: '#888', strokeWidth: 1 }}
+                        tickLine={{ stroke: '#888', strokeWidth: 1 }}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend 
+                        formatter={(value) => value === 'gelir' ? 'Gelir' : 'Gider'} 
+                        iconSize={isMobile ? 8 : 10}
+                        wrapperStyle={{ fontSize: isMobile ? 10 : 12 }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="gelir" 
+                        stackId="1" 
+                        stroke="#2a9d90" 
+                        fill="#2a9d90"
+                        fillOpacity={0.6} 
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="gider" 
+                        stackId="2" 
+                        stroke="#e87356" 
+                        fill="#e87356"
+                        fillOpacity={0.6} 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
           <TabsContent value="categories" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1152,14 +1226,14 @@ export default function DashboardPage() {
                 <CardDescription>Kategorilere göre harcama dağılımı</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={isMobileView ? 300 : 400}>
+                <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
                   <BarChart
                     data={expensesByCategory}
                     layout="vertical"
                     margin={{
                       top: 5,
-                      right: isMobileView ? 15 : 30,
-                      left: isMobileView ? 15 : 20,
+                      right: isMobile ? 15 : 30,
+                      left: isMobile ? 15 : 20,
                       bottom: 5,
                     }}
                   >
@@ -1168,14 +1242,14 @@ export default function DashboardPage() {
                       type="number" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: isMobileView ? 10 : 12 }}
-                      tickFormatter={(value) => isMobileView ? `₺${Math.round(value/1000)}K` : `₺${value.toLocaleString('tr-TR')}`}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
+                      tickFormatter={(value) => isMobile ? `₺${Math.round(value/1000)}K` : `₺${value.toLocaleString('tr-TR')}`}
                     />
                     <YAxis 
                       dataKey="name" 
                       type="category" 
-                      width={isMobileView ? 70 : 100}
-                      tick={{ fontSize: isMobileView ? 10 : 12 }}
+                      width={isMobile ? 70 : 100}
+                      tick={{ fontSize: isMobile ? 10 : 12 }}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -1199,7 +1273,64 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
           
-          <TabsContent value="goals" className="space-y-4">
+          <TabsContent value="savings" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tasarruf Trendi</CardTitle>
+                <CardDescription>Aylık tasarruf miktarı değişimi</CardDescription>
+              </CardHeader>
+              <CardContent className="px-2">
+                <div className="h-[220px] sm:h-[250px] md:h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={savingsHistory}
+                      margin={{
+                        top: 10,
+                        right: 10,
+                        left: 0,
+                        bottom: 20,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                        interval={isMobile ? 1 : 0}
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => `%${value}`} 
+                        tick={{ fontSize: isMobile ? 10 : 12 }}
+                        width={isMobile ? 35 : 40}
+                      />
+                      <Tooltip formatter={(value, name) => [
+                        `%${Number(value).toFixed(1)}`, 
+                        'Tasarruf Oranı'
+                      ]} />
+                      
+                      <ReferenceLine y={5} stroke="#ff8c00" strokeDasharray="3 3" label={{ 
+                        value: "Hedef %5", 
+                        position: "insideBottomRight",
+                        fill: "#ff8c00",
+                        fontSize: isMobile ? 10 : 12
+                      }} />
+                      
+                      <Line
+                        type="monotone"
+                        dataKey="oran"
+                        name="Tasarruf Oranı"
+                        stroke="hsl(var(--chart-3))"
+                        strokeWidth={2}
+                        dot={{ r: isMobile ? 3 : 4, strokeWidth: 2, fill: 'hsl(var(--chart-3))' }}
+                        activeDot={{ r: isMobile ? 5 : 6, strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="budget" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Bütçe Hedefleri</CardTitle>

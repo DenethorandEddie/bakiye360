@@ -57,25 +57,46 @@ export default function SubscriptionPage() {
         
         setUserId(user.id);
         
-        // Kullanıcının abonelik durumunu kontrol et
+        // 1. Kullanıcının abonelik durumunu subscriptions tablosundan kontrol et
         const { data: subscription, error: subscriptionError } = await supabase
           .from('subscriptions')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .eq('status', 'active')
+          .maybeSingle();
           
         if (subscriptionError && subscriptionError.code !== 'PGRST116') {
-          // PGRST116 = no rows returned, diğer hataları kontrol et
           console.error("Abonelik durumu alınamadı:", subscriptionError);
           setError("Abonelik durumu kontrol edilirken bir hata oluştu.");
           setLoading(false);
           return;
         }
         
+        // Aktif abonelik varsa
         if (subscription) {
-          setIsPremium(subscription.status === 'active');
+          console.log("Aktif abonelik bulundu:", subscription);
+          setIsPremium(true);
           setSubscriptionId(subscription.id);
+          setLoading(false);
+          return;
+        }
+        
+        // 2. Eğer subscriptions'da yoksa, user_settings tablosundan kontrol et
+        const { data: userSettings, error: userSettingsError } = await supabase
+          .from('user_settings')
+          .select('subscription_status')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (userSettingsError && userSettingsError.code !== 'PGRST116') {
+          console.error("User settings bilgisi alınamadı:", userSettingsError);
+        }
+        
+        if (userSettings && userSettings.subscription_status === 'premium') {
+          console.log("User settings tablosunda premium abonelik bulundu");
+          setIsPremium(true);
         } else {
+          console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
           setIsPremium(false);
           setSubscriptionId(null);
         }
@@ -207,15 +228,19 @@ export default function SubscriptionPage() {
     },
     {
       question: "Premium'dan ücretsiz pakete geçersem verilerim ne olur?",
-      answer: "Tüm verileriniz korunur, ancak bazı premium özelliklere erişiminiz sınırlanır. Örneğin, 30'dan fazla işlem giremezsiniz ve özel kategorileriniz görüntülenebilir ancak yeni özel kategori ekleyemezsiniz."
+      answer: "Tüm verileriniz korunur, ancak premium özelliklere erişiminiz sınırlanır. Örneğin, aylık 30 işlem sınırı uygulanır, sadece 1 bütçe hedefi oluşturabilirsiniz ve gelişmiş kategorilere erişiminiz sınırlanır."
     },
     {
-      question: "Aynı anda birden fazla cihazda kullanabilir miyim?",
-      answer: "Evet, premium hesabınızla istediğiniz kadar cihazda giriş yapabilir ve tüm özelliklerden yararlanabilirsiniz. Aboneliğiniz cihaza değil, hesabınıza bağlıdır."
+      question: "Ücretsiz paketin kısıtlamaları nelerdir?",
+      answer: "Ücretsiz pakette aylık 30 işlem girişi yapabilir, maksimum 1 bütçe hedefi oluşturabilir ve sadece temel harcama kategorilerini kullanabilirsiniz. Ayrıca detaylı analiz grafikleri ve gelişmiş kategorilere erişim özellikleri premium pakette mevcuttur."
     },
     {
       question: "Aboneliğim otomatik olarak yenilenir mi?",
       answer: "Evet, premium aboneliğiniz her ay otomatik olarak yenilenir. İstediğiniz zaman aboneliğinizi iptal edebilirsiniz."
+    },
+    {
+      question: "Premium pakette ne gibi ek özellikler var?",
+      answer: "Premium pakette sınırsız işlem girişi, sınırsız bütçe hedefi oluşturma, tüm kategorilere erişim, detaylı analiz raporları, tekrarlayan işlem takibi, veri dışa aktarma ve öncelikli destek gibi özellikler bulunmaktadır."
     }
   ];
   
@@ -262,15 +287,15 @@ export default function SubscriptionPage() {
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Temel bütçe yönetimi</span>
+                    <span>1 bütçe hedefi oluşturma</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Temel raporlar ve grafikler</span>
+                    <span>Temel gelir-gider raporları</span>
                   </div>
                   <div className="flex items-center">
-                    <XCircle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-muted-foreground">Özelleştirilmiş analiz ve tahminler</span>
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                    <span>Temel harcama kategorileri</span>
                   </div>
                   <div className="flex items-center">
                     <XCircle className="h-5 w-5 text-destructive mr-2" />
@@ -278,11 +303,15 @@ export default function SubscriptionPage() {
                   </div>
                   <div className="flex items-center">
                     <XCircle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-muted-foreground">E-posta bildirimleri</span>
+                    <span className="text-muted-foreground">Sınırsız bütçe hedefi</span>
                   </div>
                   <div className="flex items-center">
                     <XCircle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-muted-foreground">Öncelikli destek</span>
+                    <span className="text-muted-foreground">Gelişmiş kategorilere erişim</span>
+                  </div>
+                  <div className="flex items-center">
+                    <XCircle className="h-5 w-5 text-destructive mr-2" />
+                    <span className="text-muted-foreground">Gelişmiş analiz grafikleri</span>
                   </div>
                 </div>
                 
@@ -317,15 +346,23 @@ export default function SubscriptionPage() {
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Gelişmiş bütçe yönetimi</span>
+                    <span>Sınırsız bütçe hedefi oluşturma</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Detaylı analiz raporları</span>
+                    <span>Detaylı finansal raporlar ve grafikler</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Özelleştirilmiş bildirimler</span>
+                    <span>Tüm kategorilere tam erişim</span>
+                  </div>
+                  <div className="flex items-center">
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                    <span>Harcama tahmin ve analizi</span>
+                  </div>
+                  <div className="flex items-center">
+                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                    <span>Tekrarlayan işlem takibi</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
@@ -333,7 +370,7 @@ export default function SubscriptionPage() {
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>7/24 öncelikli destek</span>
+                    <span>Öncelikli destek ve güncellemeler</span>
                   </div>
                 </div>
                 
@@ -395,70 +432,6 @@ export default function SubscriptionPage() {
                 )}
               </CardFooter>
             </Card>
-          </div>
-          
-          <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-6">Paket Karşılaştırması</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-4">Özellik</th>
-                    <th className="text-center p-4">Ücretsiz</th>
-                    <th className="text-center p-4">Premium</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="p-4">Aylık İşlem Limiti</td>
-                    <td className="text-center p-4">30</td>
-                    <td className="text-center p-4">Sınırsız</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-4">Bütçe Hedefleri</td>
-                    <td className="text-center p-4">Maksimum 3</td>
-                    <td className="text-center p-4">Sınırsız</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-4">Harcama Kategorileri</td>
-                    <td className="text-center p-4">Standart Kategoriler</td>
-                    <td className="text-center p-4">Özel Kategoriler</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-4">Raporlar ve Grafikler</td>
-                    <td className="text-center p-4">Temel</td>
-                    <td className="text-center p-4">Gelişmiş</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-4">E-posta Bildirimleri</td>
-                    <td className="text-center p-4">
-                      <XCircle className="h-5 w-5 text-destructive mx-auto" />
-                    </td>
-                    <td className="text-center p-4">
-                      <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
-                    </td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="p-4">Veri Yedekleme</td>
-                    <td className="text-center p-4">
-                      <XCircle className="h-5 w-5 text-destructive mx-auto" />
-                    </td>
-                    <td className="text-center p-4">
-                      <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="p-4">Öncelikli Destek</td>
-                    <td className="text-center p-4">
-                      <XCircle className="h-5 w-5 text-destructive mx-auto" />
-                    </td>
-                    <td className="text-center p-4">
-                      <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </div>
           
           <div className="mt-12 bg-card p-6 rounded-lg shadow-sm border">
