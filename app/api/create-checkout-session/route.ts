@@ -70,7 +70,7 @@ export async function POST(request: Request) {
               name: "Bakiye360 Premium Paket",
               description: "Aylık abonelik - Gelişmiş finansal analiz ve yönetim özellikleri",
             },
-            unit_amount: 2999, // 29.99 TL (kuruş cinsinden)
+            unit_amount: 14999, // 149.99 TL (kuruş cinsinden)
             recurring: {
               interval: "month",
             },
