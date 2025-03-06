@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { loadStripe } from "@stripe/stripe-js";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, CreditCard, Sparkles, Shield, Clock, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
@@ -21,6 +21,7 @@ export default function SubscriptionPage() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   
   const supabase = createClientComponentClient();
   const searchParams = useSearchParams();
@@ -191,9 +192,45 @@ export default function SubscriptionPage() {
     return isPremium; // Premium pakette varsa true, yoksa false
   };
   
+  const faqItems = [
+    {
+      question: "Premium pakete nasıl geçiş yapabilirim?",
+      answer: "Premium'a Yükselt düğmesine tıklayarak güvenli ödeme sayfasına yönlendirileceksiniz. Ödemenizi kredi kartı veya banka kartı ile güvenle yapabilirsiniz."
+    },
+    {
+      question: "Aboneliğimi istediğim zaman iptal edebilir miyim?",
+      answer: "Evet, aboneliğinizi istediğiniz zaman iptal edebilirsiniz. İptal işlemi anında gerçekleşir, ancak ödemiş olduğunuz süre sonuna kadar premium özelliklere erişiminiz devam eder."
+    },
+    {
+      question: "Ödeme bilgilerim güvende mi?",
+      answer: "Kesinlikle! Tüm ödeme işlemleri Stripe güvenli ödeme altyapısı üzerinden gerçekleştirilir. Kredi kartı bilgileriniz bizim sistemimizde saklanmaz."
+    },
+    {
+      question: "Premium'dan ücretsiz pakete geçersem verilerim ne olur?",
+      answer: "Tüm verileriniz korunur, ancak bazı premium özelliklere erişiminiz sınırlanır. Örneğin, 30'dan fazla işlem giremezsiniz ve özel kategorileriniz görüntülenebilir ancak yeni özel kategori ekleyemezsiniz."
+    },
+    {
+      question: "Aynı anda birden fazla cihazda kullanabilir miyim?",
+      answer: "Evet, premium hesabınızla istediğiniz kadar cihazda giriş yapabilir ve tüm özelliklerden yararlanabilirsiniz. Aboneliğiniz cihaza değil, hesabınıza bağlıdır."
+    },
+    {
+      question: "Aboneliğim otomatik olarak yenilenir mi?",
+      answer: "Evet, premium aboneliğiniz her ay otomatik olarak yenilenir. İstediğiniz zaman aboneliğinizi iptal edebilirsiniz."
+    }
+  ];
+  
+  const toggleFaq = (index: number) => {
+    if (openFaqIndex === index) {
+      setOpenFaqIndex(null);
+    } else {
+      setOpenFaqIndex(index);
+    }
+  };
+  
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Abonelik Paketleri</h1>
+      <h1 className="text-3xl font-bold mb-4">Abonelik Paketleri</h1>
+      <p className="text-muted-foreground mb-8">Finansal hedeflerinize ulaşmak için ihtiyacınıza en uygun planı seçin.</p>
       
       {loading ? (
         <div className="flex justify-center items-center p-8">
@@ -260,13 +297,19 @@ export default function SubscriptionPage() {
             </Card>
             
             {/* Premium Paket */}
-            <Card className={`border-2 ${isPremium ? "border-primary" : "border-border"}`}>
-              <CardHeader>
+            <Card className={`border-2 ${isPremium ? "border-primary" : "border-border"} relative overflow-hidden shadow-lg`}>
+              {!isPremium && (
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-medium rounded-bl-lg shadow-sm">
+                  Önerilen
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10 pointer-events-none"></div>
+              <CardHeader className="relative">
                 <CardTitle>Premium Paket</CardTitle>
                 <CardDescription>Gelişmiş finansal analiz ve planlama</CardDescription>
                 <div className="mt-2 text-3xl font-bold">₺149.99 <span className="text-sm font-normal">/ay</span></div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative pb-0">
                 <div className="space-y-4">
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
@@ -279,10 +322,6 @@ export default function SubscriptionPage() {
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
                     <span>Detaylı analiz raporları</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Yapay zeka destekli tahminler</span>
                   </div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
@@ -304,21 +343,27 @@ export default function SubscriptionPage() {
                       <div className="bg-primary/10 p-3 rounded-md text-primary text-center text-sm mb-4">
                         Premium Paketi kullanıyorsunuz
                       </div>
-                      <Button 
-                        variant="destructive" 
-                        className="w-full"
-                        onClick={handleCancelSubscription}
-                        disabled={cancelLoading}
-                      >
-                        {cancelLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            İptal Ediliyor...
-                          </>
-                        ) : "Aboneliği İptal Et"}
-                      </Button>
                     </>
-                  ) : (
+                  ) : null}
+                </div>
+              </CardContent>
+              <CardFooter className="relative pt-4 flex flex-col gap-3">
+                {isPremium ? (
+                  <Button 
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={handleCancelSubscription}
+                    disabled={cancelLoading}
+                  >
+                    {cancelLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        İptal Ediliyor...
+                      </>
+                    ) : "Aboneliği İptal Et"}
+                  </Button>
+                ) : (
+                  <>
                     <Button 
                       className="w-full" 
                       onClick={handleSubscribe}
@@ -329,11 +374,26 @@ export default function SubscriptionPage() {
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           İşleniyor...
                         </>
-                      ) : "Premium'a Yükselt"}
+                      ) : (
+                        <>
+                          Premium'a Yükselt
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
                     </Button>
-                  )}
-                </div>
-              </CardContent>
+                    <div className="flex items-center justify-center w-full gap-4 px-4 text-xs text-muted-foreground">
+                      <div className="flex items-center">
+                        <CreditCard className="h-3 w-3 mr-1" />
+                        Güvenli Ödeme
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        İptal Kolaylığı
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardFooter>
             </Card>
           </div>
           
@@ -370,15 +430,6 @@ export default function SubscriptionPage() {
                     <td className="text-center p-4">Gelişmiş</td>
                   </tr>
                   <tr className="border-b">
-                    <td className="p-4">Yapay Zeka Tahminleri</td>
-                    <td className="text-center p-4">
-                      <XCircle className="h-5 w-5 text-destructive mx-auto" />
-                    </td>
-                    <td className="text-center p-4">
-                      <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
-                    </td>
-                  </tr>
-                  <tr className="border-b">
                     <td className="p-4">E-posta Bildirimleri</td>
                     <td className="text-center p-4">
                       <XCircle className="h-5 w-5 text-destructive mx-auto" />
@@ -410,25 +461,31 @@ export default function SubscriptionPage() {
             </div>
           </div>
           
-          <div className="mt-12 bg-muted p-6 rounded-lg">
-            <h2 className="text-2xl font-semibold mb-4">Sıkça Sorulan Sorular</h2>
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium mb-2">Premium pakete nasıl geçiş yapabilirim?</h3>
-                <p className="text-muted-foreground">Premium'a Yükselt düğmesine tıklayarak güvenli ödeme sayfasına yönlendirileceksiniz. Ödemenizi kredi kartı veya banka kartı ile güvenle yapabilirsiniz.</p>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium mb-2">Aboneliğimi istediğim zaman iptal edebilir miyim?</h3>
-                <p className="text-muted-foreground">Evet, aboneliğinizi istediğiniz zaman iptal edebilirsiniz. İptal işlemi anında gerçekleşir, ancak ödemiş olduğunuz süre sonuna kadar premium özelliklere erişiminiz devam eder.</p>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium mb-2">Ödeme bilgilerim güvende mi?</h3>
-                <p className="text-muted-foreground">Kesinlikle! Tüm ödeme işlemleri Stripe güvenli ödeme altyapısı üzerinden gerçekleştirilir. Kredi kartı bilgileriniz bizim sistemimizde saklanmaz.</p>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium mb-2">Premium'dan ücretsiz pakete geçersem verilerim ne olur?</h3>
-                <p className="text-muted-foreground">Tüm verileriniz korunur, ancak bazı premium özelliklere erişiminiz sınırlanır. Örneğin, 30'dan fazla işlem giremezsiniz ve özel kategorileriniz görüntülenebilir ancak yeni özel kategori ekleyemezsiniz.</p>
-              </div>
+          <div className="mt-12 bg-card p-6 rounded-lg shadow-sm border">
+            <h2 className="text-2xl font-semibold mb-6">Sıkça Sorulan Sorular</h2>
+            <div className="space-y-4">
+              {faqItems.map((faq, index) => (
+                <div 
+                  key={index} 
+                  className="border rounded-lg overflow-hidden"
+                >
+                  <button
+                    className="w-full p-4 flex justify-between items-center bg-card hover:bg-muted/50 transition-colors"
+                    onClick={() => toggleFaq(index)}
+                  >
+                    <h3 className="text-lg font-medium text-left">{faq.question}</h3>
+                    {openFaqIndex === index ? 
+                      <ChevronUp className="h-5 w-5 flex-shrink-0" /> : 
+                      <ChevronDown className="h-5 w-5 flex-shrink-0" />
+                    }
+                  </button>
+                  {openFaqIndex === index && (
+                    <div className="p-4 bg-muted/20 border-t">
+                      <p className="text-muted-foreground">{faq.answer}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </>
