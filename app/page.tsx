@@ -7,7 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
-import { ArrowRight, BarChart3, CreditCard, LineChart, PieChart, Shield, Target, Wallet, CheckCircle2, TrendingUp, ChevronRight } from "lucide-react";
+import { ArrowRight, BarChart3, CreditCard, LineChart, PieChart, Shield, Target, Wallet, CheckCircle2, TrendingUp, ChevronRight, XCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export default function Home() {
@@ -558,40 +558,52 @@ export default function Home() {
                 İhtiyaçlarınıza uygun planı seçin ve finansal kontrolü elinize alın
               </p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {/* Free Plan */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              {/* Ücretsiz Paket */}
               <div className="flex flex-col p-6 rounded-lg border bg-card shadow-sm h-full">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/40 to-primary/10"></div>
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold">Ücretsiz</h3>
+                  <h3 className="text-xl font-bold">Ücretsiz Paket</h3>
                   <div className="mt-4 mb-4">
                     <span className="text-4xl font-bold">₺0</span>
                     <span className="text-muted-foreground">/ay</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Temel finansal takip için ideal
+                    Temel finansal yönetim özellikleri
                   </p>
                 </div>
                 <ul className="space-y-3 mb-6 flex-1">
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Sınırsız gelir/gider takibi</span>
+                    <span>Aylık 30 işlem girişi</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Temel raporlar</span>
+                    <span>1 bütçe hedefi oluşturma</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>5 bütçe hedefi</span>
+                    <span>Temel gelir-gider raporları</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Web uygulaması erişimi</span>
+                    <span>Temel harcama kategorileri</span>
                   </li>
                   <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>E-posta desteği</span>
+                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
+                    <span className="text-muted-foreground">Sınırsız işlem girişi</span>
+                  </li>
+                  <li className="flex items-center">
+                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
+                    <span className="text-muted-foreground">Sınırsız bütçe hedefi</span>
+                  </li>
+                  <li className="flex items-center">
+                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
+                    <span className="text-muted-foreground">Gelişmiş kategorilere erişim</span>
+                  </li>
+                  <li className="flex items-center">
+                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
+                    <span className="text-muted-foreground">Gelişmiş analiz grafikleri</span>
                   </li>
                 </ul>
                 <Button variant="outline" className="w-full group mt-auto" asChild>
@@ -602,31 +614,27 @@ export default function Home() {
                 </Button>
               </div>
               
-              {/* Premium Plan */}
+              {/* Premium Paket */}
               <div className="flex flex-col p-6 rounded-lg border-2 border-primary bg-card shadow-xl relative h-full transform hover:scale-105 transition-all duration-300 z-10">
                 <div className="absolute -top-5 -left-5 -right-5 -bottom-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl -z-10 blur-sm"></div>
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-primary/60 rounded-t-lg"></div>
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold py-1 px-4 rounded-full shadow-lg">
-                  En Popüler
+                  Önerilen
                 </div>
                 <div className="text-center mb-6 pt-2">
-                  <h3 className="text-xl font-bold">Premium</h3>
+                  <h3 className="text-xl font-bold">Premium Paket</h3>
                   <div className="mt-4 mb-4">
-                    <span className="text-4xl font-bold">₺49</span>
+                    <span className="text-4xl font-bold">₺149.99</span>
                     <span className="text-muted-foreground">/ay</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Detaylı finansal analiz için
+                    Gelişmiş finansal analiz ve planlama
                   </p>
                 </div>
                 <ul className="space-y-3 mb-6 flex-1">
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Ücretsiz planın tüm özellikleri</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Gelişmiş raporlar ve analizler</span>
+                    <span>Sınırsız işlem girişi</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
@@ -634,73 +642,30 @@ export default function Home() {
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Tekrarlayan işlemler</span>
+                    <span>Gelişmiş kategorilere erişim</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Veri yedekleme</span>
+                    <span>Gelişmiş analiz grafikleri</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Mobil uygulama erişimi</span>
+                    <span>Tekrarlayan işlem takibi</span>
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
+                    <span>Veri dışa aktarma</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
                     <span>Öncelikli destek</span>
                   </li>
+                  <li className="flex items-center">
+                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
+                    <span>Bütçe aşım bildirimleri</span>
+                  </li>
                 </ul>
                 <Button className="w-full group mt-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-md" asChild>
-                  <Link href="/register">
-                    Şimdi Başla
-                    <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                </Button>
-              </div>
-              
-              {/* Business Plan */}
-              <div className="flex flex-col p-6 rounded-lg border bg-card shadow-sm h-full">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/60 to-primary/40"></div>
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold">İşletme</h3>
-                  <div className="mt-4 mb-4">
-                    <span className="text-4xl font-bold">₺149</span>
-                    <span className="text-muted-foreground">/ay</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Küçük işletmeler için
-                  </p>
-                </div>
-                <ul className="space-y-3 mb-6 flex-1">
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Premium planın tüm özellikleri</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>5 kullanıcı hesabı</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>İşletme raporları</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Gelir-gider projeksiyonları</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Nakit akışı analizi</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Özel API erişimi</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>7/24 öncelikli destek</span>
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full group mt-auto" asChild>
                   <Link href="/register">
                     Şimdi Başla
                     <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
