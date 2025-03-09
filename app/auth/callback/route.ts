@@ -8,11 +8,19 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get("code");
 
   if (code) {
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    await supabase.auth.exchangeCodeForSession(code);
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    try {
+      await supabase.auth.exchangeCodeForSession(code);
+      // E-posta doğrulandıktan sonra giriş sayfasına yönlendir
+      return NextResponse.redirect(new URL('/login', requestUrl.origin));
+    } catch (error) {
+      console.error('Auth callback error:', error);
+      // Hata durumunda ana sayfaya yönlendir
+      return NextResponse.redirect(new URL('/', requestUrl.origin));
+    }
   }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(new URL("/dashboard", request.url));
+  // Code parametresi yoksa ana sayfaya yönlendir
+  return NextResponse.redirect(new URL('/', requestUrl.origin));
 }
