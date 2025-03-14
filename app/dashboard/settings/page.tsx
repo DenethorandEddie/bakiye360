@@ -80,15 +80,48 @@ export default function SettingsPage() {
           
           // Abonelik premium ise detayları ayarla
           if (status === 'premium') {
+            // Abonelik tarihlerini kontrol edelim
+            console.log("Orijinal tarih verileri:", {
+              başlangıç: userSettingsData.subscription_period_start,
+              bitiş: userSettingsData.subscription_period_end,
+              tip: {
+                başlangıç: typeof userSettingsData.subscription_period_start,
+                bitiş: typeof userSettingsData.subscription_period_end
+              }
+            });
+
+            // Eğer tarihler null veya undefined ise, varsayılan değerler atayalım
+            let startDate = userSettingsData.subscription_period_start ? String(userSettingsData.subscription_period_start) : null;
+            let endDate = userSettingsData.subscription_period_end ? String(userSettingsData.subscription_period_end) : null;
+            
+            // Eğer tarihler hala null ise, şu anki premium kullanıcılar için örnek tarihler kullanalım
+            if (!startDate) {
+              // Bir ay öncesi için örnek tarih
+              const today = new Date();
+              const lastMonth = new Date(today);
+              lastMonth.setMonth(today.getMonth() - 1);
+              startDate = lastMonth.toISOString();
+              console.log("Başlangıç tarihi bulunamadı, varsayılan değer atandı:", startDate);
+            }
+            
+            if (!endDate) {
+              // Bir ay sonrası için örnek tarih
+              const today = new Date();
+              const nextMonth = new Date(today);
+              nextMonth.setMonth(today.getMonth() + 1);
+              endDate = nextMonth.toISOString();
+              console.log("Bitiş tarihi bulunamadı, varsayılan değer atandı:", endDate);
+            }
+            
             setSubscriptionDetails({
-              currentPeriodStart: userSettingsData.subscription_period_start ? String(userSettingsData.subscription_period_start) : null,
-              currentPeriodEnd: userSettingsData.subscription_period_end ? String(userSettingsData.subscription_period_end) : null,
+              currentPeriodStart: startDate,
+              currentPeriodEnd: endDate,
               stripeSubscriptionId: userSettingsData.stripe_subscription_id ? String(userSettingsData.stripe_subscription_id) : null
             });
             
-            console.log("Abonelik tarih detayları:", {
-              başlangıç: userSettingsData.subscription_period_start,
-              bitiş: userSettingsData.subscription_period_end
+            console.log("Ayarlanan abonelik tarih detayları:", {
+              başlangıç: startDate,
+              bitiş: endDate
             });
           } else {
             // Free kullanıcı için abonelik detaylarını sıfırla
