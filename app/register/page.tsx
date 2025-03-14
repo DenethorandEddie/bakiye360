@@ -70,7 +70,7 @@ export default function RegisterPage() {
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: `https://bakiye360.vercel.app/auth/callback`,
+          emailRedirectTo: `https://bakiye360.com/auth/callback`,
         },
       });
 
