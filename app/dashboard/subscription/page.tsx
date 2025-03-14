@@ -519,6 +519,69 @@ export default function SubscriptionPage() {
               ))}
             </div>
           </div>
+          
+          {/* Abonelik Sorun Çözme Paneli - Beta */}
+          <div className="mt-8 bg-red-50 dark:bg-red-950/20 p-6 rounded-lg border border-red-200 dark:border-red-800">
+            <h2 className="text-xl font-semibold mb-2 text-red-800 dark:text-red-400">Abonelik Sorun Giderme</h2>
+            <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+              Ödeme yaptığınız halde abonelik durumunuz güncellenmediyse, aşağıdaki butonu kullanarak sistemi yenilemeyi deneyebilirsiniz.
+            </p>
+            <Button 
+              variant="destructive"
+              onClick={async () => {
+                if (!userId) {
+                  toast.error("Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.");
+                  return;
+                }
+                
+                if (!confirm("Abonelik durumunuzu manuel olarak güncellemek istediğinizden emin misiniz?")) {
+                  return;
+                }
+                
+                try {
+                  setLoading(true);
+                  
+                  // API'ye istek gönder
+                  const response = await fetch('/api/subscription/update-status', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      user_id: userId,
+                      status: 'premium'
+                    }),
+                  });
+                  
+                  if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Abonelik durumu güncellenemedi.");
+                  }
+                  
+                  toast.success("Abonelik durumunuz başarıyla güncellendi. Sayfayı yeniliyoruz...");
+                  
+                  // Sayfayı yenile
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2000);
+                  
+                } catch (error) {
+                  console.error("Abonelik güncelleme hatası:", error);
+                  toast.error(error instanceof Error ? error.message : "Abonelik durumu güncellenirken bir hata oluştu.");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? "İşleniyor..." : "Abonelik Durumumu Güncelle"}
+            </Button>
+            <p className="text-xs text-red-600 dark:text-red-400 mt-3">
+              Not: Bu işlem sadece ödeme yaptığınız halde abonelik durumunuz güncellenmediyse kullanılmalıdır.
+              Yardıma ihtiyacınız varsa lütfen destek ekibimizle iletişime geçin.
+            </p>
+          </div>
         </>
       )}
     </div>
