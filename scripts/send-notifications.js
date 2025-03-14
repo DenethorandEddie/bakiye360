@@ -44,8 +44,8 @@ async function sendNotifications() {
 
     if (!payments || payments.length === 0) {
       console.log('Yarın için planlanmış ödeme bulunmuyor.');
-      return;
-    }
+    return;
+  }
 
     // Kullanıcı bazlı ödemeleri grupla
     const userPayments = payments.reduce((acc, payment) => {
@@ -57,8 +57,8 @@ async function sendNotifications() {
         };
       }
       acc[payment.user_id].payments.push(payment);
-      return acc;
-    }, {});
+    return acc;
+  }, {});
 
     // Her kullanıcı için email gönder
     for (const [userId, data] of Object.entries(userPayments)) {

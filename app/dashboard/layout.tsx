@@ -48,7 +48,7 @@ export default function DashboardLayout({
   const supabase = createClientComponentClient();
   const pathname = usePathname();
   const router = useRouter();
-  const [isSidebarExpanded, setSidebarExpanded] = useState(false);
+  const [isSidebarExpanded, setSidebarExpanded] = useState(true);
   const { theme, setTheme } = useTheme();
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -142,7 +142,7 @@ export default function DashboardLayout({
       else {
         const savedPreference = localStorage.getItem('sidebarExpanded');
         if (savedPreference === null) {
-          setSidebarExpanded(false);
+          setSidebarExpanded(true);
         } else {
           setSidebarExpanded(savedPreference === 'true');
         }
@@ -242,7 +242,7 @@ export default function DashboardLayout({
             "modern-sidebar",
             isSidebarExpanded && "expanded",
             isMobileMenuOpen && "mobile-open",
-            isSidebarExpanded ? "w-60" : "w-[4.5rem]",
+            isSidebarExpanded ? "w-56" : "w-14",
           )}
         >
           {/* Mobil kapatma butonu */}
@@ -252,8 +252,8 @@ export default function DashboardLayout({
 
           {/* Logo Bölümü */}
           <div className="sidebar-logo">
-            <Link href="/dashboard">
-              <div className="relative w-10 h-10">
+            <Link href="/dashboard" className="relative block">
+              <div className="relative w-8 h-8">
                 {/* Light mode logo */}
                 <img 
                   src="/logo.png" 
@@ -270,7 +270,7 @@ export default function DashboardLayout({
             </Link>
             
             {isSidebarExpanded && (
-              <div className="absolute top-1/2 left-[4.5rem] -translate-y-1/2 font-semibold text-lg pl-1 transition-all duration-300 opacity-100">
+              <div className="absolute top-1/2 left-14 -translate-y-1/2 font-bold text-base transition-all duration-300">
                 Bakiye<span className="text-primary">360</span>
               </div>
             )}
@@ -282,14 +282,14 @@ export default function DashboardLayout({
             className="toggle-button"
             aria-label={isSidebarExpanded ? "Sidebar'ı daralt" : "Sidebar'ı genişlet"}
           >
-            {isClientSide && (isSidebarExpanded ? <ChevronLeft size={12} /> : <ChevronRight size={12} />)}
+            {isClientSide && (isSidebarExpanded ? <ChevronLeft size={10} /> : <ChevronRight size={10} />)}
           </button>
 
           {/* Ana Navigasyon */}
           <nav className="nav-group">
-            <div className="mb-2 px-2 opacity-60 text-xs font-medium uppercase tracking-wider">
-              {isSidebarExpanded ? 'Ana Menü' : ''}
-            </div>
+            {isSidebarExpanded && (
+              <div className="nav-section-title">Ana Menü</div>
+            )}
             
             {/* Ana menü öğeleri */}
             {navigationItems.map((item) => (
@@ -303,21 +303,18 @@ export default function DashboardLayout({
                 title={item.name}
               >
                 <span className="nav-item-icon">
-                  {isClientSide ? <item.icon size={18} /> : <LoadingPlaceholder />}
+                  {isClientSide ? <item.icon size={isSidebarExpanded ? 18 : 17} /> : <LoadingPlaceholder />}
                 </span>
-                <span className="nav-item-text font-medium">{item.name}</span>
-                
-                {!isSidebarExpanded && isActive(item.href) && (
-                  <span className="absolute right-1 w-1.5 h-1.5 rounded-full bg-primary-foreground"></span>
-                )}
+                <span className="nav-item-text">{item.name}</span>
+                <span className="nav-item-indicator"></span>
               </Link>
             ))}
 
             {/* Alt kısımda yer alan ayarlar vb. */}
-            <div className="mt-auto pt-2">
-              <div className="mb-2 px-2 opacity-60 text-xs font-medium uppercase tracking-wider">
-                {isSidebarExpanded ? 'Kullanıcı' : ''}
-              </div>
+            <div>
+              {isSidebarExpanded && (
+                <div className="nav-section-title">Hesap</div>
+              )}
               
               {settingsItems.map((item) => (
                 <Link
@@ -330,13 +327,10 @@ export default function DashboardLayout({
                   title={item.name}
                 >
                   <span className="nav-item-icon">
-                    {isClientSide ? <item.icon size={18} /> : <LoadingPlaceholder />}
+                    {isClientSide ? <item.icon size={isSidebarExpanded ? 18 : 17} /> : <LoadingPlaceholder />}
                   </span>
-                  <span className="nav-item-text font-medium">{item.name}</span>
-                  
-                  {!isSidebarExpanded && isActive(item.href) && (
-                    <span className="absolute right-1 w-1.5 h-1.5 rounded-full bg-primary-foreground"></span>
-                  )}
+                  <span className="nav-item-text">{item.name}</span>
+                  <span className="nav-item-indicator"></span>
                 </Link>
               ))}
             </div>
@@ -351,14 +345,12 @@ export default function DashboardLayout({
               aria-label={theme === "light" ? "Karanlık moda geç" : "Aydınlık moda geç"}
               title={theme === "light" ? "Karanlık moda geç" : "Aydınlık moda geç"}
             >
-              <span className="nav-item-icon">
-                {isClientSide && (theme === "light" ? <Moon size={18} /> : <Sun size={18} />)}
+              <span className="theme-toggle-icon">
+                {isClientSide && (theme === "light" ? <Moon size={isSidebarExpanded ? 18 : 17} /> : <Sun size={isSidebarExpanded ? 18 : 17} />)}
               </span>
-              {isSidebarExpanded && (
-                <span className="nav-item-text font-medium">
-                  {theme === "light" ? "Karanlık Mod" : "Aydınlık Mod"}
-                </span>
-              )}
+              <span className="theme-toggle-text">
+                {theme === "light" ? "Karanlık" : "Aydınlık"}
+              </span>
             </button>
 
             {/* Çıkış Yap */}
@@ -367,12 +359,10 @@ export default function DashboardLayout({
               className="logout-button" 
               title="Çıkış Yap"
             >
-              <span className="nav-item-icon">
-                {isClientSide && <LogOut size={18} />}
+              <span className="logout-button-icon">
+                {isClientSide && <LogOut size={isSidebarExpanded ? 18 : 17} />}
               </span>
-              {isSidebarExpanded && (
-                <span className="nav-item-text font-medium">Çıkış Yap</span>
-              )}
+              <span className="logout-button-text">Çıkış</span>
             </button>
           </div>
         </aside>
