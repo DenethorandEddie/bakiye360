@@ -268,6 +268,12 @@ export default function DashboardLayout({
                 />
               </div>
             </Link>
+            
+            {isSidebarExpanded && (
+              <div className="absolute top-1/2 left-[4.5rem] -translate-y-1/2 font-semibold text-lg pl-1 transition-all duration-300 opacity-100">
+                Bakiye<span className="text-primary">360</span>
+              </div>
+            )}
           </div>
 
           {/* Sidebar genişlet/daralt butonu - sadece desktop */}
@@ -281,6 +287,10 @@ export default function DashboardLayout({
 
           {/* Ana Navigasyon */}
           <nav className="nav-group">
+            <div className="mb-2 px-2 opacity-60 text-xs font-medium uppercase tracking-wider">
+              {isSidebarExpanded ? 'Ana Menü' : ''}
+            </div>
+            
             {/* Ana menü öğeleri */}
             {navigationItems.map((item) => (
               <Link
@@ -290,16 +300,25 @@ export default function DashboardLayout({
                   "nav-item",
                   isActive(item.href) && "active"
                 )}
+                title={item.name}
               >
                 <span className="nav-item-icon">
                   {isClientSide ? <item.icon size={18} /> : <LoadingPlaceholder />}
                 </span>
                 <span className="nav-item-text font-medium">{item.name}</span>
+                
+                {!isSidebarExpanded && isActive(item.href) && (
+                  <span className="absolute right-1 w-1.5 h-1.5 rounded-full bg-primary-foreground"></span>
+                )}
               </Link>
             ))}
 
             {/* Alt kısımda yer alan ayarlar vb. */}
             <div className="mt-auto pt-2">
+              <div className="mb-2 px-2 opacity-60 text-xs font-medium uppercase tracking-wider">
+                {isSidebarExpanded ? 'Kullanıcı' : ''}
+              </div>
+              
               {settingsItems.map((item) => (
                 <Link
                   key={item.name}
@@ -308,11 +327,16 @@ export default function DashboardLayout({
                     "nav-item",
                     isActive(item.href) && "active"
                   )}
+                  title={item.name}
                 >
                   <span className="nav-item-icon">
                     {isClientSide ? <item.icon size={18} /> : <LoadingPlaceholder />}
                   </span>
                   <span className="nav-item-text font-medium">{item.name}</span>
+                  
+                  {!isSidebarExpanded && isActive(item.href) && (
+                    <span className="absolute right-1 w-1.5 h-1.5 rounded-full bg-primary-foreground"></span>
+                  )}
                 </Link>
               ))}
             </div>
@@ -325,6 +349,7 @@ export default function DashboardLayout({
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
               className="theme-toggle"
               aria-label={theme === "light" ? "Karanlık moda geç" : "Aydınlık moda geç"}
+              title={theme === "light" ? "Karanlık moda geç" : "Aydınlık moda geç"}
             >
               <span className="nav-item-icon">
                 {isClientSide && (theme === "light" ? <Moon size={18} /> : <Sun size={18} />)}
@@ -337,7 +362,11 @@ export default function DashboardLayout({
             </button>
 
             {/* Çıkış Yap */}
-            <button onClick={handleSignOut} className="logout-button">
+            <button 
+              onClick={handleSignOut} 
+              className="logout-button" 
+              title="Çıkış Yap"
+            >
               <span className="nav-item-icon">
                 {isClientSide && <LogOut size={18} />}
               </span>
