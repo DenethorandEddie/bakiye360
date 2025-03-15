@@ -6,18 +6,28 @@ create or replace function update_user_subscription_status(
 )
 returns void
 language plpgsql
+security definer
 as $$
+declare
+  v_current_status text;
 begin
-  update user_settings 
-  set 
-    subscription_status = new_status,
-    subscription_start = start_date,
-    subscription_end = end_date
+  select subscription_status into v_current_status 
+  from user_settings 
   where user_id = user_id;
 
-  if not found then
-    insert into user_settings (user_id, subscription_status, subscription_start, subscription_end)
-    values (user_id, new_status, start_date, end_date);
+  if v_current_status = new_status then
+    return;
   end if;
+
+  insert into user_settings (user_id, subscription_status, subscription_start, subscription_end)
+  values (user_id, new_status, start_date, end_date)
+  on conflict (user_id)
+  do update set
+    subscription_status = excluded.subscription_status,
+    subscription_start = excluded.subscription_start,
+    subscription_end = excluded.subscription_end;
+
+  insert into subscription_logs(user_id, old_status, new_status)
+  values(user_id, v_current_status, new_status);
 end;
 $$; 

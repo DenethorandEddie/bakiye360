@@ -3,6 +3,8 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from "next/headers";
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { NextRequest } from 'next/server';
 
 // App Router için modern config yapısı
 export const dynamic = 'force-dynamic';
@@ -115,167 +117,52 @@ async function updateUserSubscriptionStatus(
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
+  const body = await req.text();
+  const signature = req.headers.get('stripe-signature')!;
+
   try {
-    // Raw request body'yi al - Next.js App Router bodyParser'ı otomatik devre dışı bırakır
-    const payload = await request.text();
-    
-    // Stripe imzasını al
-    const headersList = headers();
-    const signature = headersList.get("stripe-signature") || "";
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
 
-    console.log("Webhook alındı, doğrulanıyor...");
+    const supabase = createRouteHandlerClient({ cookies });
     
-    let event;
-    
-    // İmzayı doğrula
-    try {
-      event = stripe.webhooks.constructEvent(
-        payload,
-        signature,
-        endpointSecret
-      );
-    } catch (err: any) {
-      console.error(`Webhook Error: ${err.message}`);
-      return NextResponse.json(
-        { error: `Webhook Error: ${err.message}` },
-        { status: 400 }
-      );
-    }
-
-    console.log(`Webhook event: ${event.type}`);
-
-    // Olay tipine göre işle
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        
-        // Müşteri ve abonelik ID'lerini al
-        const customerId = session.customer as string;
-        const subscriptionId = session.subscription as string;
-        
-        // Önce client_reference_id'yi kontrol et, yoksa metadata.userId'yi kontrol et
-        let userId = session.client_reference_id || null;
-        
-        // client_reference_id boşsa metadata içindeki userId'yi kontrol et
-        if (!userId && session.metadata && session.metadata.userId) {
-          userId = session.metadata.userId;
-          console.log(`client_reference_id boş, metadata.userId kullanılıyor: ${userId}`);
+        const userId = session.metadata?.user_id;
+
+        if (!userId) throw new Error('User ID not found in metadata');
+
+        // Stripe subscription detaylarını al
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        );
+
+        // RPC ile kullanıcı durumunu güncelle
+        const { error } = await supabase.rpc('update_user_subscription_status', {
+          user_id: userId,
+          new_status: 'premium',
+          start_date: new Date().toISOString(),
+          end_date: new Date(subscription.current_period_end * 1000).toISOString()
+        });
+
+        if (error) {
+          console.error('RPC Error:', error);
+          throw new Error('Subscription update failed');
         }
-        
-        if (!userId) {
-          console.error('Kullanıcı ID bulunamadı. client_reference_id ve metadata.userId alanları kontrol edildi.');
-          console.log('Tam session objesi:', JSON.stringify(session, null, 2));
-          return NextResponse.json(
-            { error: 'Kullanıcı ID bulunamadı' },
-            { status: 400 }
-          );
-        }
-        
-        console.log(`Ödeme tamamlandı. Kullanıcı: ${userId}, Müşteri: ${customerId}, Abonelik: ${subscriptionId}`);
-        
-        try {
-          // Abonelik detaylarını al
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-          
-          // Abonelik dönem tarihlerini al
-          const periodStart = new Date(subscription.current_period_start * 1000).toISOString();
-          const periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
-          
-          console.log(`Abonelik dönem bilgileri: Başlangıç: ${periodStart}, Bitiş: ${periodEnd}`);
-          console.log(`Abonelik durumu: ${subscription.status}`);
-          
-          // 1. Subscriptions tablosuna kaydet
-          const { error: subscriptionInsertError } = await supabase
-            .from('subscriptions')
-            .upsert({
-              user_id: userId,
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId,
-              status: subscription.status,
-              plan: 'premium', // Plan tipi - ileride farklı planlar eklenebilir
-              current_period_start: periodStart,
-              current_period_end: periodEnd,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            
-          if (subscriptionInsertError) {
-            console.error('Abonelik kaydedilirken hata:', subscriptionInsertError);
-          } else {
-            console.log('Abonelik subscriptions tablosuna kaydedildi');
-          }
-          
-          // 2. User settings tablosunu doğrudan güncelle
-          console.log(`User settings tablosu güncelleniyor, kullanıcı: ${userId}, status: premium`);
-          
-          const subscriptionUpdateSuccess = await updateUserSubscriptionStatus(
-            userId,
-            'premium',
-            subscriptionId,
-            customerId,
-            periodStart,
-            periodEnd
-          );
-          
-          if (!subscriptionUpdateSuccess) {
-            console.warn('User settings tablosu güncellenemedi, alternatif mekanizmalar deneniyor...');
-            
-            // Doğrudan SQL sorgusu ile güncelleme dene
-            try {
-              const { data: directUpdateData, error: directUpdateError } = await supabase
-                .from('user_settings')
-                .upsert({
-                  user_id: userId,
-                  subscription_status: 'premium',
-                  stripe_customer_id: customerId,
-                  stripe_subscription_id: subscriptionId,
-                  subscription_period_start: periodStart,
-                  subscription_period_end: periodEnd,
-                  updated_at: new Date().toISOString()
-                });
-                
-              if (directUpdateError) {
-                console.error('Doğrudan SQL sorgusu ile güncelleme başarısız:', directUpdateError);
-              } else {
-                console.log('Doğrudan SQL sorgusu ile güncelleme başarılı');
-              }
-            } catch (directError) {
-              console.error('Doğrudan güncelleme hatası:', directError);
-            }
-            
-            // 3. Alternatif olarak SQL fonksiyonu çağırmayı dene
-            try {
-              const { error: rpcError } = await supabase.rpc(
-                'update_user_subscription_status',
-                {
-                  p_user_id: userId,
-                  p_status: 'premium',
-                  p_stripe_subscription_id: subscriptionId,
-                  p_stripe_customer_id: customerId,
-                  p_subscription_period_start: periodStart,
-                  p_subscription_period_end: periodEnd
-                }
-              );
-              
-              if (rpcError) {
-                console.error('SQL fonksiyonu çağrılırken hata:', rpcError);
-              } else {
-                console.log('Kullanıcı durumu SQL fonksiyonu ile güncellendi');
-              }
-            } catch (rpcError) {
-              console.error('SQL fonksiyonu çağrılırken beklenmeyen hata:', rpcError);
-            }
-          }
-          
-        } catch (err) {
-          console.error('Abonelik işlenirken hata:', err);
-          return NextResponse.json(
-            { error: 'Abonelik işlenirken hata oluştu' },
-            { status: 500 }
-          );
-        }
-        
+
+        // Subscription kaydını oluştur
+        await supabase.from('subscriptions').upsert({
+          user_id: userId,
+          stripe_subscription_id: subscription.id,
+          status: subscription.status,
+          current_period_end: new Date(subscription.current_period_end * 1000)
+        });
+
         break;
       }
       
@@ -579,6 +466,23 @@ export async function POST(request: Request) {
         break;
       }
       
+      // Yeni event handler ekle
+      case 'invoice.paid': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoice.subscription as string;
+        
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        // Abonelik süresini uzat
+        await supabase.rpc('update_user_subscription_status', {
+          user_id: subscription.metadata.userId,
+          new_status: 'premium',
+          start_date: new Date(subscription.current_period_start * 1000).toISOString(),
+          end_date: new Date(subscription.current_period_end * 1000).toISOString()
+        });
+        break;
+      }
+      
       // Diğer olay tipleri...
       default:
         console.log(`Bilinmeyen olay tipi: ${event.type}`);
@@ -586,10 +490,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Webhook işlenirken hata oluştu:', error);
-    return NextResponse.json(
-      { error: 'Webhook işlenirken hata oluştu' },
-      { status: 500 }
-    );
+    const err = error as Error;
+    console.error('[WEBHOOK_ERROR]', err);
+    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }
 } 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { loadStripe } from "@stripe/stripe-js";
-import { CheckCircle, XCircle, Loader2, CreditCard, Sparkles, Shield, Clock, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, CreditCard, Sparkles, Shield, Clock, ArrowRight, ChevronDown, ChevronUp, FileText, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -12,6 +12,15 @@ import { useSearchParams } from "next/navigation";
 
 // Stripe promise dışarıda oluşturuluyor (her render'da yeniden oluşturulmaması için)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
+
+interface UserSettings {
+  subscription_status: string;
+  stripe_subscription_id: string | null;
+  subscription_period_end: string | null;
+  subscription_start: string | null;
+  subscription_end: string | null;
+  cancel_at_period_end: boolean;
+}
 
 export default function SubscriptionPage() {
   const [isPremium, setIsPremium] = useState<boolean>(false);
@@ -22,6 +31,10 @@ export default function SubscriptionPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState<boolean>(false);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
+  const [subscriptionPeriodEnd, setSubscriptionPeriodEnd] = useState<Date | null>(null);
   
   const supabase = createClientComponentClient();
   const searchParams = useSearchParams();
@@ -62,7 +75,7 @@ export default function SubscriptionPage() {
         // 1. Birincil kaynak olarak user_settings tablosundan subscription_status'e bak
         const { data: userSettings, error: userSettingsError } = await supabase
           .from('user_settings')
-          .select('subscription_status, stripe_subscription_id, subscription_period_end')
+          .select('subscription_status, stripe_subscription_id, subscription_period_end, subscription_start, subscription_end, cancel_at_period_end')
           .eq('user_id', user.id)
           .single();
           
@@ -153,6 +166,20 @@ export default function SubscriptionPage() {
             setIsPremium(false);
           }
         }
+        
+        // Subscription period end bilgisini ayrıca sakla
+        if (userSettings?.subscription_period_end) {
+          const periodEnd = new Date(userSettings.subscription_period_end);
+          setSubscriptionPeriodEnd(periodEnd);
+          
+          // Subscription detaylarını kaydet
+          setSubscriptionDetails({
+            status: userSettings.subscription_status,
+            startDate: userSettings.subscription_start ? new Date(userSettings.subscription_start) : null,
+            endDate: periodEnd,
+            cancelAtPeriodEnd: userSettings.cancel_at_period_end || false
+          });
+        }
       } catch (error) {
         console.error("Abonelik durumu kontrol edilirken hata:", error);
         setError("Abonelik durumu kontrol edilirken bir hata oluştu.");
@@ -167,61 +194,37 @@ export default function SubscriptionPage() {
     const success = searchParams.get('success');
     if (success === 'true') {
       console.log("Başarılı ödeme sonrası abonelik durumu kontrol ediliyor");
-      // Kısa bir gecikme ekleyerek webhook'un işlenmesi için zaman tanı
-      const timer = setTimeout(() => {
-        checkSubscriptionStatus();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
+      // 5 saniye sonra abonelik durumunu tekrar kontrol et
+      setTimeout(() => checkSubscriptionStatus(), 5000);
     }
   }, [supabase, searchParams]);
   
-  const handleSubscribe = async () => {
-    if (!userId) {
-      toast.error("Kullanıcı bilgilerinize erişilemedi. Lütfen tekrar giriş yapın.");
-      return;
-    }
+  const handleUpgrade = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
     
-    setSubscribeLoading(true);
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('stripe_customer_id')
+      .eq('user_id', user?.id)
+      .single();
+
+    const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
+
+    const response = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user?.id,
+        customerId: data?.stripe_customer_id
+      })
+    });
+
+    const { sessionId } = await response.json();
     
-    try {
-      // Stripe Checkout oturumu oluştur
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: userId,
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Ödeme işlemi başlatılamadı.");
-      }
-      
-      const data = await response.json();
-      
-      // Stripe'ı yükle ve ödeme sayfasına yönlendir
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error("Stripe yüklenemedi.");
-      }
-      
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: data.sessionId,
-      });
-      
-      if (error) {
-        throw new Error(error.message || "Ödeme sayfasına yönlendirme başarısız oldu.");
-      }
-      
-    } catch (error) {
-      console.error("Ödeme işlemi hatası:", error);
-      toast.error(error instanceof Error ? error.message : "Ödeme işlemi sırasında bir hata oluştu.");
-    } finally {
-      setSubscribeLoading(false);
+    const result = await stripe?.redirectToCheckout({ sessionId });
+    
+    if (result?.error) {
+      console.error(result.error);
     }
   };
   
@@ -339,8 +342,15 @@ export default function SubscriptionPage() {
     }
   };
   
-  // Sorun giderme butonuna ekleyeceğimiz test fonksiyonu
+  // Test webhook fonksiyonu - Linter hatasını düzelt
   const testWebhook = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user?.id) {
+      toast.error("Kullanıcı bilgisi bulunamadı");
+      return;
+    }
+    
     const res = await fetch('/api/webhook', {
       method: 'POST',
       headers: {
@@ -359,8 +369,50 @@ export default function SubscriptionPage() {
         }
       })
     });
-    // ... sonuçları göster ...
-  }
+    
+    const result = await res.json();
+    toast.info(`Test sonucu: ${result.received ? 'Başarılı' : 'Başarısız'}`);
+  };
+  
+  // Faturaları getiren fonksiyon
+  const fetchInvoices = async () => {
+    if (!isPremium) return;
+    
+    setInvoicesLoading(true);
+    try {
+      const response = await fetch('/api/invoices');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Faturalar alınırken bir hata oluştu');
+      }
+      
+      const { data } = await response.json();
+      setInvoices(data || []);
+    } catch (error) {
+      console.error('Fatura getirme hatası:', error);
+      toast.error('Faturalar alınırken bir hata oluştu');
+    } finally {
+      setInvoicesLoading(false);
+    }
+  };
+  
+  // Fatura indirme veya görüntüleme fonksiyonu
+  const viewInvoice = (url: string | null) => {
+    if (!url) {
+      toast.error('Fatura erişim linki bulunamadı');
+      return;
+    }
+    
+    window.open(url, '_blank');
+  };
+  
+  // Premium kullanıcılar için faturaları getir
+  useEffect(() => {
+    if (isPremium && !loading) {
+      fetchInvoices();
+    }
+  }, [isPremium, loading]);
   
   return (
     <div className="container mx-auto py-8">
@@ -513,7 +565,7 @@ export default function SubscriptionPage() {
                   <>
                     <Button 
                       className="w-full" 
-                      onClick={handleSubscribe}
+                      onClick={handleUpgrade}
                       disabled={subscribeLoading}
                     >
                       {subscribeLoading ? (
@@ -634,6 +686,230 @@ export default function SubscriptionPage() {
               Yardıma ihtiyacınız varsa lütfen destek ekibimizle iletişime geçin.
             </p>
           </div>
+          
+          {/* Fatura tablosu - sadece premium kullanıcılara göster */}
+          {isPremium && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-semibold mb-4">Fatura Geçmişi</h2>
+              <p className="text-muted-foreground mb-4">
+                Ödeme geçmişinizi görüntüleyin ve faturalarınızı indirin.
+              </p>
+              
+              {invoicesLoading ? (
+                <div className="flex justify-center items-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2">Faturalar alınıyor...</span>
+                </div>
+              ) : invoices.length === 0 ? (
+                <div className="bg-muted/20 p-6 rounded-lg text-center">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                  <h3 className="text-lg font-medium">Henüz faturanız bulunmuyor</h3>
+                  <p className="text-muted-foreground mt-1">
+                    Ödeme yaptıktan sonra faturalarınız burada listelenecektir.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/30">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Tarih
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Tutar
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Durum
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Dönem
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          İşlemler
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-card divide-y divide-border">
+                      {invoices.map((invoice) => (
+                        <tr key={invoice.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {new Date(invoice.created * 1000).toLocaleDateString('tr-TR')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {new Intl.NumberFormat('tr-TR', {
+                              style: 'currency',
+                              currency: invoice.currency.toUpperCase(),
+                            }).format(invoice.amount_paid)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                              ${invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                              'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'}`}>
+                              {invoice.status === 'paid' ? 'Ödendi' : invoice.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {invoice.period_start && invoice.period_end ? (
+                              <>
+                                {new Date(invoice.period_start).toLocaleDateString('tr-TR')} - {' '}
+                                {new Date(invoice.period_end).toLocaleDateString('tr-TR')}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => viewInvoice(invoice.hosted_invoice_url)}
+                              title="Görüntüle"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => viewInvoice(invoice.pdf_url)}
+                              title="PDF İndir"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              
+              <div className="mt-4 text-sm text-muted-foreground">
+                <p>Fatura ile ilgili sorularınız için lütfen <a href="mailto:destek@bakiye360.com" className="text-primary hover:underline">destek@bakiye360.com</a> adresine e-posta gönderin.</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Premium kullanıcılar için abonelik detayları kartı */}
+          {isPremium && subscriptionDetails && (
+            <div className="mt-8 bg-card p-6 rounded-lg shadow-sm border">
+              <h2 className="text-xl font-semibold mb-4">Abonelik Detayları</h2>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Abonelik Durumu:</span>
+                  <span className="font-medium">
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                      Premium
+                    </span>
+                  </span>
+                </div>
+                
+                {subscriptionDetails.startDate && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Başlangıç Tarihi:</span>
+                    <span className="font-medium">
+                      {subscriptionDetails.startDate.toLocaleDateString('tr-TR')}
+                    </span>
+                  </div>
+                )}
+                
+                {subscriptionPeriodEnd && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Yenileme Tarihi:</span>
+                    <span className="font-medium">
+                      {subscriptionPeriodEnd.toLocaleDateString('tr-TR')}
+                      {subscriptionDetails.cancelAtPeriodEnd && 
+                        " (İptal edildi, bu tarihte sonlanacak)"}
+                    </span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Otomatik Yenileme:</span>
+                  <span className="font-medium">
+                    {subscriptionDetails.cancelAtPeriodEnd ? 
+                      <span className="text-destructive">Kapalı</span> : 
+                      <span className="text-green-600 dark:text-green-400">Açık</span>}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t">
+                <h3 className="text-sm font-medium mb-2">Abonelik Ayarları</h3>
+                <div className="space-x-2">
+                  {!subscriptionDetails.cancelAtPeriodEnd && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleCancelSubscription}
+                      disabled={cancelLoading}
+                    >
+                      {cancelLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          İptal Ediliyor...
+                        </>
+                      ) : "Aboneliği İptal Et"}
+                    </Button>
+                  )}
+                  
+                  {subscriptionDetails.cancelAtPeriodEnd && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={async () => {
+                        // İptal edilmiş aboneliği yeniden aktifleştir
+                        if (!subscriptionId) {
+                          toast.error("Abonelik bilgisi bulunamadı.");
+                          return;
+                        }
+                        
+                        setCancelLoading(true);
+                        
+                        try {
+                          const response = await fetch('/api/reactivate-subscription', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              subscriptionId,
+                            }),
+                          });
+                          
+                          if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || "Abonelik yenilenemiyor.");
+                          }
+                          
+                          toast.success("Aboneliğiniz başarıyla yenilendi. Otomatik yenileme tekrar aktif.");
+                          
+                          // Sayfayı yeniden yükle
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 2000);
+                          
+                        } catch (error) {
+                          console.error("Abonelik yenileme hatası:", error);
+                          toast.error(error instanceof Error ? error.message : "Abonelik yenilenirken bir hata oluştu.");
+                        } finally {
+                          setCancelLoading(false);
+                        }
+                      }}
+                      disabled={cancelLoading}
+                    >
+                      {cancelLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          İşleniyor...
+                        </>
+                      ) : "Aboneliği Yenile"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
