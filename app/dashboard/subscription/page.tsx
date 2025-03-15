@@ -209,14 +209,8 @@ export default function SubscriptionPage() {
         "Content-Type": "application/json",
       };
       
-      // API endpoint'ini güvenli bir şekilde yapılandır (her zaman HTTPS kullan)
-      let baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      
-      // URL'nin HTTPS kullandığından emin ol
-      if (baseUrl.startsWith('http://')) {
-        baseUrl = baseUrl.replace('http://', 'https://');
-      }
-      
+      // Her zaman mevcut domaini kullan - CORS hatalarını önlemek için
+      const baseUrl = window.location.origin;
       const endpoint = `${baseUrl}/api/create-checkout-session`;
       
       console.log(`Checkout isteği gönderiliyor: ${endpoint}`);

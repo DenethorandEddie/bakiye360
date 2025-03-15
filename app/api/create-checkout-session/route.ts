@@ -6,6 +6,14 @@ import Stripe from "stripe";
 // App Router için modern config
 export const dynamic = 'force-dynamic';
 
+// CORS headers'ı hazırla - tüm domainler için izin ver
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
+};
+
 // Error logging helper
 function logError(step: string, error: any) {
   console.error(`[CHECKOUT ERROR] [${step}] ${error.message || 'Unknown error'}`);
@@ -22,14 +30,17 @@ if (process.env.NODE_ENV === 'development') {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
+// OPTIONS metodu için handler
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(req: NextRequest) {
   console.log("🔄 Checkout session oluşturma isteği alındı");
   
   // CORS headers
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+  const responseHeaders = {
+    ...corsHeaders,
     'Content-Type': 'application/json'
   };
 
@@ -44,7 +55,7 @@ export async function POST(req: NextRequest) {
       logError("USER_AUTH", userError || new Error("User not found"));
       return NextResponse.json(
         { error: "Kimlik doğrulama başarısız" },
-        { status: 401, headers }
+        { status: 401, headers: responseHeaders }
       );
     }
     
@@ -61,7 +72,7 @@ export async function POST(req: NextRequest) {
       console.log("⚠️ Kullanıcı zaten premium aboneliğe sahip");
       return NextResponse.json(
         { error: "Zaten premium aboneliğiniz bulunmaktadır" },
-        { status: 400, headers }
+        { status: 400, headers: responseHeaders }
       );
     }
     
@@ -121,7 +132,7 @@ export async function POST(req: NextRequest) {
         logError("PRICE_CREATE", priceError);
         return NextResponse.json(
           { error: "Fiyat bilgisi oluşturulamadı" },
-          { status: 500, headers }
+          { status: 500, headers: responseHeaders }
         );
       }
     }
@@ -173,7 +184,7 @@ export async function POST(req: NextRequest) {
         logError("CUSTOMER_CREATE", customerError);
         return NextResponse.json(
           { error: "Müşteri profili oluşturulamadı" },
-          { status: 500, headers }
+          { status: 500, headers: responseHeaders }
         );
       }
     }
@@ -213,13 +224,13 @@ export async function POST(req: NextRequest) {
       
       // URL bilgisi varsa bunu döndür
       if (session.url) {
-        return NextResponse.json({ url: session.url }, { status: 200, headers });
+        return NextResponse.json({ url: session.url }, { status: 200, headers: responseHeaders });
       }
       
       // URL yoksa session ID'yi döndür
       return NextResponse.json({ 
         sessionId: session.id, 
-      }, { status: 200, headers });
+      }, { status: 200, headers: responseHeaders });
     } catch (checkoutError) {
       logError("CHECKOUT_CREATE", checkoutError);
       throw checkoutError; // Genel hata yakalama bölümünde işlenecek
@@ -238,7 +249,7 @@ export async function POST(req: NextRequest) {
         details: errorMessage,
         code: errorCode 
       },
-      { status: errorCode, headers }
+      { status: errorCode, headers: corsHeaders }
     );
   }
 } 
