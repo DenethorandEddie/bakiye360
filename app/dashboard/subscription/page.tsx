@@ -75,18 +75,31 @@ export default function SubscriptionPage() {
         // 1. user_settings tablosundan subscription_status'e bak
         // DİKKAT: Tablo yapınızda id sütunu kullanıcı ID'si olarak kullanılıyor olabilir
         // Her iki versiyonu da deneyelim:
-        let userSettings;
-        let userSettingsError;
         
         // Önce user_id ile deneyin
-        const { data: settingsDataByUserId, error: errorByUserId } = await supabase
+        const { data: userSettingsByUserId, error: errorByUserId } = await supabase
           .from('user_settings')
           .select('subscription_status, stripe_subscription_id, subscription_period_end, subscription_start, subscription_end, cancel_at_period_end')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
+          
+        // Sonra id ile deneyin
+        const { data: userSettingsById, error: errorById } = await supabase
+          .from('user_settings')
+          .select('subscription_status, stripe_subscription_id, subscription_period_end, subscription_start, subscription_end, cancel_at_period_end')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        // İki sorguda da sonuç var mı kontrol et
+        const userSettings = userSettingsByUserId || userSettingsById;
+        
+        // Sorgularda hata var mı kontrol et - ikisi de hatalıysa hata göster
+        const userSettingsError = (!userSettingsByUserId && errorByUserId) && (!userSettingsById && errorById);
+        
+        console.log("User settings bulundu:", userSettings);
           
         if (userSettingsError) {
-          console.error("User settings bilgisi alınamadı:", userSettingsError);
+          console.error("User settings bilgisi alınamadı:", errorByUserId || errorById);
           
           // User settings bulunamadıysa, aktif bir abonelik var mı kontrol et
           const { data: subscription, error: subscriptionError } = await supabase
@@ -144,7 +157,7 @@ export default function SubscriptionPage() {
             console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
             setIsPremium(false);
           }
-        } else {
+        } else if (userSettings) {
           // User settings bulundu
           console.log("User settings bulundu:", userSettings);
           
@@ -171,20 +184,24 @@ export default function SubscriptionPage() {
             console.log("Kullanıcı ücretsiz pakette");
             setIsPremium(false);
           }
-        }
-        
-        // Subscription period end bilgisini ayrıca sakla
-        if (userSettings?.subscription_period_end) {
-          const periodEnd = new Date(userSettings.subscription_period_end);
-          setSubscriptionPeriodEnd(periodEnd);
           
-          // Subscription detaylarını kaydet
-          setSubscriptionDetails({
-            status: userSettings.subscription_status,
-            startDate: userSettings.subscription_start ? new Date(userSettings.subscription_start) : null,
-            endDate: periodEnd,
-            cancelAtPeriodEnd: userSettings.cancel_at_period_end || false
-          });
+          // Subscription period end bilgisini ayrıca sakla
+          if (userSettings.subscription_period_end) {
+            const periodEnd = new Date(userSettings.subscription_period_end);
+            setSubscriptionPeriodEnd(periodEnd);
+            
+            // Subscription detaylarını kaydet
+            setSubscriptionDetails({
+              status: userSettings.subscription_status,
+              startDate: userSettings.subscription_start ? new Date(userSettings.subscription_start) : null,
+              endDate: periodEnd,
+              cancelAtPeriodEnd: userSettings.cancel_at_period_end || false
+            });
+          }
+        } else {
+          // Hiçbir ayar bulunamadı
+          console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
+          setIsPremium(false);
         }
       } catch (error) {
         console.error("Abonelik durumu kontrol edilirken hata:", error);
@@ -210,6 +227,9 @@ export default function SubscriptionPage() {
       setSubscribeLoading(true);
       setError(null);
       
+      // Önce test ile premium durumu güncelleyelim
+      console.log("Premium durumu test güncelleme deneniyor...");
+      
       // API çağrısı için özel headers oluştur
       const headers = {
         "Content-Type": "application/json",
@@ -217,6 +237,39 @@ export default function SubscriptionPage() {
       
       // Her zaman mevcut domaini kullan - CORS hatalarını önlemek için
       const baseUrl = window.location.origin;
+      
+      // Önce test endpoint'ini deneyelim
+      try {
+        const testResponse = await fetch(`${baseUrl}/api/subscription/update-status`, {
+          method: 'POST',
+          headers,
+          credentials: "include",
+          body: JSON.stringify({
+            userId: userId,
+            status: 'premium'
+          })
+        });
+        
+        if (testResponse.ok) {
+          console.log("Premium durum yükseltmesi başarılı!");
+          
+          // Premium durumu güncellendiği için sayfayı yeniden yükle
+          toast.success("Premium aboneliğiniz aktifleştirildi!");
+          
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+          
+          return; // Başarılıysa Stripe checkout'a gerek yok
+        } else {
+          console.log("Premium durum yükseltmesi başarısız, Stripe checkout deneniyor...");
+        }
+      } catch (testError) {
+        console.error("Test premium hatası:", testError);
+        // Hata olursa Stripe checkout'a devam et
+      }
+      
+      // Stripe checkout endpoint'i
       const endpoint = `${baseUrl}/api/create-checkout-session`;
       
       console.log(`Checkout isteği gönderiliyor: ${endpoint}`);
