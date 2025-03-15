@@ -2,35 +2,26 @@
 -- Bu SQL dosyasını Supabase Studio'da çalıştırın (SQL Editör bölümünde)
 
 -- 1. user_settings tablosu
-CREATE TABLE IF NOT EXISTS public.user_settings (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS user_settings (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
   subscription_status TEXT DEFAULT 'free',
   stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
-  subscription_period_start TIMESTAMP WITH TIME ZONE,
-  subscription_period_end TIMESTAMP WITH TIME ZONE,
-  email_notifications BOOLEAN DEFAULT false,
-  budget_alerts BOOLEAN DEFAULT false,
-  monthly_reports BOOLEAN DEFAULT false,
-  app_preferences JSONB DEFAULT '{"currency": "TRY", "language": "tr"}'::jsonb,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  cancel_at_period_end BOOLEAN DEFAULT false
+  subscription_type TEXT,
+  subscription_start TIMESTAMPTZ,
+  subscription_end TIMESTAMPTZ
 );
 
 -- 2. subscriptions tablosu
-CREATE TABLE IF NOT EXISTS public.subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
-  status TEXT DEFAULT 'active',
-  plan TEXT DEFAULT 'premium',
-  cancel_at_period_end BOOLEAN DEFAULT false,
-  current_period_start TIMESTAMP WITH TIME ZONE,
-  current_period_end TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  user_id UUID REFERENCES auth.users(id),
+  stripe_subscription_id TEXT UNIQUE,
+  status TEXT,
+  plan TEXT,
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 3. notifications tablosu
@@ -155,40 +146,110 @@ $$;
 -- user_settings tablosu için RLS
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Kullanıcılar kendi ayarlarını görebilir"
-  ON public.user_settings
-  FOR SELECT
-  USING (auth.uid() = user_id);
+-- Var olan politikaları sil (gerekiyorsa)
+DROP POLICY IF EXISTS "user_settings_select_policy" ON public.user_settings;
+DROP POLICY IF EXISTS "user_settings_update_policy" ON public.user_settings;
+DROP POLICY IF EXISTS "user_settings_insert_policy" ON public.user_settings;
 
-CREATE POLICY "Kullanıcılar kendi ayarlarını güncelleyebilir"
-  ON public.user_settings
-  FOR UPDATE
-  USING (auth.uid() = user_id);
+-- RLS Politikalarını yeniden yapılandıralım
+DO $$
+BEGIN
+    -- user_settings tablosu için politikalar
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'user_settings' 
+        AND policyname = 'user_settings_select_policy'
+    ) THEN
+        CREATE POLICY user_settings_select_policy
+        ON public.user_settings
+        FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Kullanıcılar kendi ayarlarını ekleyebilir"
-  ON public.user_settings
-  FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'user_settings' 
+        AND policyname = 'user_settings_update_policy'
+    ) THEN
+        CREATE POLICY user_settings_update_policy
+        ON public.user_settings
+        FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- subscriptions tablosu için RLS
-ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'user_settings' 
+        AND policyname = 'user_settings_insert_policy'
+    ) THEN
+        CREATE POLICY user_settings_insert_policy
+        ON public.user_settings
+        FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Kullanıcılar kendi aboneliklerini görebilir"
-  ON public.subscriptions
-  FOR SELECT
-  USING (auth.uid() = user_id);
+    -- subscriptions tablosu için politikalar
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'subscriptions' 
+        AND policyname = 'subscriptions_select_policy'
+    ) THEN
+        CREATE POLICY subscriptions_select_policy
+        ON public.subscriptions
+        FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
--- Abonelikler webhook tarafından güncellendiği için INSERT ve UPDATE politikaları kapatıldı
+    -- notifications tablosu için politikalar
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'notifications' 
+        AND policyname = 'notifications_select_policy'
+    ) THEN
+        CREATE POLICY notifications_select_policy
+        ON public.notifications
+        FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
--- notifications tablosu için RLS
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'notifications' 
+        AND policyname = 'notifications_update_policy'
+    ) THEN
+        CREATE POLICY notifications_update_policy
+        ON public.notifications
+        FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
-CREATE POLICY "Kullanıcılar kendi bildirimlerini görebilir"
-  ON public.notifications
-  FOR SELECT
-  USING (auth.uid() = user_id);
+-- Transaction desteği ekleyen yeni fonksiyon
+CREATE OR REPLACE FUNCTION public.handle_subscription_update(
+  p_user_id UUID,
+  p_subscription_data JSONB
+) RETURNS VOID AS $$
+BEGIN
+  UPDATE public.user_settings SET
+    subscription_status = CASE 
+      WHEN p_subscription_data->>'status' = 'active' THEN 'premium' 
+      ELSE 'free' 
+    END,
+    subscription_period_end = TO_TIMESTAMP((p_subscription_data->'current_period_end')::bigint)
+  WHERE user_id = p_user_id;
 
-CREATE POLICY "Kullanıcılar kendi bildirimlerini güncelleyebilir"
-  ON public.notifications
-  FOR UPDATE
-  USING (auth.uid() = user_id); 
+  INSERT INTO public.subscriptions (
+    user_id, 
+    stripe_subscription_id, 
+    status, 
+    current_period_end
+  ) VALUES (
+    p_user_id,
+    p_subscription_data->>'id',
+    p_subscription_data->>'status',
+    TO_TIMESTAMP((p_subscription_data->'current_period_end')::bigint)
+  ) ON CONFLICT (stripe_subscription_id) DO UPDATE SET
+    status = EXCLUDED.status,
+    current_period_end = EXCLUDED.current_period_end;
+END;
+$$ LANGUAGE plpgsql; 

@@ -11,7 +11,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia" as any, // Güncel API versiyonu
 });
 
+// SSL ayarını sadece development'ta devre dışı bırak
+if (process.env.NODE_ENV === 'development') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 export async function POST(req: NextRequest) {
+  // CORS headers ekleyin
+  const headers = new Headers({
+    'Access-Control-Allow-Origin': 'https://bakiye360.com',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  });
+
   try {
     const { userId, customerId } = await req.json();
 
@@ -71,56 +83,29 @@ export async function POST(req: NextRequest) {
       console.log(`✅ Stripe müşterisi oluşturuldu: ${stripeCustomerId}`);
     }
 
+    // Fiyat ID kontrolünü iyileştirme
+    const priceId = process.env.STRIPE_PREMIUM_PRICE_ID;
+    if (!priceId) {
+      console.error('STRIPE_PREMIUM_PRICE_ID tanımlanmamış!');
+      return NextResponse.json(
+        { error: 'Sunucu yapılandırma hatası' },
+        { status: 500 }
+      );
+    }
+
     // URL bilgilerini oluştur
     const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const successUrl = `${origin}/dashboard/subscription?success=true`;
     const cancelUrl = `${origin}/dashboard/subscription?canceled=true`;
 
-    // Premium abonelik fiyat ID'si
-    const priceId = process.env.STRIPE_PREMIUM_PRICE_ID || 'create-a-product-first';
-    if (priceId === 'create-a-product-first') {
-      console.warn('⚠️ STRIPE_PREMIUM_PRICE_ID tanımlanmamış, dinamik olarak ürün oluşturuluyor');
-      // Eğer ürün ve fiyat tanımlaması yapılmamışsa, dinamik olarak oluştur
-      const product = await stripe.products.create({
-        name: 'Bakiye360 Premium',
-        description: 'Aylık premium abonelik planı',
-        metadata: {
-          type: 'subscription'
-        }
-      });
-      
-      const price = await stripe.prices.create({
-        product: product.id,
-        unit_amount: 14999, // 149,99 TL
-        currency: 'try',
-        recurring: {
-          interval: 'month'
-        }
-      });
-      
-      console.log(`✨ Ürün ve fiyat oluşturuldu. Fiyat ID: ${price.id}`);
-    }
-
     // Checkout session oluştur
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'try',
-            product_data: {
-              name: 'Bakiye360 Premium',
-              description: 'Aylık premium abonelik planı'
-            },
-            unit_amount: 14999, // 149,99 TL
-            recurring: {
-              interval: 'month'
-            }
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: [{
+        price: priceId, // Direkt priceId kullan
+        quantity: 1,
+      }],
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -130,11 +115,18 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ sessionId: session.id });
+    console.log('✅ Checkout session oluşturuldu:', session.id);
+    return new Response(JSON.stringify({ sessionId: session.id }), { 
+      status: 200,
+      headers: new Headers({
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache' // Önbellek sorunlarını önle
+      })
+    });
   } catch (error) {
-    console.error('Checkout session oluşturma hatası:', error);
+    console.error('Stripe hatası:', error);
     return NextResponse.json(
-      { error: 'Ödeme sayfası oluşturulurken bir hata oluştu' },
+      { error: 'Stripe API hatası: ' + error.message },
       { status: 500 }
     );
   }

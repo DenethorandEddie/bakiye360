@@ -26,6 +26,16 @@ const nextConfig = {
     });
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: '/api/create-checkout-session',
+        destination: '/api/create-checkout-session/',
+        permanent: true,
+        trailingSlash: true
+      }
+    ]
+  }
 };
 
 module.exports = nextConfig;
