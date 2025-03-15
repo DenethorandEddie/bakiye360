@@ -72,8 +72,14 @@ export default function SubscriptionPage() {
         setUserId(user.id);
         console.log("Kullanıcı ID:", user.id);
         
-        // 1. Birincil kaynak olarak user_settings tablosundan subscription_status'e bak
-        const { data: userSettings, error: userSettingsError } = await supabase
+        // 1. user_settings tablosundan subscription_status'e bak
+        // DİKKAT: Tablo yapınızda id sütunu kullanıcı ID'si olarak kullanılıyor olabilir
+        // Her iki versiyonu da deneyelim:
+        let userSettings;
+        let userSettingsError;
+        
+        // Önce user_id ile deneyin
+        const { data: settingsDataByUserId, error: errorByUserId } = await supabase
           .from('user_settings')
           .select('subscription_status, stripe_subscription_id, subscription_period_end, subscription_start, subscription_end, cancel_at_period_end')
           .eq('user_id', user.id)

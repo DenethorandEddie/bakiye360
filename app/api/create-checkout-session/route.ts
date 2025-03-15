@@ -22,7 +22,7 @@ function logError(step: string, error: any) {
 
 // Stripe API anahtarı
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia" as any, // Güncel API versiyonu
+  apiVersion: "2023-10-16" as any, // Daha eski ve stabil bir API versiyonu
 });
 
 // SSL ayarını sadece development'ta devre dışı bırak
@@ -61,14 +61,32 @@ export async function POST(req: NextRequest) {
     
     console.log(`👤 Kullanıcı bulundu: ${user.id}`);
     
-    // Kullanıcı zaten premium mi kontrol et
-    const { data: userSettings, error: settingsError } = await supabase
+    // Kullanıcı zaten premium mi kontrol et - hem user_id hem de id alanlarına bakalım
+    let isPremium = false;
+    
+    // 1. user_id ile kontrol
+    const { data: userSettingsByUserId } = await supabase
       .from('user_settings')
       .select('subscription_status')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
     
-    if (!settingsError && userSettings?.subscription_status === 'premium') {
+    // 2. id ile kontrol  
+    const { data: userSettingsById } = await supabase
+      .from('user_settings')
+      .select('subscription_status')
+      .eq('id', user.id)
+      .maybeSingle();
+    
+    // Herhangi birinde premium status varsa
+    if (
+      (userSettingsByUserId && userSettingsByUserId.subscription_status === 'premium') ||
+      (userSettingsById && userSettingsById.subscription_status === 'premium')
+    ) {
+      isPremium = true;
+    }
+    
+    if (isPremium) {
       console.log("⚠️ Kullanıcı zaten premium aboneliğe sahip");
       return NextResponse.json(
         { error: "Zaten premium aboneliğiniz bulunmaktadır" },
@@ -143,36 +161,30 @@ export async function POST(req: NextRequest) {
     let stripeCustomerId;
     
     // Önce user_settings'de müşteri ID'sine bak
-    const { data: userSettingsData, error: settingsError2 } = await supabase
+    const { data: userSettingsData } = await supabase
       .from('user_settings')
       .select('stripe_customer_id')
-      .eq('user_id', user.id)
+      .or(`user_id.eq.${user.id},id.eq.${user.id}`) // Her iki alan da kontrol ediliyor
       .maybeSingle();
     
-    if (!settingsError2 && userSettingsData?.stripe_customer_id) {
+    if (userSettingsData?.stripe_customer_id) {
       stripeCustomerId = userSettingsData.stripe_customer_id;
       console.log(`🔄 Mevcut Stripe müşteri ID kullanılıyor: ${stripeCustomerId}`);
     } else {
       console.log('🆕 Yeni Stripe müşterisi oluşturuluyor...');
       
       // Kullanıcı bilgilerini al
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, email')
         .eq('id', user.id)
         .single();
         
-      if (profileError) {
-        logError("PROFILE_FETCH", profileError);
-        // Hata durumunda yine de devam et, sadece müşteri bilgilerini Supabase'den alamadık
-        console.log("⚠️ Profil bilgileri alınamadı, kullanıcı e-posta bilgisi kullanılacak");
-      }
-      
       // Stripe'da yeni müşteri oluştur
       try {
         const customer = await stripe.customers.create({
           email: user.email,
-          name: profile?.full_name || user.email?.split('@')[0],
+          name: profile?.full_name || user.email?.split('@')[0] || "Bakiye360 Kullanıcısı",
           metadata: {
             userId: user.id,
           },
@@ -190,13 +202,7 @@ export async function POST(req: NextRequest) {
     }
 
     // URL bilgilerini oluştur - her zaman HTTPS kullan
-    let origin = process.env.NEXT_PUBLIC_APP_URL || 'https://bakiye360.com';
-    
-    // URL'nin HTTPS kullandığından emin ol
-    if (origin.startsWith('http://')) {
-      origin = origin.replace('http://', 'https://');
-    }
-    
+    const origin = "https://www.bakiye360.com";
     const successUrl = `${origin}/dashboard/subscription?success=true`;
     const cancelUrl = `${origin}/dashboard/subscription?canceled=true`;
 
@@ -223,17 +229,16 @@ export async function POST(req: NextRequest) {
       console.log('✅ Checkout session oluşturuldu:', session.id);
       
       // URL bilgisi varsa bunu döndür
-      if (session.url) {
-        return NextResponse.json({ url: session.url }, { status: 200, headers: responseHeaders });
-      }
-      
-      // URL yoksa session ID'yi döndür
       return NextResponse.json({ 
-        sessionId: session.id, 
+        url: session.url || `https://checkout.stripe.com/pay/${session.id}`,
+        sessionId: session.id
       }, { status: 200, headers: responseHeaders });
     } catch (checkoutError) {
       logError("CHECKOUT_CREATE", checkoutError);
-      throw checkoutError; // Genel hata yakalama bölümünde işlenecek
+      return NextResponse.json(
+        { error: `Ödeme sayfası oluşturma hatası: ${(checkoutError as any)?.message || 'Bilinmeyen hata'}` },
+        { status: 500, headers: responseHeaders }
+      );
     }
   } catch (error: any) {
     // Genel hata yakalama
