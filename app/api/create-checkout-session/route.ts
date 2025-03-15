@@ -21,17 +21,32 @@ export async function POST(req: NextRequest) {
   const headers = new Headers({
     'Access-Control-Allow-Origin': 'https://bakiye360.com',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
   });
 
   try {
-    const { userId, customerId } = await req.json();
+    console.log("Create checkout session API çağrıldı");
+    let requestData;
+    
+    try {
+      requestData = await req.json();
+    } catch (parseError) {
+      console.error("JSON parse hatası:", parseError);
+      return new Response(JSON.stringify({ error: "Geçersiz istek formatı" }), { 
+        status: 400, 
+        headers 
+      });
+    }
+    
+    const { userId, customerId } = requestData;
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "Kullanıcı ID eksik" },
-        { status: 400 }
-      );
+      console.error("Kullanıcı ID eksik");
+      return new Response(JSON.stringify({ error: "Kullanıcı ID eksik" }), { 
+        status: 400, 
+        headers 
+      });
     }
 
     // Kullanıcıyı doğrula 
@@ -39,10 +54,11 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Oturum açmanız gerekiyor" },
-        { status: 401 }
-      );
+      console.error("Kullanıcı doğrulama hatası:", authError);
+      return new Response(JSON.stringify({ error: "Oturum açmanız gerekiyor" }), { 
+        status: 401, 
+        headers 
+      });
     }
 
     console.log(`🔑 Ödeme başlatıldı. Kullanıcı: ${userId}, Müşteri ID: ${customerId || 'Yeni'}`);
@@ -83,51 +99,72 @@ export async function POST(req: NextRequest) {
       console.log(`✅ Stripe müşterisi oluşturuldu: ${stripeCustomerId}`);
     }
 
-    // Fiyat ID kontrolünü iyileştirme
-    const priceId = process.env.STRIPE_PREMIUM_PRICE_ID;
+    // Fiyat ID kontrolü
+    let priceId = process.env.STRIPE_PREMIUM_PRICE_ID;
+    
     if (!priceId) {
-      console.error('STRIPE_PREMIUM_PRICE_ID tanımlanmamış!');
-      return NextResponse.json(
-        { error: 'Sunucu yapılandırma hatası' },
-        { status: 500 }
-      );
+      console.warn('⚠️ STRIPE_PREMIUM_PRICE_ID tanımlanmamış, dinamik olarak ürün oluşturuluyor');
+      
+      // Eğer ürün ve fiyat tanımlaması yapılmamışsa, dinamik olarak oluştur
+      const product = await stripe.products.create({
+        name: 'Bakiye360 Premium',
+        description: 'Aylık premium abonelik planı',
+        metadata: {
+          type: 'subscription'
+        }
+      });
+      
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: 14999, // 149,99 TL
+        currency: 'try',
+        recurring: {
+          interval: 'month'
+        }
+      });
+      
+      priceId = price.id;
+      console.log(`✨ Ürün ve fiyat oluşturuldu. Fiyat ID: ${priceId}`);
     }
 
     // URL bilgilerini oluştur
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const successUrl = `${origin}/dashboard/subscription?success=true`;
-    const cancelUrl = `${origin}/dashboard/subscription?canceled=true`;
+    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://bakiye360.com';
+    const successUrl = `${origin}/dashboard/subscription/?success=true`;
+    const cancelUrl = `${origin}/dashboard/subscription/?canceled=true`;
 
     // Checkout session oluştur
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       payment_method_types: ['card'],
       line_items: [{
-        price: priceId, // Direkt priceId kullan
+        price: priceId,
         quantity: 1,
       }],
       mode: 'subscription',
       success_url: successUrl,
       cancel_url: cancelUrl,
-      client_reference_id: userId, // Önemli: Webhook'ta userId eşleştirmesi için bu alanı kullanıyoruz
+      client_reference_id: userId,
       metadata: {
-        userId: userId // Ek güvenlik - bazı webhook'lar metadata'yı kullanır
+        userId: userId
       }
     });
 
     console.log('✅ Checkout session oluşturuldu:', session.id);
     return new Response(JSON.stringify({ sessionId: session.id }), { 
       status: 200,
-      headers: new Headers({
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache' // Önbellek sorunlarını önle
-      })
+      headers
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Stripe hatası:', error);
-    return NextResponse.json(
-      { error: 'Stripe API hatası: ' + error.message },
-      { status: 500 }
-    );
+    
+    // Hata mesajını güvenli bir şekilde döndür
+    const errorMessage = error?.message || 'Bir hata oluştu';
+    return new Response(JSON.stringify({ 
+      error: 'Ödeme sayfası oluşturulurken bir hata oluştu', 
+      details: errorMessage
+    }), { 
+      status: 500,
+      headers
+    });
   }
 } 

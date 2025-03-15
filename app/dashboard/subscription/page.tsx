@@ -200,31 +200,81 @@ export default function SubscriptionPage() {
   }, [supabase, searchParams]);
   
   const handleUpgrade = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    const { data, error } = await supabase
-      .from('user_settings')
-      .select('stripe_customer_id')
-      .eq('user_id', user?.id)
-      .single();
+    try {
+      setLoading(true);
+      console.log("Premium'a yükseltme işlemi başlatılıyor...");
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("Kullanıcı bulunamadı");
+        toast.error("Oturum bilgileriniz alınamadı. Lütfen tekrar giriş yapın.");
+        return;
+      }
+      
+      console.log("Kullanıcı ID:", user.id);
+      
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('stripe_customer_id')
+        .eq('user_id', user.id)
+        .single();
 
-    const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!);
+      if (error) {
+        console.error("Kullanıcı ayarları bulunamadı:", error);
+      }
 
-    const response = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user?.id,
-        customerId: data?.stripe_customer_id
-      })
-    });
+      // Stripe key kullanımını düzelt
+      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      if (!stripeKey) {
+        console.error("Stripe key bulunamadı!");
+        toast.error("Ödeme sistemi yapılandırması eksik. Lütfen destek ekibiyle iletişime geçin.");
+        return;
+      }
+      
+      console.log("Stripe entegrasyonu başlatılıyor...");
+      const stripe = await loadStripe(stripeKey);
+      
+      if (!stripe) {
+        console.error("Stripe yüklenemedi!");
+        toast.error("Ödeme sistemi başlatılamadı. Lütfen daha sonra tekrar deneyin.");
+        return;
+      }
 
-    const { sessionId } = await response.json();
-    
-    const result = await stripe?.redirectToCheckout({ sessionId });
-    
-    if (result?.error) {
-      console.error(result.error);
+      // API endpoint'ine istek gönder (trailing slash ile)
+      console.log("Checkout session isteniyor...");
+      const response = await fetch('/api/create-checkout-session/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          customerId: data?.stripe_customer_id
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API hatası:", response.status, errorText);
+        toast.error("Ödeme sayfası oluşturulamadı. Lütfen daha sonra tekrar deneyin.");
+        return;
+      }
+
+      const responseData = await response.json();
+      console.log("Session ID alındı:", responseData.sessionId);
+      
+      // Redirect işlemi
+      const result = await stripe.redirectToCheckout({ 
+        sessionId: responseData.sessionId 
+      });
+      
+      if (result?.error) {
+        console.error("Redirect hatası:", result.error);
+        toast.error("Ödeme sayfasına yönlendirme başarısız oldu: " + result.error.message);
+      }
+    } catch (err) {
+      console.error("Ödeme yönlendirme hatası:", err);
+      toast.error("Bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
+    } finally {
+      setLoading(false);
     }
   };
   
