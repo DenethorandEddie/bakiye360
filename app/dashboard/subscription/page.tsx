@@ -202,97 +202,60 @@ export default function SubscriptionPage() {
   const handleUpgrade = async () => {
     try {
       setLoading(true);
-      setSubscribeLoading(true);
-      console.log("Premium'a yükseltme işlemi başlatılıyor...");
+      setError(null);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("Kullanıcı bulunamadı");
-        toast.error("Oturum bilgileriniz alınamadı. Lütfen tekrar giriş yapın.");
-        return;
-      }
+      // API çağrısı için özel headers oluştur
+      const headers = {
+        "Content-Type": "application/json",
+      };
       
-      console.log("Kullanıcı ID:", user.id);
+      // API endpoint'ini güvenli bir şekilde yapılandır
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const endpoint = `${baseUrl}/api/create-checkout-session`;
       
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('stripe_customer_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        console.error("Kullanıcı ayarları bulunamadı:", error);
-      }
-
-      // Stripe key kullanımını düzelt
-      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-      console.log("Stripe key kontrolü:", stripeKey ? "Mevcut" : "Eksik");
+      console.log(`Checkout isteği gönderiliyor: ${endpoint}`);
       
-      if (!stripeKey) {
-        console.error("Stripe key bulunamadı!");
-        toast.error("Ödeme sistemi yapılandırması eksik. Lütfen destek ekibiyle iletişime geçin.");
-        return;
-      }
-      
-      console.log("Stripe entegrasyonu başlatılıyor...");
-      const stripe = await loadStripe(stripeKey);
-      
-      if (!stripe) {
-        console.error("Stripe yüklenemedi!");
-        toast.error("Ödeme sistemi başlatılamadı. Lütfen daha sonra tekrar deneyin.");
-        return;
-      }
-
-      // API endpoint'ine istek gönder (trailing slash olmadan)
-      console.log("Checkout session isteniyor...");
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          customerId: data?.stripe_customer_id
-        })
+      // Fetch API ile POST isteği gönder
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        credentials: "include", // Çerezleri gönder
       });
-
+      
+      // HTTP durum kodunu kontrol et
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API hatası:", response.status, errorText);
-        toast.error(`Ödeme sayfası oluşturulamadı. Durum kodu: ${response.status}`);
-        return;
-      }
-
-      let responseData;
-      try {
-        responseData = await response.json();
-        console.log("Session ID alındı:", responseData.sessionId);
-      } catch (jsonError) {
-        console.error("JSON parse hatası:", jsonError);
-        toast.error("Geçersiz yanıt alındı. Lütfen daha sonra tekrar deneyin.");
-        return;
+        // Yanıt gövdesini JSON olarak ayrıştırmayı dene
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // JSON dönüştürme hatası - yanıt muhtemelen JSON değil
+          throw new Error(`Sunucu hatası: ${response.status} ${response.statusText}`);
+        }
+        
+        // API'den dönen hata mesajı varsa kullan
+        const errorMessage = errorData?.error || `Sunucu hatası: ${response.status}`;
+        throw new Error(errorMessage);
       }
       
-      if (!responseData.sessionId) {
-        console.error("Session ID alınamadı:", responseData);
-        toast.error("Ödeme oturumu oluşturulamadı. Lütfen daha sonra tekrar deneyin.");
-        return;
+      // Başarılı yanıtı ayrıştır
+      const data = await response.json();
+      console.log("Checkout yanıtı alındı:", data);
+      
+      if (!data.url) {
+        throw new Error("Ödeme URL'si bulunamadı");
       }
       
-      // Redirect işlemi
-      console.log("Stripe checkout sayfasına yönlendiriliyor...");
-      const result = await stripe.redirectToCheckout({ 
-        sessionId: responseData.sessionId 
-      });
+      // Kullanıcıyı Stripe ödeme sayfasına yönlendir
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error("Ödeme başlatma hatası:", error);
       
-      if (result?.error) {
-        console.error("Redirect hatası:", result.error);
-        toast.error("Ödeme sayfasına yönlendirme başarısız oldu: " + result.error.message);
-      }
-    } catch (err) {
-      console.error("Ödeme yönlendirme hatası:", err);
-      toast.error("Bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
-    } finally {
+      // Kullanıcı dostu hata mesajı
+      setError(error.message || "Ödeme sayfası yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
+      
+      // Tekrar denemesi için loading durumunu sıfırla
       setLoading(false);
-      setSubscribeLoading(false);
     }
   };
   

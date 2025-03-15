@@ -6,6 +6,12 @@ import Stripe from "stripe";
 // App Router için modern config
 export const dynamic = 'force-dynamic';
 
+// Error logging helper
+function logError(step: string, error: any) {
+  console.error(`[CHECKOUT ERROR] [${step}] ${error.message || 'Unknown error'}`);
+  console.error(error);
+}
+
 // Stripe API anahtarı
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-24.acacia" as any, // Güncel API versiyonu
@@ -17,7 +23,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export async function POST(req: NextRequest) {
-  console.log("📣 Create checkout session API çağrıldı");
+  console.log("🔄 Checkout session oluşturma isteği alındı");
   
   // CORS headers
   const headers = {
@@ -55,16 +61,94 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      console.error("Kullanıcı doğrulama hatası:", authError);
+      logError("USER_AUTH", authError || new Error("User not found"));
       return NextResponse.json(
-        { error: "Oturum açmanız gerekiyor" }, 
+        { error: "Kimlik doğrulama başarısız" },
         { status: 401, headers }
       );
     }
 
-    console.log(`🔑 Ödeme başlatıldı. Kullanıcı: ${userId}, Müşteri ID: ${customerId || 'Yeni'}`);
-
-    // Stripe müşterisi oluştur veya mevcut olanı kullan
+    console.log(`👤 Kullanıcı bulundu: ${user.id}`);
+    
+    // Kullanıcı zaten premium mi kontrol et
+    const { data: userSettings, error: settingsError } = await supabase
+      .from('user_settings')
+      .select('subscription_status')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (!settingsError && userSettings?.subscription_status === 'premium') {
+      console.log("⚠️ Kullanıcı zaten premium aboneliğe sahip");
+      return NextResponse.json(
+        { error: "Zaten premium aboneliğiniz bulunmaktadır" },
+        { status: 400, headers }
+      );
+    }
+    
+    // Ürün ve fiyat bilgilerini kontrol et
+    let priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+    
+    if (!priceId) {
+      console.error("❌ NEXT_PUBLIC_STRIPE_PRICE_ID çevre değişkeni tanımlanmamış");
+      
+      // Otomatik olarak bir price ID oluştur (sadece geçici çözüm)
+      try {
+        // Mevcut ürünleri kontrol et
+        const products = await stripe.products.list({
+          active: true,
+          limit: 1,
+        });
+        
+        let productId;
+        
+        // Eğer ürün yoksa oluştur
+        if (products.data.length === 0) {
+          console.log("ℹ️ Ürün bulunamadı, yeni ürün oluşturuluyor");
+          const newProduct = await stripe.products.create({
+            name: "Bakiye360 Premium",
+            description: "Bakiye360 Premium Abonelik",
+          });
+          productId = newProduct.id;
+        } else {
+          productId = products.data[0].id;
+        }
+        
+        // Fiyat bilgilerini kontrol et
+        const prices = await stripe.prices.list({
+          product: productId,
+          active: true,
+          limit: 1,
+        });
+        
+        // Eğer fiyat yoksa oluştur
+        if (prices.data.length === 0) {
+          console.log("ℹ️ Fiyat bulunamadı, yeni fiyat oluşturuluyor");
+          const newPrice = await stripe.prices.create({
+            product: productId,
+            unit_amount: 1900, // 19 TL
+            currency: "try",
+            recurring: {
+              interval: "month",
+            },
+          });
+          priceId = newPrice.id;
+        } else {
+          priceId = prices.data[0].id;
+        }
+        
+        console.log(`✅ Fiyat ID otomatik olarak ayarlandı: ${priceId}`);
+      } catch (priceError) {
+        logError("PRICE_CREATE", priceError);
+        return NextResponse.json(
+          { error: "Fiyat bilgisi oluşturulamadı" },
+          { status: 500, headers }
+        );
+      }
+    }
+    
+    console.log(`💵 Ödeme için price ID: ${priceId}`);
+    
+    // Müşteri bilgilerini kontrol et veya oluştur
     let stripeCustomerId = customerId;
     
     if (!stripeCustomerId) {
@@ -77,55 +161,31 @@ export async function POST(req: NextRequest) {
         .eq('id', userId)
         .single();
         
-      // Yeni Stripe müşterisi oluştur
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: profile?.full_name || user.email,
-        metadata: {
-          userId: userId
-        }
-      });
+      if (profileError) {
+        logError("PROFILE_FETCH", profileError);
+        // Hata durumunda yine de devam et, sadece müşteri bilgilerini Supabase'den alamadık
+        console.log("⚠️ Profil bilgileri alınamadı, kullanıcı e-posta bilgisi kullanılacak");
+      }
       
-      stripeCustomerId = customer.id;
-      
-      // Kullanıcı ayarlarına müşteri ID'sini kaydet
-      await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: userId,
-          stripe_customer_id: stripeCustomerId,
-          updated_at: new Date().toISOString()
+      // Stripe'da yeni müşteri oluştur
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: profile?.full_name || user.email?.split('@')[0],
+          metadata: {
+            userId: userId,
+          },
         });
         
-      console.log(`✅ Stripe müşterisi oluşturuldu: ${stripeCustomerId}`);
-    }
-
-    // Fiyat ID kontrolü
-    let priceId = process.env.STRIPE_PREMIUM_PRICE_ID;
-    
-    if (!priceId) {
-      console.warn('⚠️ STRIPE_PREMIUM_PRICE_ID tanımlanmamış, dinamik olarak ürün oluşturuluyor');
-      
-      // Eğer ürün ve fiyat tanımlaması yapılmamışsa, dinamik olarak oluştur
-      const product = await stripe.products.create({
-        name: 'Bakiye360 Premium',
-        description: 'Aylık premium abonelik planı',
-        metadata: {
-          type: 'subscription'
-        }
-      });
-      
-      const price = await stripe.prices.create({
-        product: product.id,
-        unit_amount: 14999, // 149,99 TL
-        currency: 'try',
-        recurring: {
-          interval: 'month'
-        }
-      });
-      
-      priceId = price.id;
-      console.log(`✨ Ürün ve fiyat oluşturuldu. Fiyat ID: ${priceId}`);
+        stripeCustomerId = customer.id;
+        console.log(`✅ Yeni Stripe müşteri oluşturuldu: ${stripeCustomerId}`);
+      } catch (customerError) {
+        logError("CUSTOMER_CREATE", customerError);
+        return NextResponse.json(
+          { error: "Müşteri profili oluşturulamadı" },
+          { status: 500, headers }
+        );
+      }
     }
 
     // URL bilgilerini oluştur - trailing slash olmadan
@@ -160,7 +220,8 @@ export async function POST(req: NextRequest) {
       { status: 200, headers }
     );
   } catch (error: any) {
-    console.error('❌ Stripe hatası:', error);
+    // Genel hata yakalama
+    logError("GENERAL", error);
     
     // Hata mesajını güvenli bir şekilde döndür
     const errorMessage = error?.message || 'Bir hata oluştu';
