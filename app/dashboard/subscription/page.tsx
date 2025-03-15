@@ -20,6 +20,9 @@ interface UserSettings {
   subscription_start: string | null;
   subscription_end: string | null;
   cancel_at_period_end: boolean;
+  email_notifications: boolean;
+  budget_alerts: boolean;
+  monthly_reports: boolean;
 }
 
 export default function SubscriptionPage() {
@@ -74,12 +77,10 @@ export default function SubscriptionPage() {
     setError(null);
     
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       
-      if (userError || !user) {
-        console.error("Kullanıcı bilgileri alınamadı:", userError);
-        setError("Kullanıcı bilgileri alınamadı. Lütfen tekrar giriş yapın.");
-        setLoading(false);
+      if (!user) {
+        setError("Kullanıcı bilgileri alınamadı.");
         return;
       }
       
@@ -92,9 +93,29 @@ export default function SubscriptionPage() {
         .maybeSingle();
 
       if (userSettings?.subscription_status === 'premium') {
+        // Premium kullanıcı için bildirimleri aç
+        await supabase
+          .from('user_settings')
+          .update({
+            email_notifications: true,
+            budget_alerts: true,
+            monthly_reports: true
+          })
+          .eq('user_id', user.id);
+        
         setIsPremium(true);
         setSubscriptionId(userSettings.stripe_subscription_id);
       } else {
+        // Ücretsiz kullanıcı için bildirimleri kapat
+        await supabase
+          .from('user_settings')
+          .update({
+            email_notifications: false,
+            budget_alerts: false,
+            monthly_reports: false
+          })
+          .eq('user_id', user.id);
+        
         setIsPremium(false);
       }
     } catch (error) {
