@@ -85,6 +85,7 @@ export async function POST(request: Request) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       customer_email: userData.user.email,
+      client_reference_id: userId,
       metadata: {
         userId: userId,
       },

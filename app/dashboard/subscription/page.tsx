@@ -50,17 +50,19 @@ export default function SubscriptionPage() {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError || !user) {
+          console.error("Kullanıcı bilgileri alınamadı:", userError);
           setError("Kullanıcı bilgileri alınamadı. Lütfen tekrar giriş yapın.");
           setLoading(false);
           return;
         }
         
         setUserId(user.id);
+        console.log("Kullanıcı ID:", user.id);
         
         // 1. Birincil kaynak olarak user_settings tablosundan subscription_status'e bak
         const { data: userSettings, error: userSettingsError } = await supabase
           .from('user_settings')
-          .select('subscription_status, stripe_subscription_id')
+          .select('subscription_status, stripe_subscription_id, subscription_period_end')
           .eq('user_id', user.id)
           .single();
           
@@ -68,15 +70,14 @@ export default function SubscriptionPage() {
           console.error("User settings bilgisi alınamadı:", userSettingsError);
           
           // User settings bulunamadıysa, aktif bir abonelik var mı kontrol et
-          // Bu sadece yedek bir kontrol olarak çalışır
           const { data: subscription, error: subscriptionError } = await supabase
             .from('subscriptions')
-            .select('id, status')
+            .select('id, status, current_period_end')
             .eq('user_id', user.id)
             .eq('status', 'active')
             .maybeSingle();
             
-          if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+          if (subscriptionError) {
             console.error("Abonelik durumu alınamadı:", subscriptionError);
             setError("Abonelik durumu kontrol edilirken bir hata oluştu.");
             setLoading(false);
@@ -84,31 +85,41 @@ export default function SubscriptionPage() {
           }
           
           if (subscription) {
-            console.log("Aktif abonelik bulundu, ancak user_settings güncellenmemiş:", subscription);
-            setIsPremium(true);
-            setSubscriptionId(subscription.id);
+            console.log("Aktif abonelik bulundu:", subscription);
             
-            // User settings güncellemesi yap - API endpoint'i kullan
-            try {
-              const response = await fetch('/api/subscription/update-status', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  user_id: user.id,
-                  status: 'premium',
-                  stripe_subscription_id: subscription.id
-                }),
-              });
+            // Abonelik süresi dolmuş mu kontrol et
+            const periodEnd = new Date(subscription.current_period_end);
+            const now = new Date();
+            
+            if (periodEnd > now) {
+              setIsPremium(true);
+              setSubscriptionId(subscription.id);
               
-              if (!response.ok) {
-                console.error("Kullanıcı ayarları güncellenemedi:", await response.text());
-              } else {
-                console.log("Kullanıcı ayarları güncellendi");
+              // User settings güncellemesi yap
+              try {
+                const response = await fetch('/api/subscription/update-status', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    user_id: user.id,
+                    status: 'premium',
+                    stripe_subscription_id: subscription.id
+                  }),
+                });
+                
+                if (!response.ok) {
+                  console.error("Kullanıcı ayarları güncellenemedi:", await response.text());
+                } else {
+                  console.log("Kullanıcı ayarları güncellendi");
+                }
+              } catch (error) {
+                console.error("Kullanıcı ayarları güncellenirken hata:", error);
               }
-            } catch (error) {
-              console.error("Kullanıcı ayarları güncellenirken hata:", error);
+            } else {
+              console.log("Abonelik süresi dolmuş");
+              setIsPremium(false);
             }
           } else {
             console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
@@ -116,12 +127,29 @@ export default function SubscriptionPage() {
           }
         } else {
           // User settings bulundu
+          console.log("User settings bulundu:", userSettings);
+          
           if (userSettings.subscription_status === 'premium') {
-            console.log("User settings tablosunda premium abonelik bulundu");
-            setIsPremium(true);
-            setSubscriptionId(userSettings.stripe_subscription_id || null);
+            // Abonelik süresi dolmuş mu kontrol et
+            if (userSettings.subscription_period_end) {
+              const periodEnd = new Date(userSettings.subscription_period_end);
+              const now = new Date();
+              
+              if (periodEnd > now) {
+                console.log("Premium abonelik aktif");
+                setIsPremium(true);
+                setSubscriptionId(userSettings.stripe_subscription_id || null);
+              } else {
+                console.log("Abonelik süresi dolmuş");
+                setIsPremium(false);
+              }
+            } else {
+              console.log("Premium abonelik aktif (süre bilgisi yok)");
+              setIsPremium(true);
+              setSubscriptionId(userSettings.stripe_subscription_id || null);
+            }
           } else {
-            console.log("User settings tablosunda abonelik free olarak ayarlanmış");
+            console.log("Kullanıcı ücretsiz pakette");
             setIsPremium(false);
           }
         }
@@ -138,6 +166,7 @@ export default function SubscriptionPage() {
     // Başarılı ödeme durumunda da abonelik durumunu kontrol et
     const success = searchParams.get('success');
     if (success === 'true') {
+      console.log("Başarılı ödeme sonrası abonelik durumu kontrol ediliyor");
       // Kısa bir gecikme ekleyerek webhook'un işlenmesi için zaman tanı
       const timer = setTimeout(() => {
         checkSubscriptionStatus();

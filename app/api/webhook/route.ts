@@ -30,7 +30,7 @@ async function updateUserSubscriptionStatus(
   periodStart?: string,
   periodEnd?: string
 ) {
-  console.log(`Supabase user_settings tablosu direkt güncelleniyor. Kullanıcı: ${userId}, Durum: ${status}`);
+  console.log(`Supabase user_settings tablosu güncelleniyor. Kullanıcı: ${userId}, Durum: ${status}`);
   
   try {
     // Kullanıcı ayarlarını kontrol et
@@ -57,13 +57,6 @@ async function updateUserSubscriptionStatus(
       updateData.monthly_reports = true;
       console.log(`Premium abonelik için bildirim ayarları otomatik olarak açıldı. Kullanıcı: ${userId}`);
     } 
-    // Ücretsiz sürüme geçince bildirim ayarlarını kapat
-    else if (status === 'free') {
-      updateData.email_notifications = false;
-      updateData.budget_alerts = false;
-      updateData.monthly_reports = false;
-      console.log(`Ücretsiz plan için bildirim ayarları otomatik olarak kapatıldı. Kullanıcı: ${userId}`);
-    }
     
     if (subscriptionId) {
       updateData.stripe_subscription_id = subscriptionId;
@@ -82,42 +75,36 @@ async function updateUserSubscriptionStatus(
       updateData.subscription_period_end = periodEnd;
     }
     
-    // Eğer kayıt varsa güncelle
+    let result;
+    
+    // Eğer kayıt varsa güncelle, yoksa yeni kayıt oluştur
     if (existingSettings) {
-      const { error: updateError } = await supabase
+      console.log('Mevcut kullanıcı ayarları güncelleniyor:', updateData);
+      result = await supabase
         .from('user_settings')
         .update(updateData)
         .eq('user_id', userId);
-      
-      if (updateError) {
-        console.error('Kullanıcı ayarları güncellenirken hata:', updateError);
-        return false;
-      }
     } else {
-      // Kayıt yoksa oluştur
-      const newSettings = {
+      console.log('Yeni kullanıcı ayarları oluşturuluyor:', {
         user_id: userId,
-        subscription_status: status,
-        stripe_subscription_id: subscriptionId || null,
-        stripe_customer_id: customerId || null,
-        subscription_period_start: periodStart || null,
-        subscription_period_end: periodEnd || null,
-        email_notifications: status === 'premium', // Premium ise true, değilse false
-        budget_alerts: status === 'premium', // Premium ise true, değilse false
-        monthly_reports: status === 'premium', // Premium ise true, değilse false
+        ...updateData,
         app_preferences: { currency: 'TRY', language: 'tr' },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+        created_at: new Date().toISOString()
+      });
       
-      const { error: insertError } = await supabase
+      result = await supabase
         .from('user_settings')
-        .insert(newSettings);
-      
-      if (insertError) {
-        console.error('Kullanıcı ayarları oluşturulurken hata:', insertError);
-        return false;
-      }
+        .insert({
+          user_id: userId,
+          ...updateData,
+          app_preferences: { currency: 'TRY', language: 'tr' },
+          created_at: new Date().toISOString()
+        });
+    }
+    
+    if (result.error) {
+      console.error('Kullanıcı ayarları güncellenirken/oluşturulurken hata:', result.error);
+      return false;
     }
     
     console.log(`✅ Kullanıcı ${userId} için abonelik durumu başarıyla güncellendi: ${status}`);
