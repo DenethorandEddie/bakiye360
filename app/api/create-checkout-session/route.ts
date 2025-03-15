@@ -34,40 +34,20 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    let requestData;
-    
-    try {
-      requestData = await req.json();
-    } catch (parseError) {
-      console.error("JSON parse hatası:", parseError);
-      return NextResponse.json(
-        { error: "Geçersiz istek formatı" }, 
-        { status: 400, headers }
-      );
-    }
-    
-    const { userId, customerId } = requestData;
-
-    if (!userId) {
-      console.error("Kullanıcı ID eksik");
-      return NextResponse.json(
-        { error: "Kullanıcı ID eksik" }, 
-        { status: 400, headers }
-      );
-    }
-
-    // Kullanıcıyı doğrula 
+    // Supabase client oluştur
     const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      logError("USER_AUTH", authError || new Error("User not found"));
+    
+    // Mevcut kullanıcıyı al
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      logError("USER_AUTH", userError || new Error("User not found"));
       return NextResponse.json(
         { error: "Kimlik doğrulama başarısız" },
         { status: 401, headers }
       );
     }
-
+    
     console.log(`👤 Kullanıcı bulundu: ${user.id}`);
     
     // Kullanıcı zaten premium mi kontrol et
@@ -125,7 +105,7 @@ export async function POST(req: NextRequest) {
           console.log("ℹ️ Fiyat bulunamadı, yeni fiyat oluşturuluyor");
           const newPrice = await stripe.prices.create({
             product: productId,
-            unit_amount: 1900, // 19 TL
+            unit_amount: 14999, // 149.99 TL
             currency: "try",
             recurring: {
               interval: "month",
@@ -149,16 +129,26 @@ export async function POST(req: NextRequest) {
     console.log(`💵 Ödeme için price ID: ${priceId}`);
     
     // Müşteri bilgilerini kontrol et veya oluştur
-    let stripeCustomerId = customerId;
+    let stripeCustomerId;
     
-    if (!stripeCustomerId) {
+    // Önce user_settings'de müşteri ID'sine bak
+    const { data: userSettingsData, error: settingsError2 } = await supabase
+      .from('user_settings')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (!settingsError2 && userSettingsData?.stripe_customer_id) {
+      stripeCustomerId = userSettingsData.stripe_customer_id;
+      console.log(`🔄 Mevcut Stripe müşteri ID kullanılıyor: ${stripeCustomerId}`);
+    } else {
       console.log('🆕 Yeni Stripe müşterisi oluşturuluyor...');
       
       // Kullanıcı bilgilerini al
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('full_name, email')
-        .eq('id', userId)
+        .eq('id', user.id)
         .single();
         
       if (profileError) {
@@ -173,7 +163,7 @@ export async function POST(req: NextRequest) {
           email: user.email,
           name: profile?.full_name || user.email?.split('@')[0],
           metadata: {
-            userId: userId,
+            userId: user.id,
           },
         });
         
@@ -188,46 +178,67 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // URL bilgilerini oluştur - trailing slash olmadan
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://bakiye360.com';
+    // URL bilgilerini oluştur - her zaman HTTPS kullan
+    let origin = process.env.NEXT_PUBLIC_APP_URL || 'https://bakiye360.com';
+    
+    // URL'nin HTTPS kullandığından emin ol
+    if (origin.startsWith('http://')) {
+      origin = origin.replace('http://', 'https://');
+    }
+    
     const successUrl = `${origin}/dashboard/subscription?success=true`;
     const cancelUrl = `${origin}/dashboard/subscription?canceled=true`;
 
     console.log(`🔗 URL'ler hazırlandı: ${successUrl}, ${cancelUrl}`);
 
     // Checkout session oluştur
-    const session = await stripe.checkout.sessions.create({
-      customer: stripeCustomerId,
-      payment_method_types: ['card'],
-      line_items: [{
-        price: priceId,
-        quantity: 1,
-      }],
-      mode: 'subscription',
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      client_reference_id: userId,
-      metadata: {
-        userId: userId
-      }
-    });
+    try {
+      const session = await stripe.checkout.sessions.create({
+        customer: stripeCustomerId,
+        payment_method_types: ['card'],
+        line_items: [{
+          price: priceId,
+          quantity: 1,
+        }],
+        mode: 'subscription',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        client_reference_id: user.id,
+        metadata: {
+          userId: user.id
+        }
+      });
 
-    console.log('✅ Checkout session oluşturuldu:', session.id);
-    
-    // Doğrudan NextResponse kullan
-    return NextResponse.json(
-      { sessionId: session.id },
-      { status: 200, headers }
-    );
+      console.log('✅ Checkout session oluşturuldu:', session.id);
+      
+      // URL bilgisi varsa bunu döndür
+      if (session.url) {
+        return NextResponse.json({ url: session.url }, { status: 200, headers });
+      }
+      
+      // URL yoksa session ID'yi döndür
+      return NextResponse.json({ 
+        sessionId: session.id, 
+      }, { status: 200, headers });
+    } catch (checkoutError) {
+      logError("CHECKOUT_CREATE", checkoutError);
+      throw checkoutError; // Genel hata yakalama bölümünde işlenecek
+    }
   } catch (error: any) {
     // Genel hata yakalama
     logError("GENERAL", error);
     
     // Hata mesajını güvenli bir şekilde döndür
     const errorMessage = error?.message || 'Bir hata oluştu';
+    const errorCode = error?.statusCode || 500;
+    
     return NextResponse.json(
-      { error: 'Ödeme sayfası oluşturulurken bir hata oluştu', details: errorMessage },
-      { status: 500, headers }
+      { 
+        error: 'Ödeme sayfası oluşturulurken bir hata oluştu', 
+        details: errorMessage,
+        code: errorCode 
+      },
+      { status: errorCode, headers }
     );
   }
 } 

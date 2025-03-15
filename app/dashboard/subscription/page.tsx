@@ -201,7 +201,7 @@ export default function SubscriptionPage() {
   
   const handleUpgrade = async () => {
     try {
-      setLoading(true);
+      setSubscribeLoading(true);
       setError(null);
       
       // API çağrısı için özel headers oluştur
@@ -209,8 +209,14 @@ export default function SubscriptionPage() {
         "Content-Type": "application/json",
       };
       
-      // API endpoint'ini güvenli bir şekilde yapılandır
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      // API endpoint'ini güvenli bir şekilde yapılandır (her zaman HTTPS kullan)
+      let baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      
+      // URL'nin HTTPS kullandığından emin ol
+      if (baseUrl.startsWith('http://')) {
+        baseUrl = baseUrl.replace('http://', 'https://');
+      }
+      
       const endpoint = `${baseUrl}/api/create-checkout-session`;
       
       console.log(`Checkout isteği gönderiliyor: ${endpoint}`);
@@ -220,6 +226,9 @@ export default function SubscriptionPage() {
         method: "POST",
         headers,
         credentials: "include", // Çerezleri gönder
+        body: JSON.stringify({
+          userId: userId // Kullanıcı ID'sini veri olarak gönder
+        })
       });
       
       // HTTP durum kodunu kontrol et
@@ -242,19 +251,22 @@ export default function SubscriptionPage() {
       const data = await response.json();
       console.log("Checkout yanıtı alındı:", data);
       
-      if (!data.url) {
-        throw new Error("Ödeme URL'si bulunamadı");
+      const sessionUrl = data.url || data.sessionUrl || (data.sessionId ? `https://checkout.stripe.com/pay/${data.sessionId}` : null);
+      
+      if (!sessionUrl) {
+        throw new Error("Ödeme URL'si oluşturulamadı. Lütfen daha sonra tekrar deneyin.");
       }
       
       // Kullanıcıyı Stripe ödeme sayfasına yönlendir
-      window.location.href = data.url;
+      window.location.href = sessionUrl;
     } catch (error: any) {
       console.error("Ödeme başlatma hatası:", error);
       
       // Kullanıcı dostu hata mesajı
       setError(error.message || "Ödeme sayfası yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
-      
+    } finally {
       // Tekrar denemesi için loading durumunu sıfırla
+      setSubscribeLoading(false);
       setLoading(false);
     }
   };
