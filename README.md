@@ -39,4 +39,90 @@ Bildirimleri manuel olarak test etmek için:
 4. "Run workflow" butonuna tıklayın
 5. "Run workflow" butonunu onaylayın
 
-Bu işlem, beklemeden anında bildirimleri test etmenizi sağlar. 
+Bu işlem, beklemeden anında bildirimleri test etmenizi sağlar.
+
+# Bakiye360 - Finansal Yönetim Uygulaması
+
+Bakiye360, kişisel finans yönetimi ve bütçe takibi için geliştirilmiş modern bir web uygulamasıdır.
+
+## Abonelik Sistemini Ayarlama
+
+Abonelik sistemi için Stripe ve gerekli veritabanı tablolarının kurulması gerekmektedir.
+
+### Veritabanı Tabloları
+
+Aşağıdaki tablolar gereklidir:
+
+1. **user_settings**
+2. **subscriptions**
+3. **notifications**
+
+Bu tabloları oluşturmak için:
+
+```bash
+npm run setup-db
+```
+
+Bu komut size gerekli SQL kodlarını gösterecektir. Bu SQL kodlarını Supabase Studio'da çalıştırmanız gerekmektedir.
+
+### Stripe Webhook Ayarları
+
+1. Stripe Dashboard'da bir webhook oluşturun:
+   - URL: `https://yourdomain.com/api/webhook`
+   - Events: 
+     - `checkout.session.completed`
+     - `customer.subscription.updated`
+     - `customer.subscription.deleted`
+     - `invoice.payment_failed`
+
+2. Webhook oluşturulduğunda verilen gizli anahtarını `.env` dosyasına ekleyin:
+   ```
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   ```
+
+### Çevre Değişkenleri
+
+`.env` dosyasında aşağıdaki değişkenleri ayarlayın:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+NEXT_PUBLIC_APP_URL=https://yourdomain.com
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+## Abonelik Sistemi Sorun Giderme
+
+Eğer kullanıcılar ödeme yaptıktan sonra premium özelliklere erişemiyorsa, şu adımları izleyin:
+
+1. Supabase veritabanında gerekli tabloların (`user_settings`, `subscriptions`, `notifications`) ve RPC fonksiyonlarının (`update_user_subscription_status`) kurulu olduğundan emin olun.
+
+2. Stripe webhook ayarlarının doğru olduğunu ve webhook olaylarının doğru URL'ye gönderildiğini kontrol edin.
+
+3. Çevre değişkenlerinin doğru ayarlandığından emin olun.
+
+4. Uygulamadaki "Abonelik Sorun Giderme" panelini kullanarak kullanıcı abonelik durumunu manuel olarak güncelleyin.
+
+## Geliştirme
+
+```bash
+npm run dev
+```
+
+## Dağıtım
+
+```bash
+npm run build
+npm run start
+```
+
+## Lisans
+
+Bu proje özel lisans altında dağıtılmaktadır. Tüm hakları saklıdır.
+
+## İletişim
+
+Sorularınız için: support@bakiye360.com 
