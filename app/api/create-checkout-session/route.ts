@@ -17,36 +17,37 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export async function POST(req: NextRequest) {
-  // CORS headers ekleyin
-  const headers = new Headers({
-    'Access-Control-Allow-Origin': 'https://bakiye360.com',
+  console.log("📣 Create checkout session API çağrıldı");
+  
+  // CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json'
-  });
+  };
 
   try {
-    console.log("Create checkout session API çağrıldı");
     let requestData;
     
     try {
       requestData = await req.json();
     } catch (parseError) {
       console.error("JSON parse hatası:", parseError);
-      return new Response(JSON.stringify({ error: "Geçersiz istek formatı" }), { 
-        status: 400, 
-        headers 
-      });
+      return NextResponse.json(
+        { error: "Geçersiz istek formatı" }, 
+        { status: 400, headers }
+      );
     }
     
     const { userId, customerId } = requestData;
 
     if (!userId) {
       console.error("Kullanıcı ID eksik");
-      return new Response(JSON.stringify({ error: "Kullanıcı ID eksik" }), { 
-        status: 400, 
-        headers 
-      });
+      return NextResponse.json(
+        { error: "Kullanıcı ID eksik" }, 
+        { status: 400, headers }
+      );
     }
 
     // Kullanıcıyı doğrula 
@@ -55,10 +56,10 @@ export async function POST(req: NextRequest) {
 
     if (authError || !user) {
       console.error("Kullanıcı doğrulama hatası:", authError);
-      return new Response(JSON.stringify({ error: "Oturum açmanız gerekiyor" }), { 
-        status: 401, 
-        headers 
-      });
+      return NextResponse.json(
+        { error: "Oturum açmanız gerekiyor" }, 
+        { status: 401, headers }
+      );
     }
 
     console.log(`🔑 Ödeme başlatıldı. Kullanıcı: ${userId}, Müşteri ID: ${customerId || 'Yeni'}`);
@@ -127,10 +128,12 @@ export async function POST(req: NextRequest) {
       console.log(`✨ Ürün ve fiyat oluşturuldu. Fiyat ID: ${priceId}`);
     }
 
-    // URL bilgilerini oluştur
+    // URL bilgilerini oluştur - trailing slash olmadan
     const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://bakiye360.com';
-    const successUrl = `${origin}/dashboard/subscription/?success=true`;
-    const cancelUrl = `${origin}/dashboard/subscription/?canceled=true`;
+    const successUrl = `${origin}/dashboard/subscription?success=true`;
+    const cancelUrl = `${origin}/dashboard/subscription?canceled=true`;
+
+    console.log(`🔗 URL'ler hazırlandı: ${successUrl}, ${cancelUrl}`);
 
     // Checkout session oluştur
     const session = await stripe.checkout.sessions.create({
@@ -150,21 +153,20 @@ export async function POST(req: NextRequest) {
     });
 
     console.log('✅ Checkout session oluşturuldu:', session.id);
-    return new Response(JSON.stringify({ sessionId: session.id }), { 
-      status: 200,
-      headers
-    });
+    
+    // Doğrudan NextResponse kullan
+    return NextResponse.json(
+      { sessionId: session.id },
+      { status: 200, headers }
+    );
   } catch (error: any) {
-    console.error('Stripe hatası:', error);
+    console.error('❌ Stripe hatası:', error);
     
     // Hata mesajını güvenli bir şekilde döndür
     const errorMessage = error?.message || 'Bir hata oluştu';
-    return new Response(JSON.stringify({ 
-      error: 'Ödeme sayfası oluşturulurken bir hata oluştu', 
-      details: errorMessage
-    }), { 
-      status: 500,
-      headers
-    });
+    return NextResponse.json(
+      { error: 'Ödeme sayfası oluşturulurken bir hata oluştu', details: errorMessage },
+      { status: 500, headers }
+    );
   }
 } 

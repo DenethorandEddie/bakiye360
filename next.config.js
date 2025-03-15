@@ -26,16 +26,7 @@ const nextConfig = {
     });
     return config;
   },
-  trailingSlash: true,
-  async redirects() {
-    return [
-      {
-        source: '/api/create-checkout-session',
-        destination: '/api/create-checkout-session/',
-        permanent: true
-      }
-    ]
-  }
+  trailingSlash: false
 };
 
 module.exports = nextConfig;
