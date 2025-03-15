@@ -141,9 +141,9 @@ export async function POST(req: NextRequest) {
     }, null, 2)}`);
 
     // Check for missing webhook secret
-    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    if (!endpointSecret) {
       console.error('❌ STRIPE_WEBHOOK_SECRET çevre değişkeni tanımlanmamış!');
-      return new Response('Webhook secret is not configured', { status: 500 });
+      return NextResponse.json({ error: 'Webhook secret is not configured' }, { status: 500 });
     }
 
     // Webhook imzasını doğrula
@@ -152,11 +152,11 @@ export async function POST(req: NextRequest) {
       event = stripe.webhooks.constructEvent(
         body,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET!
+        endpointSecret
       );
     } catch (err: any) {
       console.error(`❌ Webhook signature verification failed: ${err.message}`);
-      return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+      return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
     const supabase = createRouteHandlerClient({ cookies });
@@ -172,48 +172,127 @@ export async function POST(req: NextRequest) {
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
           
-          // Client reference ID kontrolü ekle
-          if (!session.client_reference_id) {
-            console.error('❌ Client reference ID bulunamadı');
-            return new Response('Client reference ID missing', { status: 400 });
-          }
-
+          // Kullanıcı ID'yi al
           const userId = session.client_reference_id;
-          
-          // Müşteri ve abonelik bilgilerini daha güvenli şekilde al
-          if (!session.subscription || !session.customer) {
-            console.error('❌ Abonelik veya müşteri bilgisi eksik');
-            return new Response('Subscription or customer data missing', { status: 400 });
-          }
-          
-          console.log(`💰 Checkout tamamlandı. Metadata: ${JSON.stringify(session.metadata)}, client_reference_id: ${session.client_reference_id}`);
-
           if (!userId) {
-            logWebhookError('MISSING_USER_ID', new Error('userId bulunamadı'), { session_id: session.id });
-            break;
+            console.error('❌ Client reference ID bulunamadı, kullanıcı belirlenemedi');
+            return NextResponse.json({ error: 'Missing client_reference_id' }, { status: 400 });
           }
           
-          // Async olarak işlemi başlat (yanıtı beklemeden)
-          handleCheckoutCompletion(session, userId, supabase)
-            .catch(err => logWebhookError('CHECKOUT_PROCESSING', err, { userId, session_id: session.id }));
+          console.log(`💰 Checkout tamamlandı! Kullanıcı: ${userId}`);
+          
+          // Aboneliği hemen aktifleştir
+          const result = await updateUserSubscriptionStatus(userId, 'premium');
+          
+          if (!result) {
+            console.error(`❌ Kullanıcı ${userId} için premium abonelik etkinleştirilemedi`);
+            // Webhook'un başarısız olarak işaretlenmemesi için yine de 200 dön
+          } else {
+            console.log(`✅ Kullanıcı ${userId} için premium abonelik başarıyla etkinleştirildi`);
+            
+            // Subscriptions tablosuna kayıt ekle (varsa)
+            if (session.subscription) {
+              try {
+                const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+                
+                const { error: subError } = await supabase
+                  .from('subscriptions')
+                  .upsert({
+                    stripe_subscription_id: subscription.id,
+                    user_id: userId,
+                    status: subscription.status,
+                    stripe_customer_id: session.customer as string,
+                    plan: 'premium',
+                    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+                    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  });
+                
+                if (subError) {
+                  console.error(`❌ Abonelik kaydı oluşturulamadı: ${subError.message}`);
+                } else {
+                  console.log(`✅ Abonelik kaydı başarıyla oluşturuldu: ${subscription.id}`);
+                }
+                
+                // Kullanıcı ayarlarına abonelik bilgilerini ekle
+                const { error: userUpdateError } = await supabase
+                  .from('user_settings')
+                  .update({
+                    stripe_subscription_id: subscription.id,
+                    stripe_customer_id: session.customer as string,
+                    subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+                    subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+                  })
+                  .eq('user_id', userId);
+                
+                if (userUpdateError) {
+                  console.error(`❌ Kullanıcı bilgileri güncellenirken hata: ${userUpdateError.message}`);
+                }
+              } catch (subError) {
+                console.error('❌ Abonelik bilgileri alınırken hata:', subError);
+              }
+            }
+          }
           
           break;
         }
         
         case 'customer.subscription.updated': {
           const subscription = event.data.object as Stripe.Subscription;
-          const userId = subscription.metadata.userId;
+          console.log(`📝 Abonelik güncellendi: ${subscription.id}, Durum: ${subscription.status}`);
           
-          if (!userId) {
-            console.error('Abonelikte userId metadata eksik');
+          // Müşteri ID'den kullanıcıyı bul
+          const customerId = subscription.customer as string;
+          const { data: userSettings, error: settingsError } = await supabase
+            .from('user_settings')
+            .select('user_id')
+            .eq('stripe_customer_id', customerId)
+            .single();
+          
+          if (settingsError || !userSettings) {
+            console.error(`❌ Müşteri ID için kullanıcı bulunamadı: ${customerId}`);
             break;
           }
-
-          // Veritabanı işlemlerini transaction içinde yap
-          await supabase.rpc('handle_subscription_update', {
-            p_user_id: userId,
-            p_subscription_data: subscription
-          });
+          
+          const userId = userSettings.user_id;
+          
+          // Abonelik durumunu belirle
+          const subscriptionStatus = subscription.status === 'active' ? 'premium' : 'free';
+          
+          // Abonelik kaydını güncelle
+          const { error: subUpdateError } = await supabase
+            .from('subscriptions')
+            .upsert({
+              stripe_subscription_id: subscription.id,
+              user_id: userId,
+              status: subscription.status,
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          
+          if (subUpdateError) {
+            console.error(`❌ Abonelik güncellenirken hata: ${subUpdateError.message}`);
+          }
+          
+          // Kullanıcı ayarlarını güncelle
+          const { error: userUpdateError } = await supabase
+            .from('user_settings')
+            .update({
+              subscription_status: subscriptionStatus,
+              subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              cancel_at_period_end: subscription.cancel_at_period_end,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId);
+          
+          if (userUpdateError) {
+            console.error(`❌ Kullanıcı ayarları güncellenirken hata: ${userUpdateError.message}`);
+          } else {
+            console.log(`✅ Kullanıcı ${userId} için abonelik durumu güncellendi: ${subscriptionStatus}`);
+          }
           
           break;
         }
@@ -368,7 +447,7 @@ export async function POST(req: NextRequest) {
         
         // Diğer olay tipleri...
         default:
-          console.log(`Bilinmeyen olay tipi: ${event.type}`);
+          console.log(`ℹ️ İşlenmeyen olay tipi: ${event.type}`);
       }
     } catch (error) {
       // Ana işleme hatalarını kaydet ama webhookun başarılı yanıt verdiğinden emin ol
@@ -381,7 +460,7 @@ export async function POST(req: NextRequest) {
     // Genel hataları yakala
     const err = error as Error;
     logWebhookError('GENERAL', err);
-    return new Response(`Webhook Hatası: ${err.message}`, { status: 400 });
+    return NextResponse.json({ error: `Webhook Hatası: ${err.message}` }, { status: 400 });
   }
 }
 
