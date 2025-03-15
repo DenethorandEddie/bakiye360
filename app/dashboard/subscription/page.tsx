@@ -175,79 +175,48 @@ export default function SubscriptionPage() {
       setSubscribeLoading(true);
       setError(null);
       
-      // Önce direkt premium yükseltmeyi deneyelim - Supabase üzerinden
-      console.log("Direkt Supabase ile premium yükseltme deneniyor...");
-      
-      try {
-        // Kullanıcı ayarlarını doğrudan Supabase'e ekleyelim
-        const { data, error } = await supabase
-          .from('user_settings')
-          .upsert({
-            user_id: userId,
-            status: 'premium', // Her iki olası alan adını da kullanalım
-            subscription_status: 'premium'
-          }, {
-            onConflict: 'user_id'
-          });
-          
-        if (!error) {
-          console.log("Supabase ile premium yükseltme başarılı!");
-          toast.success("Premium aboneliğiniz aktifleştirildi!");
-          
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-          
-          return; // İşlem başarılı, burada sonlandır
-        } else {
-          console.error("Supabase ile premium yükseltme başarısız:", error);
-        }
-      } catch (directError) {
-        console.error("Direkt Supabase hatası:", directError);
+      if (!userId) {
+        toast.error("Kullanıcı bilgileri yüklenemedi. Lütfen tekrar giriş yapın.");
+        return;
       }
       
-      // Test endpoint'ini deneyelim
-      const headers = { "Content-Type": "application/json" };
-      const baseUrl = window.location.origin;
-      
+      // ÖNEMLİ: Gerçek Stripe ödeme akışını kullan
       try {
-        const testResponse = await fetch(`${baseUrl}/api/test-premium?userId=${userId}`, {
-          method: 'GET',
-          headers,
-          credentials: "include"
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            // Fiyat bilgilerini veya başka parametreleri gönderebilirsiniz
+          }),
         });
         
-        if (testResponse.ok) {
-          console.log("Test premium endpoint'i başarılı!");
-          toast.success("Premium aboneliğiniz test modunda aktifleştirildi!");
-          
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-          
-          return; // Test başarılı, burada sonlandır
-        } else {
-          console.log("Test premium başarısız, diğer yöntemler deneniyor...");
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Ödeme sayfası oluşturulurken bir hata oluştu.");
         }
-      } catch (testError) {
-        console.error("Test premium hatası:", testError);
+        
+        const { url, sessionId } = await response.json();
+        
+        if (!url) {
+          throw new Error("Ödeme URL'si oluşturulamadı");
+        }
+        
+        // Kullanıcıyı Stripe ödeme sayfasına yönlendir
+        window.location.href = url;
+        return;
+        
+      } catch (error: any) {
+        console.error("Stripe checkout hatası:", error);
+        setError(error.message || "Ödeme sayfası oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
+        toast.error("Ödeme sayfası açılamadı. Lütfen daha sonra tekrar deneyin.");
       }
-      
-      // Stripe checkout deneyimi olmadan direkt premium yapma
-      toast.info("Premium özellikler test için aktifleştiriliyor...");
-      setIsPremium(true);
-      
-      // Sayfayı biraz bekleyip yenileyelim - kullanıcı deneyimi için
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
-      
     } catch (error: any) {
       console.error("Yükseltme hatası:", error);
       setError(error.message || "Premium yükseltme sırasında bir hata oluştu.");
     } finally {
       setSubscribeLoading(false);
-      setLoading(false);
     }
   };
   
@@ -363,38 +332,6 @@ export default function SubscriptionPage() {
     } else {
       setOpenFaqIndex(index);
     }
-  };
-  
-  // Test webhook fonksiyonu - Linter hatasını düzelt
-  const testWebhook = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user?.id) {
-      toast.error("Kullanıcı bilgisi bulunamadı");
-      return;
-    }
-    
-    const res = await fetch('/api/webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'stripe-signature': 'test' // Test imzası
-      },
-      body: JSON.stringify({
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: 'test_123',
-            subscription: 'sub_test',
-            customer: 'cus_test',
-            metadata: { userId: user.id }
-          }
-        }
-      })
-    });
-    
-    const result = await res.json();
-    toast.info(`Test sonucu: ${result.received ? 'Başarılı' : 'Başarısız'}`);
   };
   
   // Faturaları getiren fonksiyon
