@@ -2,7 +2,7 @@ import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { useUser } from '@supabase/auth-helpers-react';
 import { loadStripe } from '@stripe/stripe-js';
-import { useSubscription } from '@/hooks/useSubscription';
+// import { useSubscription } from '@/hooks/useSubscription';
 
 // Stripe.js ön yüklemesi
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -10,7 +10,12 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 export default function SubscriptionPage() {
   const router = useRouter();
   const user = useUser();
-  const { subscription, isLoading, isActive } = useSubscription();
+  // Test amaçlı abonelik kontrolünü kaldırdık
+  // const { subscription, isLoading, isActive } = useSubscription();
+  // Her zaman aktif olmayan abonelik gösteriyoruz
+  const isActive = false;
+  const isLoading = false;
+  const subscription = null;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCheckout = async () => {
@@ -177,13 +182,14 @@ export default function SubscriptionPage() {
               )}
             </div>
 
-            {isActive && (
+            {/* Aktif abonelik mesajını test amaçlı kaldırdık */}
+            {/* {isActive && (
               <div className="mt-4 text-center text-sm text-green-600">
                 Aktif aboneliğiniz bulunmaktadır. 
                 <br />
                 Bitiş tarihi: {subscription && new Date(subscription.current_period_end).toLocaleDateString('tr-TR')}
               </div>
-            )}
+            )} */}
 
             <div className="mt-4 text-center text-xs text-gray-500">
               <p>Aboneliğinizi istediğiniz zaman iptal edebilirsiniz.</p>
