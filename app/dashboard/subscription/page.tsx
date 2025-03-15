@@ -182,19 +182,22 @@ export default function SubscriptionPage() {
       
       // ÖNEMLİ: Gerçek Stripe ödeme akışını kullan
       try {
+        console.log("Premium yükseltme isteği gönderiliyor - Fiyat ID:", process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
+        
         const response = await fetch('/api/create-checkout-session', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            // Fiyat bilgilerini veya başka parametreleri gönderebilirsiniz
+            priceId: 'price_1LiQtQGUPk4i0W9uijrJdSPq' // Sabit price ID kullanıyoruz
           }),
         });
         
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Ödeme sayfası oluşturulurken bir hata oluştu.");
+          const errorData = await response.json();
+          console.error("Ödeme hatası detayları:", errorData);
+          throw new Error(errorData.error || "Ödeme sayfası oluşturulurken bir hata oluştu.");
         }
         
         const { url, sessionId } = await response.json();
@@ -203,10 +206,11 @@ export default function SubscriptionPage() {
           throw new Error("Ödeme URL'si oluşturulamadı");
         }
         
+        console.log("Ödeme sayfasına yönlendiriliyor:", url);
+        
         // Kullanıcıyı Stripe ödeme sayfasına yönlendir
         window.location.href = url;
         return;
-        
       } catch (error: any) {
         console.error("Stripe checkout hatası:", error);
         setError(error.message || "Ödeme sayfası oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");

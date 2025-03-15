@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    // İstek gövdesini okuma
+    const requestData = await req.json();
+    console.log("📦 İstek verileri:", requestData);
+    
     // Supabase client oluştur
     const supabase = createRouteHandlerClient({ cookies });
     
@@ -95,10 +99,10 @@ export async function POST(req: NextRequest) {
     }
     
     // Ürün ve fiyat bilgilerini kontrol et
-    let priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+    let priceId = requestData?.priceId || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
     
     if (!priceId) {
-      console.error("❌ NEXT_PUBLIC_STRIPE_PRICE_ID çevre değişkeni tanımlanmamış");
+      console.error("❌ Fiyat ID bulunamadı. Ne istek gövdesinde ne de env değişkeninde mevcut değil");
       
       // Otomatik olarak bir price ID oluştur (sadece geçici çözüm)
       try {
