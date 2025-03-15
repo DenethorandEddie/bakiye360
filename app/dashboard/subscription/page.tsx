@@ -339,6 +339,29 @@ export default function SubscriptionPage() {
     }
   };
   
+  // Sorun giderme butonuna ekleyeceğimiz test fonksiyonu
+  const testWebhook = async () => {
+    const res = await fetch('/api/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'stripe-signature': 'test' // Test imzası
+      },
+      body: JSON.stringify({
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            id: 'test_123',
+            subscription: 'sub_test',
+            customer: 'cus_test',
+            metadata: { userId: user.id }
+          }
+        }
+      })
+    });
+    // ... sonuçları göster ...
+  }
+  
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-4">Abonelik Paketleri</h1>

@@ -1,0 +1,23 @@
+create or replace function update_user_subscription_status(
+  user_id uuid,
+  new_status text,
+  start_date timestamptz,
+  end_date timestamptz
+)
+returns void
+language plpgsql
+as $$
+begin
+  update user_settings 
+  set 
+    subscription_status = new_status,
+    subscription_start = start_date,
+    subscription_end = end_date
+  where user_id = user_id;
+
+  if not found then
+    insert into user_settings (user_id, subscription_status, subscription_start, subscription_end)
+    values (user_id, new_status, start_date, end_date);
+  end if;
+end;
+$$; 
