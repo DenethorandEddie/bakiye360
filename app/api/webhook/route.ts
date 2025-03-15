@@ -181,60 +181,38 @@ export async function POST(req: NextRequest) {
           
           console.log(`💰 Checkout tamamlandı! Kullanıcı: ${userId}`);
           
-          // Aboneliği hemen aktifleştir
-          const result = await updateUserSubscriptionStatus(userId, 'premium');
+          // Artık burada premium durumuna geçirmiyoruz, sadece kayıt tutuyoruz
+          // Ödeme onaylandıktan sonra premium durumuna geçirilecek (invoice.payment_succeeded)
+          console.log(`ℹ️ Kullanıcı ${userId} için checkout tamamlandı, ödeme onayı bekleniyor...`);
           
-          if (!result) {
-            console.error(`❌ Kullanıcı ${userId} için premium abonelik etkinleştirilemedi`);
-            // Webhook'un başarısız olarak işaretlenmemesi için yine de 200 dön
-          } else {
-            console.log(`✅ Kullanıcı ${userId} için premium abonelik başarıyla etkinleştirildi`);
-            
-            // Subscriptions tablosuna kayıt ekle (varsa)
-            if (session.subscription) {
-              try {
-                const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+          // Subscriptions tablosuna kayıt ekle (varsa)
+          if (session.subscription) {
+            try {
+              const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+              
+              const { error: subError } = await supabase
+                .from('subscriptions')
+                .upsert({
+                  stripe_subscription_id: subscription.id,
+                  user_id: userId,
+                  status: subscription.status, // Bu aşamada 'incomplete' olabilir
+                  stripe_customer_id: session.customer as string,
+                  plan: 'premium',
+                  current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+                  current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                });
                 
-                const { error: subError } = await supabase
-                  .from('subscriptions')
-                  .upsert({
-                    stripe_subscription_id: subscription.id,
-                    user_id: userId,
-                    status: subscription.status,
-                    stripe_customer_id: session.customer as string,
-                    plan: 'premium',
-                    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-                    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  });
-                
-                if (subError) {
-                  console.error(`❌ Abonelik kaydı oluşturulamadı: ${subError.message}`);
-                } else {
-                  console.log(`✅ Abonelik kaydı başarıyla oluşturuldu: ${subscription.id}`);
-                }
-                
-                // Kullanıcı ayarlarına abonelik bilgilerini ekle
-                const { error: userUpdateError } = await supabase
-                  .from('user_settings')
-                  .update({
-                    stripe_subscription_id: subscription.id,
-                    stripe_customer_id: session.customer as string,
-                    subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-                    subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString()
-                  })
-                  .eq('user_id', userId);
-                
-                if (userUpdateError) {
-                  console.error(`❌ Kullanıcı bilgileri güncellenirken hata: ${userUpdateError.message}`);
-                }
-              } catch (subError) {
-                console.error('❌ Abonelik bilgileri alınırken hata:', subError);
+              if (subError) {
+                console.error(`❌ Abonelik bilgileri kaydedilemedi: ${subError.message}`);
+              } else {
+                console.log(`✅ Abonelik bilgileri kaydedildi: ${subscription.id}`);
               }
+            } catch (subRetrieveError) {
+              console.error(`❌ Stripe'dan abonelik alınamadı: ${(subRetrieveError as Error).message}`);
             }
           }
-          
           break;
         }
         
@@ -428,7 +406,6 @@ export async function POST(req: NextRequest) {
           break;
         }
         
-        // Yeni event handler ekle
         case 'invoice.paid': {
           const invoice = event.data.object as Stripe.Invoice;
           const subscriptionId = invoice.subscription as string;
@@ -442,6 +419,68 @@ export async function POST(req: NextRequest) {
             start_date: new Date(subscription.current_period_start * 1000).toISOString(),
             end_date: new Date(subscription.current_period_end * 1000).toISOString()
           });
+          break;
+        }
+        
+        case 'invoice.payment_succeeded': {
+          const invoice = event.data.object as Stripe.Invoice;
+          
+          // Yalnızca abonelik faturaları için işlem yap
+          if (!invoice.subscription) {
+            console.log('ℹ️ Abonelik olmayan fatura, işlem yapılmıyor');
+            break;
+          }
+
+          try {
+            // Faturanın ait olduğu aboneliği al
+            const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+            
+            // Abonelik veritabanından müşteriyi bul
+            const { data: subscriptionData, error: subError } = await supabase
+              .from('subscriptions')
+              .select('user_id')
+              .eq('stripe_subscription_id', subscription.id)
+              .maybeSingle();
+              
+            if (subError || !subscriptionData) {
+              console.error(`❌ Veritabanında abonelik bulunamadı: ${subscription.id}`);
+              break;
+            }
+            
+            const userId = subscriptionData.user_id;
+            
+            // Ödeme başarılı olduğu için premium durumuna yükselt
+            console.log(`💵 Fatura ödendi! Kullanıcı: ${userId}, abonelik: ${subscription.id}`);
+            
+            // Abonelik durumunu güncelle
+            const result = await updateUserSubscriptionStatus(userId, 'premium', 
+              subscription.id, 
+              subscription.customer as string,
+              new Date(subscription.current_period_start * 1000).toISOString(),
+              new Date(subscription.current_period_end * 1000).toISOString()
+            );
+            
+            if (!result) {
+              console.error(`❌ Kullanıcı ${userId} için premium abonelik etkinleştirilemedi`);
+            } else {
+              console.log(`✅ Kullanıcı ${userId} için premium abonelik başarıyla etkinleştirildi`);
+              
+              // Subscription tablosunu güncelle
+              const { error: updateError } = await supabase
+                .from('subscriptions')
+                .update({
+                  status: subscription.status,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('stripe_subscription_id', subscription.id);
+                
+              if (updateError) {
+                console.error(`❌ Abonelik durumu güncellenemedi: ${updateError.message}`);
+              }
+            }
+          } catch (error) {
+            logWebhookError('INVOICE_PAYMENT', error as Error);
+          }
           break;
         }
         
