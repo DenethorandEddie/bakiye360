@@ -190,7 +190,7 @@ export default function SubscriptionPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            priceId: 'price_1LiQtQGUPk4i0W9uijrJdSPq' // Sabit price ID kullanıyoruz
+            priceId: 'price_1R2yjaGUPk4i0W9umpqRqn9c' // Sabit price ID kullanıyoruz
           }),
         });
         
