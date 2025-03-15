@@ -54,122 +54,57 @@ export default function SubscriptionPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    async function checkSubscriptionStatus() {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Önce kullanıcı bilgilerini al
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          console.error("Kullanıcı bilgileri alınamadı:", userError);
-          setError("Kullanıcı bilgileri alınamadı. Lütfen tekrar giriş yapın.");
-          setLoading(false);
-          return;
-        }
-        
-        setUserId(user.id);
-        console.log("Kullanıcı ID:", user.id);
-        
-        // ÖNEMLİ: Önce user_settings tablosunun gerçek yapısını öğrenelim
-        const { data: tableInfo, error: tableError } = await supabase
-          .from('user_settings')
-          .select('*')
-          .limit(1);
-        
-        console.log("Tablo yapısı kontrol ediliyor:", tableInfo, tableError);
-        
-        // Basit sorgu ile user_settings'i deneyelim
-        const { data: userSettings, error: settingsError } = await supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        console.log("User settings sorgusu:", userSettings, settingsError);
-        
-        if (settingsError) {
-          console.error("User settings bilgisi alınamadı:", settingsError);
-          
-          // Alternatif olarak basitleştirilmiş bir kontrol yapalım
-          // Burada subscription_status kontrolü yaparak ilerleyelim
-          const { data: isUserPremium } = await supabase.rpc('is_premium_user', {
-            user_id_param: user.id
-          });
-          
-          if (isUserPremium) {
-            console.log("RPC ile premium kullanıcı tespit edildi");
-            setIsPremium(true);
-          } else {
-            console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
-            setIsPremium(false);
-          }
-        } else if (userSettings) {
-          console.log("User settings bulundu:", userSettings);
-          
-          // Dinamik alan adı kontrolü - subscription_status veya status
-          const statusField = userSettings.subscription_status !== undefined 
-            ? 'subscription_status' 
-            : (userSettings.status !== undefined ? 'status' : null);
-          
-          if (statusField && userSettings[statusField] === 'premium') {
-            console.log("Premium abonelik aktif");
-            setIsPremium(true);
-            // Subscription ID'yi al (varsa)
-            setSubscriptionId(userSettings.stripe_subscription_id || null);
-            
-            // Abonelik detayları (varsa)
-            const endDateField = 
-              userSettings.subscription_period_end !== undefined ? 'subscription_period_end' : 
-              userSettings.period_end !== undefined ? 'period_end' : null;
-            
-            const startDateField = 
-              userSettings.subscription_start !== undefined ? 'subscription_start' : 
-              userSettings.start_date !== undefined ? 'start_date' : null;
-            
-            if (endDateField && userSettings[endDateField]) {
-              const periodEnd = new Date(userSettings[endDateField]);
-              setSubscriptionPeriodEnd(periodEnd);
-              
-              // Detay bilgilerini kaydet
-              setSubscriptionDetails({
-                status: 'premium',
-                startDate: startDateField && userSettings[startDateField] 
-                  ? new Date(userSettings[startDateField]) 
-                  : null,
-                endDate: periodEnd,
-                cancelAtPeriodEnd: userSettings.cancel_at_period_end || false
-              });
-            }
-          } else {
-            console.log("Kullanıcı ücretsiz pakette");
-            setIsPremium(false);
-          }
-        } else {
-          // Hiçbir ayar bulunamadı
-          console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
-          setIsPremium(false);
-        }
-      } catch (error) {
-        console.error("Abonelik durumu kontrol edilirken hata:", error);
-        setError("Abonelik durumu kontrol edilirken bir hata oluştu.");
-      } finally {
-        setLoading(false);
+    const checkStatus = async () => {
+      await checkSubscriptionStatus();
+      if (searchParams.get('success') === 'true') {
+        // 3 kez kontrol et (5sn aralıklarla)
+        let retries = 0;
+        const interval = setInterval(async () => {
+          if (retries >= 3) clearInterval(interval);
+          await checkSubscriptionStatus();
+          retries++;
+        }, 5000);
       }
-    }
-    
-    checkSubscriptionStatus();
-    
-    // Başarılı ödeme durumunda da abonelik durumunu kontrol et
-    const success = searchParams.get('success');
-    if (success === 'true') {
-      console.log("Başarılı ödeme sonrası abonelik durumu kontrol ediliyor");
-      // 5 saniye sonra abonelik durumunu tekrar kontrol et
-      setTimeout(() => checkSubscriptionStatus(), 5000);
-    }
+    };
+    checkStatus();
   }, [supabase, searchParams]);
-  
+
+  async function checkSubscriptionStatus() {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.error("Kullanıcı bilgileri alınamadı:", userError);
+        setError("Kullanıcı bilgileri alınamadı. Lütfen tekrar giriş yapın.");
+        setLoading(false);
+        return;
+      }
+      
+      setUserId(user.id);
+      
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (userSettings?.subscription_status === 'premium') {
+        setIsPremium(true);
+        setSubscriptionId(userSettings.stripe_subscription_id);
+      } else {
+        setIsPremium(false);
+      }
+    } catch (error) {
+      console.error("Abonelik durumu kontrol hatası:", error);
+      setError("Abonelik durumu alınamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const handleUpgrade = async () => {
     try {
       setSubscribeLoading(true);
