@@ -596,27 +596,29 @@ export default function SubscriptionPage() {
             </Card>
           </div>
           
-          <div className="mt-12 bg-card p-6 rounded-lg shadow-sm border">
-            <h2 className="text-2xl font-semibold mb-6">Sıkça Sorulan Sorular</h2>
+          <div className="mt-12">
+            <h2 className="text-2xl font-semibold mb-4">Sıkça Sorulan Sorular</h2>
             <div className="space-y-4">
-              {faqItems.map((faq, index) => (
+              {faqItems.map((item, index) => (
                 <div 
                   key={index} 
                   className="border rounded-lg overflow-hidden"
                 >
                   <button
-                    className="w-full p-4 flex justify-between items-center bg-card hover:bg-muted/50 transition-colors"
+                    className="flex justify-between items-center w-full p-4 text-left bg-card hover:bg-muted/50 transition-colors"
                     onClick={() => toggleFaq(index)}
                   >
-                    <h3 className="text-lg font-medium text-left">{faq.question}</h3>
-                    {openFaqIndex === index ? 
-                      <ChevronUp className="h-5 w-5 flex-shrink-0" /> : 
-                      <ChevronDown className="h-5 w-5 flex-shrink-0" />
-                    }
+                    <span className="font-medium">{item.question}</span>
+                    {openFaqIndex === index ? (
+                      <ChevronUp className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                    )}
                   </button>
+                  
                   {openFaqIndex === index && (
-                    <div className="p-4 bg-muted/20 border-t">
-                      <p className="text-muted-foreground">{faq.answer}</p>
+                    <div className="p-4 bg-muted/30 border-t">
+                      <p className="text-muted-foreground">{item.answer}</p>
                     </div>
                   )}
                 </div>
@@ -624,67 +626,77 @@ export default function SubscriptionPage() {
             </div>
           </div>
           
-          {/* Abonelik Sorun Çözme Paneli - Beta */}
-          <div className="mt-8 bg-red-50 dark:bg-red-950/20 p-6 rounded-lg border border-red-200 dark:border-red-800">
-            <h2 className="text-xl font-semibold mb-2 text-red-800 dark:text-red-400">Abonelik Sorun Giderme</h2>
-            <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-              Ödeme yaptığınız halde abonelik durumunuz güncellenmediyse, aşağıdaki butonu kullanarak sistemi yenilemeyi deneyebilirsiniz.
+          {/* Abonelik sorun giderme paneli */}
+          <div className="mt-12 border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 rounded-lg p-6">
+            <h2 className="text-2xl font-semibold mb-4 text-orange-800 dark:text-orange-400">Abonelik Sorun Giderme</h2>
+            <p className="text-orange-700 dark:text-orange-300 mb-4">
+              Eğer ödeme yaptığınız halde premium abonelik özelliklerine erişemiyorsanız, abonelik durumunuzu manuel olarak güncelleyebilirsiniz.
             </p>
-            <Button 
-              variant="destructive"
-              onClick={async () => {
-                if (!userId) {
-                  toast.error("Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.");
-                  return;
-                }
-                
-                if (!confirm("Abonelik durumunuzu manuel olarak güncellemek istediğinizden emin misiniz?")) {
-                  return;
-                }
-                
-                try {
-                  setLoading(true);
-                  
-                  // API'ye istek gönder
-                  const response = await fetch('/api/subscription/update-status', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      user_id: userId,
-                      status: 'premium'
-                    }),
-                  });
-                  
-                  if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || "Abonelik durumu güncellenemedi.");
+            
+            <div className="bg-white dark:bg-gray-900 p-4 rounded-md border border-orange-200 dark:border-orange-900 mb-4">
+              <h3 className="font-medium text-lg mb-2">Premium Abonelik Durumunu Güncelle</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Bu işlem, abonelik sistemiyle ilgili bir sorun yaşadığınızda ve ödeme yaptığınız halde premium özelliklerine erişemediğinizde kullanılmalıdır.
+              </p>
+              
+              <Button
+                onClick={async () => {
+                  if (!userId) {
+                    toast.error("Kullanıcı bilgisi bulunamadı");
+                    return;
                   }
                   
-                  toast.success("Abonelik durumunuz başarıyla güncellendi. Sayfayı yeniliyoruz...");
+                  const confirm = window.confirm(
+                    "Abonelik durumunuzu premium olarak güncellemek istediğinizden emin misiniz? Bu işlem sadece ödeme yaptığınız halde aboneliğiniz güncellenmediyse kullanılmalıdır."
+                  );
                   
-                  // Sayfayı yenile
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 2000);
+                  if (!confirm) return;
                   
-                } catch (error) {
-                  console.error("Abonelik güncelleme hatası:", error);
-                  toast.error(error instanceof Error ? error.message : "Abonelik durumu güncellenirken bir hata oluştu.");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? "İşleniyor..." : "Abonelik Durumumu Güncelle"}
-            </Button>
-            <p className="text-xs text-red-600 dark:text-red-400 mt-3">
-              Not: Bu işlem sadece ödeme yaptığınız halde abonelik durumunuz güncellenmediyse kullanılmalıdır.
-              Yardıma ihtiyacınız varsa lütfen destek ekibimizle iletişime geçin.
-            </p>
+                  try {
+                    setSubscribeLoading(true);
+                    
+                    const response = await fetch('/api/subscription/update-status', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        userId: userId,
+                        status: 'premium'
+                      })
+                    });
+                    
+                    if (!response.ok) {
+                      const errorData = await response.json();
+                      throw new Error(errorData.error || "Abonelik güncellenemedi");
+                    }
+                    
+                    const data = await response.json();
+                    toast.success("Abonelik durumunuz premium olarak güncellendi!");
+                    
+                    // Sayfayı yeniden yükle
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 2000);
+                    
+                  } catch (error) {
+                    console.error("Abonelik güncelleme hatası:", error);
+                    toast.error(error instanceof Error ? error.message : "Abonelik güncellenirken bir hata oluştu");
+                  } finally {
+                    setSubscribeLoading(false);
+                  }
+                }}
+                variant="default"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? "İşleniyor..." : "Abonelik Durumumu Güncelle"}
+              </Button>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-3">
+                Not: Bu işlem sadece ödeme yaptığınız halde abonelik durumunuz güncellenmediyse kullanılmalıdır.
+                Yardıma ihtiyacınız varsa lütfen destek ekibimizle iletişime geçin.
+              </p>
+            </div>
           </div>
           
           {/* Fatura tablosu - sadece premium kullanıcılara göster */}
