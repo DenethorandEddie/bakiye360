@@ -1,107 +1,132 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import Stripe from "stripe";
 
 // App Router için modern config
 export const dynamic = 'force-dynamic';
 
-// Stripe API anahtarı
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia" as any,
-});
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
+};
 
-export async function GET(request: Request) {
+// OPTIONS metodu için handler
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
+export async function GET(req: NextRequest) {
+  console.log("🔄 Test premium isteği alındı");
+  
   try {
+    // URL'den userId parametresini al
+    const userId = req.nextUrl.searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Kullanıcı ID'si gereklidir" },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    
+    console.log(`📝 Test için premium yapılacak kullanıcı: ${userId}`);
+    
+    // Supabase client oluştur
     const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (userError || !user) {
-      return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 401 });
-    }
-    
-    // Şu anki tarih
-    const now = new Date();
-    
-    // 30 gün sonrası
-    const nextMonth = new Date();
-    nextMonth.setDate(nextMonth.getDate() + 30);
-    
-    // Bu, arka planda tüm webhook ve abonelik işlemlerini tetikleyecek
-    // Gerçek bir ödeme yapmadan test amaçlı
-    const testCustomerId = `manual_test_${Date.now()}`;
-    const testSubscriptionId = `manual_test_sub_${Date.now()}`;
-    
-    // 1. Veritabanına premium abonelik ekle
-    const { data: subscriptionData, error: subscriptionError } = await supabase
-      .from("subscriptions")
-      .upsert({
-        user_id: user.id,
-        status: 'active',
-        plan: 'premium',
-        stripe_customer_id: testCustomerId,
-        stripe_subscription_id: testSubscriptionId,
-        current_period_start: now.toISOString(),
-        current_period_end: nextMonth.toISOString(),
-        created_at: now.toISOString(),
-        updated_at: now.toISOString()
-      });
+    // Önce tablonun yapısını öğren
+    const { data: tableInfo, error: tableError } = await supabase
+      .from('user_settings')
+      .select('*')
+      .limit(1);
       
-    if (subscriptionError) {
-      console.error("Abonelik kaydı oluşturulamadı:", subscriptionError);
-      return NextResponse.json(
-        { error: "Abonelik kaydı oluşturulamadı: " + subscriptionError.message },
-        { status: 500 }
-      );
+    console.log("Tablo yapısı:", tableInfo, tableError);
+    
+    // Kullanıcı ayarlarını kontrol et
+    const { data: userSettings, error: settingsError } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    console.log("Mevcut kullanıcı ayarları:", userSettings, settingsError);
+    
+    // Eğer hata varsa veya kullanıcı ayarları bulunamadıysa yeni kayıt oluştur
+    if (settingsError || !userSettings) {
+      // Dinamik olarak insert yapalım - muhtemel alan adları
+      const insertData: any = {
+        user_id: userId,
+      };
+      
+      // İki olası alan adı için de değer girelim
+      insertData.subscription_status = 'premium';
+      insertData.status = 'premium';
+      
+      const { data: insertResult, error: insertError } = await supabase
+        .from('user_settings')
+        .insert(insertData);
+        
+      if (insertError) {
+        console.error("Yeni kullanıcı ayarı oluşturma hatası:", insertError);
+        return NextResponse.json(
+          { error: "Premium abonelik kaydı oluşturulamadı" },
+          { status: 500, headers: corsHeaders }
+        );
+      }
+      
+      console.log("Yeni premium abonelik kaydı oluşturuldu:", insertResult);
+    } else {
+      // Mevcut kaydı güncelle
+      const updateData: any = {};
+      
+      // Her iki olası alan adı için de güncelleme yapalım
+      if ('subscription_status' in userSettings) {
+        updateData.subscription_status = 'premium';
+      }
+      
+      if ('status' in userSettings) {
+        updateData.status = 'premium';
+      }
+      
+      // En azından bir alan güncelleniyor mu kontrol et
+      if (Object.keys(updateData).length === 0) {
+        // Hiçbir alan tanımlanmamış, bu durumda iki alanı da güncelleyelim
+        updateData.subscription_status = 'premium';
+        updateData.status = 'premium';
+      }
+      
+      const { data: updateResult, error: updateError } = await supabase
+        .from('user_settings')
+        .update(updateData)
+        .eq('user_id', userId);
+        
+      if (updateError) {
+        console.error("Kullanıcı ayarı güncelleme hatası:", updateError);
+        return NextResponse.json(
+          { error: "Premium abonelik güncellenemedi" },
+          { status: 500, headers: corsHeaders }
+        );
+      }
+      
+      console.log("Premium abonelik güncellendi:", updateResult);
     }
     
-    // 2. Kullanıcı ayarlarını güncelle 
-    const { data: userSettingsData, error: userSettingsError } = await supabase
-      .from("user_settings")
-      .upsert({
-        user_id: user.id,
-        subscription_status: 'premium',
-        stripe_customer_id: testCustomerId,
-        stripe_subscription_id: testSubscriptionId,
-        subscription_period_start: now.toISOString(),
-        subscription_period_end: nextMonth.toISOString(),
-        updated_at: now.toISOString()
-      });
+    return NextResponse.json(
+      { success: true, message: "Premium abonelik aktifleştirildi" },
+      { status: 200, headers: corsHeaders }
+    );
+  } catch (error: any) {
+    console.error("Test premium hatası:", error);
     
-    if (userSettingsError) {
-      console.error("Kullanıcı ayarları güncellenemedi:", userSettingsError);
-      return NextResponse.json(
-        { error: "Kullanıcı ayarları güncellenemedi: " + userSettingsError.message },
-        { status: 500 }
-      );
-    }
-    
-    // 3. Bildirim ekle
-    const { data: notificationData, error: notificationError } = await supabase
-      .from("notifications")
-      .insert({
-        user_id: user.id,
-        title: 'Test Premium Abonelik Aktif',
-        content: 'Test premium aboneliğiniz başarıyla etkinleştirildi. Bu test amaçlı bir aboneliktir ve gerçek bir ödeme yapılmamıştır.',
-        read: false,
-        type: 'subscription',
-        created_at: now.toISOString(),
-        link: '/dashboard/subscription'
-      });
-    
-    if (notificationError) {
-      console.warn("Bildirim eklenemedi:", notificationError);
-      // Bildirim hatası kritik değil, devam et
-    }
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: "Premium abonelik manuel olarak eklendi. Sayfayı yenileyiniz." 
-    });
-  } catch (error) {
-    console.error("Test premium hata:", error);
-    return NextResponse.json({ 
-      error: "İşlem sırasında bir hata oluştu: " + (error as Error).message
-    }, { status: 500 });
+    return NextResponse.json(
+      { 
+        error: "Premium abonelik işlemi başarısız", 
+        details: error.message || "Bilinmeyen hata"
+      },
+      { status: 500, headers: corsHeaders }
+    );
   }
 } 
