@@ -1,77 +1,109 @@
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { createClient } from '@supabase/supabase-js';
+import { NextApiRequest, NextApiResponse } from 'next';
+import Stripe from 'stripe';
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export async function POST(req: NextApiRequest, res: NextApiResponse) {
+  const supabase = createServerSupabaseClient({ req, res });
 
-export async function POST(req: Request) {
-  const payload = await req.text();
-  const sig = req.headers.get("stripe-signature")!;
+  const body = await JSON.stringify(req.body);
+  const signature = req.headers['stripe-signature'] as string;
+
+  let event;
 
   try {
-    const event = stripe.webhooks.constructEvent(
-      payload,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch (err: any) {
+    console.error('Webhook signature verification failed:', err);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      
-      // Abonelik detaylarını Stripe'dan al
-      const subscription = session.subscription 
-        ? await stripe.subscriptions.retrieve(session.subscription as string)
-        : null;
-      
-      const currentDate = new Date().toISOString();
-      // Bir sonraki ay için tarih hesapla (varsayılan)
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      
-      await supabase
+  // Handle the checkout.session.completed event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+
+    try {
+      // Retrieve the subscription details from Stripe
+      const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+
+      // Calculate the subscription start and end dates
+      const subscriptionStart = new Date(subscription.current_period_start * 1000).toISOString();
+      const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+
+      // Fetch the user's record from Supabase
+      const { data: userData, error: userError } = await supabase
         .from('user_settings')
-        .update({ 
+        .select('*')
+        .eq('stripe_customer_id', session.customer)
+        .single();
+
+      if (userError) {
+        throw userError;
+      }
+
+      // Update the user's subscription details in Supabase
+      const { error: updateError } = await supabase
+        .from('user_settings')
+        .update({
           subscription_status: 'premium',
-          stripe_subscription_id: session.subscription,
-          subscription_start: currentDate, // Abonelik başlangıç tarihi
-          subscription_end: subscription?.current_period_end 
-            ? new Date(subscription.current_period_end * 1000).toISOString() 
-            : nextMonth.toISOString(), // Abonelik bitiş tarihi (Stripe'dan veya hesaplanmış)
-          subscription_period_start: subscription?.current_period_start 
-            ? new Date(subscription.current_period_start * 1000).toISOString() 
-            : currentDate, // Mevcut dönem başlangıcı
-          subscription_period_end: subscription?.current_period_end 
-            ? new Date(subscription.current_period_end * 1000).toISOString() 
-            : nextMonth.toISOString(), // Mevcut dönem bitişi
+          stripe_subscription_id: subscription.id,
+          subscription_start_date: subscriptionStart,
+          subscription_end_date: subscriptionEnd,
           email_notifications: true,
           budget_alerts: true,
-          monthly_reports: true
+          monthly_reports: true,
         })
-        .eq('user_id', session.client_reference_id);
-    }
+        .eq('id', userData.id);
 
-    if (event.type === "customer.subscription.deleted") {
-      const subscription = event.data.object as Stripe.Subscription;
-      
-      await supabase
+      if (updateError) {
+        throw updateError;
+      }
+
+      console.log('Subscription updated successfully in Supabase');
+    } catch (error) {
+      console.error('Error processing subscription:', error);
+      return res.status(400).send('Webhook handler failed. View logs.');
+    }
+  }
+
+  // Handle the customer.subscription.deleted event
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object as Stripe.Subscription;
+
+    try {
+      // Fetch the user's record from Supabase
+      const { data: userData, error: userError } = await supabase
         .from('user_settings')
-        .update({ 
+        .select('*')
+        .eq('stripe_subscription_id', subscription.id)
+        .single();
+
+      if (userError) {
+        throw userError;
+      }
+
+      // Update the user's subscription status in Supabase
+      const { error: updateError } = await supabase
+        .from('user_settings')
+        .update({
           subscription_status: 'free',
           email_notifications: false,
           budget_alerts: false,
-          monthly_reports: false
+          monthly_reports: false,
         })
-        .eq('stripe_subscription_id', subscription.id);
-    }
+        .eq('id', userData.id);
 
-    return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error("Webhook error:", error);
-    return NextResponse.json({ error: "Webhook failed" }, { status: 400 });
+      if (updateError) {
+        throw updateError;
+      }
+
+      console.log('Subscription cancelled successfully in Supabase');
+    } catch (error) {
+      console.error('Error processing subscription cancellation:', error);
+      return res.status(400).send('Webhook handler failed. View logs.');
+    }
   }
-} 
+
+  res.json({ received: true });
+}

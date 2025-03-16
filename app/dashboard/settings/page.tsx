@@ -82,26 +82,17 @@ export default function SettingsPage() {
           if (status === 'premium') {
             // Abonelik tarihlerini kontrol edelim
             console.log("Orijinal tarih verileri:", {
-              başlangıç: userSettingsData.subscription_period_start,
-              bitiş: userSettingsData.subscription_period_end,
+              başlangıç: userSettingsData.subscription_start_date,
+              bitiş: userSettingsData.subscription_end_date,
               tip: {
-                başlangıç: typeof userSettingsData.subscription_period_start,
-                bitiş: typeof userSettingsData.subscription_period_end
+                başlangıç: typeof userSettingsData.subscription_start_date,
+                bitiş: typeof userSettingsData.subscription_end_date
               }
             });
 
             // Eğer tarihler null veya undefined ise, varsayılan değerler atayalım
-            let startDate = userSettingsData.subscription_start ? String(userSettingsData.subscription_start) : null;
-            let endDate = userSettingsData.subscription_end ? String(userSettingsData.subscription_end) : null;
-            
-            // Eğer tarihler hala null ise, subscription_period_start ve subscription_period_end'i deneyelim
-            if (!startDate) {
-              startDate = userSettingsData.subscription_period_start ? String(userSettingsData.subscription_period_start) : null;
-            }
-            
-            if (!endDate) {
-              endDate = userSettingsData.subscription_period_end ? String(userSettingsData.subscription_period_end) : null;
-            }
+            let startDate = userSettingsData.subscription_start_date ? String(userSettingsData.subscription_start_date) : null;
+            let endDate = userSettingsData.subscription_end_date ? String(userSettingsData.subscription_end_date) : null;
             
             // Eğer hala null ise, hesaplama yapmayalım, kayıtlı tarihleri kullanalım
             if (!startDate || !endDate) {
@@ -182,14 +173,10 @@ export default function SettingsPage() {
         return;
       }
       
-      // Sadece free plan ve bildirim ayarları açıksa güncelleme yap
-      // Bu şekilde sonsuz döngüyü engelleyeceğiz
-      if (subscriptionStatus === 'free' && 
-          (settings.notifications.email || 
-           settings.notifications.budgetAlerts || 
-           settings.notifications.monthlyReports)) {
-        
-        console.log("Free plan için bildirim ayarları kapatılıyor...");
+      // SADECE free plan için bildirim ayarlarını kapat
+      // Premium kullanıcıların ayarlarına dokunma
+      if (subscriptionStatus === 'free') {
+        console.log("Free plan için bildirim ayarları kontrol ediliyor...");
         
         // Supabase'e kaydet (önce veritabanını güncelle)
         if (supabase && user) {
@@ -202,7 +189,8 @@ export default function SettingsPage() {
                 monthly_reports: false,
                 updated_at: new Date().toISOString()
               })
-              .eq('user_id', user.id);
+              .eq('user_id', user.id)
+              .eq('subscription_status', 'free'); // SADECE free kullanıcılar için güncelle
               
             if (error) {
               console.error('Free plan ayarları güncellenirken hata:', error);
