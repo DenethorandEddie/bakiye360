@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { loadStripe } from "@stripe/stripe-js";
-import { CheckCircle, XCircle, Loader2, CreditCard, Sparkles, Shield, Clock, ArrowRight, ChevronDown, ChevronUp, FileText, Download, ExternalLink } from "lucide-react";
+import { CreditCard, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 // Stripe promise dışarıda oluşturuluyor (her render'da yeniden oluşturulmaması için)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
@@ -16,14 +16,35 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
 interface UserSettings {
   subscription_status: string;
   stripe_subscription_id: string | null;
-  subscription_period_end: string | null;
-  subscription_start: string | null;
-  subscription_end: string | null;
-  cancel_at_period_end: boolean;
+  subscription_start_date: string | null;
+  subscription_end_date: string | null;
   email_notifications: boolean;
   budget_alerts: boolean;
   monthly_reports: boolean;
 }
+
+// Tarih formatını düzenle
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return "Tarih bilgisi bulunamadı";
+  
+  try {
+    const date = new Date(dateString);
+    // Geçerli bir tarih mi kontrol et
+    if (isNaN(date.getTime())) {
+      console.error("Geçersiz tarih formatı:", dateString);
+      return "Geçersiz tarih formatı";
+    }
+    
+    return date.toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (error) {
+    console.error("Tarih formatlanırken hata:", error);
+    return "Tarih işlenemedi";
+  }
+};
 
 export default function SubscriptionPage() {
   const [isPremium, setIsPremium] = useState<boolean>(false);
@@ -34,8 +55,6 @@ export default function SubscriptionPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [invoicesLoading, setInvoicesLoading] = useState<boolean>(false);
   const [subscriptionDetails, setSubscriptionDetails] = useState<any>(null);
   const [subscriptionPeriodEnd, setSubscriptionPeriodEnd] = useState<Date | null>(null);
   
@@ -44,22 +63,24 @@ export default function SubscriptionPage() {
 
   // URL parametrelerini kontrol et
   useEffect(() => {
-    const success = searchParams.get('success');
-    const canceled = searchParams.get('canceled');
-    
-    if (success === 'true') {
-      toast.success('Aboneliğiniz başarıyla oluşturuldu! Premium özelliklere erişebilirsiniz.');
-    }
-    
-    if (canceled === 'true') {
-      toast.error('Ödeme işlemi iptal edildi. İsterseniz daha sonra tekrar deneyebilirsiniz.');
+    if (searchParams) {
+      const success = searchParams.get('success');
+      const canceled = searchParams.get('canceled');
+      
+      if (success === 'true') {
+        toast.success('Aboneliğiniz başarıyla oluşturuldu! Premium özelliklere erişebilirsiniz.');
+      }
+      
+      if (canceled === 'true') {
+        toast.error('Ödeme işlemi iptal edildi. İsterseniz daha sonra tekrar deneyebilirsiniz.');
+      }
     }
   }, [searchParams]);
 
   useEffect(() => {
     const checkStatus = async () => {
       await checkSubscriptionStatus();
-      if (searchParams.get('success') === 'true') {
+      if (searchParams && searchParams.get('success') === 'true') {
         // 3 kez kontrol et (5sn aralıklarla)
         let retries = 0;
         const interval = setInterval(async () => {
@@ -294,556 +315,218 @@ export default function SubscriptionPage() {
     }
   };
   
-  // Faturaları getiren fonksiyon
-  const fetchInvoices = async () => {
-    if (!isPremium) return;
-    
-    setInvoicesLoading(true);
-    try {
-      const response = await fetch('/api/invoices');
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Faturalar alınırken bir hata oluştu');
-      }
-      
-      const { data } = await response.json();
-      setInvoices(data || []);
-    } catch (error) {
-      console.error('Fatura getirme hatası:', error);
-      toast.error('Faturalar alınırken bir hata oluştu');
-    } finally {
-      setInvoicesLoading(false);
-    }
-  };
-  
-  // Fatura indirme veya görüntüleme fonksiyonu
-  const viewInvoice = (url: string | null) => {
-    if (!url) {
-      toast.error('Fatura erişim linki bulunamadı');
-      return;
-    }
-    
-    window.open(url, '_blank');
-  };
-  
-  // Premium kullanıcılar için faturaları getir
+  // Mevcut ayarları Supabase'den yükle
   useEffect(() => {
-    if (isPremium && !loading) {
-      fetchInvoices();
+    async function loadUserSettings() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setError("Kullanıcı bilgileri alınamadı.");
+          return;
+        }
+        
+        setUserId(user.id);
+        
+        const { data: userSettingsData } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (userSettingsData) {
+          const status = userSettingsData.subscription_status;
+          
+          // Abonelik durumunu subscription_status'a göre belirle
+          if (status === 'premium') {
+            setIsPremium(true);
+            setSubscriptionId(userSettingsData.stripe_subscription_id);
+            
+            // Abonelik premium ise detayları ayarla
+            setSubscriptionDetails({
+              currentPeriodStart: userSettingsData.subscription_start_date ? String(userSettingsData.subscription_start_date) : null,
+              currentPeriodEnd: userSettingsData.subscription_end_date ? String(userSettingsData.subscription_end_date) : null,
+              stripeSubscriptionId: userSettingsData.stripe_subscription_id ? String(userSettingsData.stripe_subscription_id) : null
+            });
+          } else {
+            setIsPremium(false);
+            
+            // Free kullanıcı için abonelik detaylarını sıfırla
+            setSubscriptionDetails({
+              currentPeriodStart: null,
+              currentPeriodEnd: null,
+              stripeSubscriptionId: null
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Abonelik durumu kontrol hatası:", error);
+        setError("Abonelik durumu alınamadı");
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [isPremium, loading]);
-  
+    
+    loadUserSettings();
+  }, [supabase]);
+
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-4">Abonelik Paketleri</h1>
-      <p className="text-muted-foreground mb-8">Finansal hedeflerinize ulaşmak için ihtiyacınıza en uygun planı seçin.</p>
-      
-      {loading ? (
-        <div className="flex justify-center items-center p-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Abonelik durumu kontrol ediliyor...</span>
-        </div>
-      ) : error ? (
-        <div className="bg-destructive/10 p-4 rounded-md text-destructive mb-8">
-          <p>{error}</p>
-          <Button variant="outline" className="mt-2" onClick={() => window.location.reload()}>
-            Tekrar Dene
-          </Button>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            {/* Ücretsiz Paket */}
-            <Card className={`border-2 ${!isPremium ? "border-primary" : "border-border"}`}>
-              <CardHeader>
-                <CardTitle>Ücretsiz Paket</CardTitle>
-                <CardDescription>Temel finansal yönetim özellikleri</CardDescription>
-                <div className="mt-2 text-3xl font-bold">₺0 <span className="text-sm font-normal">/ay</span></div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Aylık 30 işlem girişi</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>1 bütçe hedefi oluşturma</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Temel gelir-gider raporları</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Temel harcama kategorileri</span>
-                  </div>
-                  <div className="flex items-center">
-                    <XCircle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-muted-foreground">Sınırsız işlem girişi</span>
-                  </div>
-                  <div className="flex items-center">
-                    <XCircle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-muted-foreground">Sınırsız bütçe hedefi</span>
-                  </div>
-                  <div className="flex items-center">
-                    <XCircle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-muted-foreground">Gelişmiş kategorilere erişim</span>
-                  </div>
-                  <div className="flex items-center">
-                    <XCircle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-muted-foreground">Gelişmiş analiz grafikleri</span>
-                  </div>
-                </div>
-                
-                {!isPremium && (
-                  <div className="mt-6">
-                    <div className="bg-primary/10 p-3 rounded-md text-primary text-center text-sm mb-4">
-                      Şu anda Ücretsiz Paketi kullanıyorsunuz
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Premium Paket */}
-            <Card className={`border-2 ${isPremium ? "border-primary" : "border-border"} relative overflow-hidden shadow-lg`}>
-              {!isPremium && (
-                <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-medium rounded-bl-lg shadow-sm">
-                  Önerilen
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10 pointer-events-none"></div>
-              <CardHeader className="relative">
-                <CardTitle>Premium Paket</CardTitle>
-                <CardDescription>Gelişmiş finansal analiz ve planlama</CardDescription>
-                <div className="mt-2 text-3xl font-bold">₺149.99 <span className="text-sm font-normal">/ay</span></div>
-              </CardHeader>
-              <CardContent className="relative pb-0">
-                <div className="space-y-4">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Sınırsız işlem girişi</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Sınırsız bütçe hedefi oluşturma</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Detaylı finansal raporlar ve grafikler</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Tüm kategorilere tam erişim</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Harcama tahmin ve analizi</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Tekrarlayan işlem takibi</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Veri yedekleme ve dışa aktarma</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Öncelikli destek ve güncellemeler</span>
-                  </div>
-                </div>
-                
-                <div className="mt-6">
-                  {isPremium ? (
-                    <>
-                      <div className="bg-primary/10 p-3 rounded-md text-primary text-center text-sm mb-4">
-                        Premium Paketi kullanıyorsunuz
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-              </CardContent>
-              <CardFooter className="relative pt-4 flex flex-col gap-3">
-                {isPremium ? (
-                  <Button 
-                    variant="destructive" 
-                    className="w-full"
-                    onClick={handleCancelSubscription}
-                    disabled={cancelLoading}
-                  >
-                    {cancelLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        İptal Ediliyor...
-                      </>
-                    ) : "Aboneliği İptal Et"}
-                  </Button>
-                ) : (
-                  <>
-                    <Button 
-                      className="w-full" 
-                      onClick={handleUpgrade}
-                      disabled={subscribeLoading}
-                    >
-                      {subscribeLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          İşleniyor...
-                        </>
-                      ) : (
-                        <>
-                          Premium'a Yükselt
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-                    <div className="flex items-center justify-center w-full gap-4 px-4 text-xs text-muted-foreground">
-                      <div className="flex items-center">
-                        <CreditCard className="h-3 w-3 mr-1" />
-                        Güvenli Ödeme
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        İptal Kolaylığı
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardFooter>
-            </Card>
-          </div>
-          
-          <div className="mt-12">
-            <h2 className="text-2xl font-semibold mb-4">Sıkça Sorulan Sorular</h2>
+    <div className="container py-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Abonelik</h1>
+        <p className="text-muted-foreground">
+          Abonelik planınızı yönetin ve abonelik detaylarınızı görüntüleyin
+        </p>
+      </div>
+
+      <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Mevcut Plan</CardTitle>
+            </div>
+            <CardDescription>
+              Mevcut abonelik planınızı görüntüleyin veya değiştirin
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-4">
-              {faqItems.map((item, index) => (
-                <div 
-                  key={index} 
-                  className="border rounded-lg overflow-hidden"
-                >
-                  <button
-                    className="flex justify-between items-center w-full p-4 text-left bg-card hover:bg-muted/50 transition-colors"
-                    onClick={() => toggleFaq(index)}
-                  >
-                    <span className="font-medium">{item.question}</span>
-                    {openFaqIndex === index ? (
-                      <ChevronUp className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                    )}
-                  </button>
-                  
-                  {openFaqIndex === index && (
-                    <div className="p-4 bg-muted/30 border-t">
-                      <p className="text-muted-foreground">{item.answer}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          {/* Abonelik sorun giderme paneli */}
-          <div className="mt-12 border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 rounded-lg p-6">
-            <h2 className="text-2xl font-semibold mb-4 text-orange-800 dark:text-orange-400">Abonelik Sorun Giderme</h2>
-            <p className="text-orange-700 dark:text-orange-300 mb-4">
-              Eğer ödeme yaptığınız halde premium abonelik özelliklerine erişemiyorsanız, abonelik durumunuzu manuel olarak güncelleyebilirsiniz.
-            </p>
-            
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-md border border-orange-200 dark:border-orange-900 mb-4">
-              <h3 className="font-medium text-lg mb-2">Premium Abonelik Durumunu Güncelle</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Bu işlem, abonelik sistemiyle ilgili bir sorun yaşadığınızda ve ödeme yaptığınız halde premium özelliklerine erişemediğinizde kullanılmalıdır.
-              </p>
-              
-              <Button
-                onClick={async () => {
-                  if (!userId) {
-                    toast.error("Kullanıcı bilgisi bulunamadı");
-                    return;
-                  }
-                  
-                  const confirm = window.confirm(
-                    "Abonelik durumunuzu premium olarak güncellemek istediğinizden emin misiniz? Bu işlem sadece ödeme yaptığınız halde aboneliğiniz güncellenmediyse kullanılmalıdır."
-                  );
-                  
-                  if (!confirm) return;
-                  
-                  try {
-                    setSubscribeLoading(true);
-                    
-                    const response = await fetch('/api/subscription/update-status', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        userId: userId,
-                        status: 'premium'
-                      })
-                    });
-                    
-                    if (!response.ok) {
-                      const errorData = await response.json();
-                      throw new Error(errorData.error || "Abonelik güncellenemedi");
-                    }
-                    
-                    const data = await response.json();
-                    toast.success("Abonelik durumunuz premium olarak güncellendi!");
-                    
-                    // Sayfayı yeniden yükle
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 2000);
-                    
-                  } catch (error) {
-                    console.error("Abonelik güncelleme hatası:", error);
-                    toast.error(error instanceof Error ? error.message : "Abonelik güncellenirken bir hata oluştu");
-                  } finally {
-                    setSubscribeLoading(false);
-                  }
-                }}
-                variant="default"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? "İşleniyor..." : "Abonelik Durumumu Güncelle"}
-              </Button>
-              <p className="text-xs text-red-600 dark:text-red-400 mt-3">
-                Not: Bu işlem sadece ödeme yaptığınız halde abonelik durumunuz güncellenmediyse kullanılmalıdır.
-                Yardıma ihtiyacınız varsa lütfen destek ekibimizle iletişime geçin.
-              </p>
-            </div>
-          </div>
-          
-          {/* Fatura tablosu - sadece premium kullanıcılara göster */}
-          {isPremium && (
-            <div className="mt-12">
-              <h2 className="text-2xl font-semibold mb-4">Fatura Geçmişi</h2>
-              <p className="text-muted-foreground mb-4">
-                Ödeme geçmişinizi görüntüleyin ve faturalarınızı indirin.
-              </p>
-              
-              {invoicesLoading ? (
-                <div className="flex justify-center items-center p-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-2">Faturalar alınıyor...</span>
-                </div>
-              ) : invoices.length === 0 ? (
-                <div className="bg-muted/20 p-6 rounded-lg text-center">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <h3 className="text-lg font-medium">Henüz faturanız bulunmuyor</h3>
-                  <p className="text-muted-foreground mt-1">
-                    Ödeme yaptıktan sonra faturalarınız burada listelenecektir.
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-medium">
+                    {isPremium ? 'Premium' : 'Ücretsiz'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {isPremium
+                      ? 'Premium özelliklerden yararlanıyorsunuz'
+                      : 'Temel özelliklerle sınırlısınız'}
                   </p>
                 </div>
-              ) : (
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="min-w-full divide-y divide-border">
-                    <thead className="bg-muted/30">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Tarih
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Tutar
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Durum
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Dönem
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          İşlemler
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-card divide-y divide-border">
-                      {invoices.map((invoice) => (
-                        <tr key={invoice.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {new Date(invoice.created * 1000).toLocaleDateString('tr-TR')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {new Intl.NumberFormat('tr-TR', {
-                              style: 'currency',
-                              currency: invoice.currency.toUpperCase(),
-                            }).format(invoice.amount_paid)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium 
-                              ${invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                              'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'}`}>
-                              {invoice.status === 'paid' ? 'Ödendi' : invoice.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {invoice.period_start && invoice.period_end ? (
-                              <>
-                                {new Date(invoice.period_start).toLocaleDateString('tr-TR')} - {' '}
-                                {new Date(invoice.period_end).toLocaleDateString('tr-TR')}
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => viewInvoice(invoice.hosted_invoice_url)}
-                              title="Görüntüle"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => viewInvoice(invoice.pdf_url)}
-                              title="PDF İndir"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {!isPremium && (
+                  <Button onClick={handleUpgrade} disabled={subscribeLoading}>
+                    {subscribeLoading ? 'Yükleniyor...' : 'Premium\'a Yükselt'}
+                  </Button>
+                )}
+              </div>
+
+              {isPremium && (
+                <div className="mt-4 border rounded-md p-4 bg-muted/20">
+                  <h4 className="font-medium mb-2">Premium Abonelik Detayları</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Abonelik başlangıç:</span>
+                      <span className="text-sm font-medium">{subscriptionDetails?.currentPeriodStart ? formatDate(subscriptionDetails.currentPeriodStart) : 'Yükleniyor...'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Sonraki ödeme tarihi:</span>
+                      <span className="text-sm font-medium">{subscriptionDetails?.currentPeriodEnd ? formatDate(subscriptionDetails.currentPeriodEnd) : 'Yükleniyor...'}</span>
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      Aboneliğiniz sonraki ödeme tarihinde otomatik olarak yenilenecektir.
+                    </div>
+                  </div>
                 </div>
               )}
-              
-              <div className="mt-4 text-sm text-muted-foreground">
-                <p>Fatura ile ilgili sorularınız için lütfen <a href="mailto:destek@bakiye360.com" className="text-primary hover:underline">destek@bakiye360.com</a> adresine e-posta gönderin.</p>
-              </div>
             </div>
-          )}
-          
-          {/* Premium kullanıcılar için abonelik detayları kartı */}
-          {isPremium && subscriptionDetails && (
-            <div className="mt-8 bg-card p-6 rounded-lg shadow-sm border">
-              <h2 className="text-xl font-semibold mb-4">Abonelik Detayları</h2>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Abonelik Durumu:</span>
-                  <span className="font-medium">
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                      Premium
-                    </span>
-                  </span>
+          </CardContent>
+        </Card>
+
+        {isPremium && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>Premium Avantajları</CardTitle>
+              </div>
+              <CardDescription>
+                Premium aboneliğinizin size sunduğu avantajlar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Sınırsız işlem girişi</h3>
+                    <p className="text-sm text-muted-foreground">Dilediğiniz kadar gelir gider işlemi ekleyebilirsiniz</p>
+                  </div>
                 </div>
-                
-                {subscriptionDetails.startDate && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Başlangıç Tarihi:</span>
-                    <span className="font-medium">
-                      {subscriptionDetails.startDate.toLocaleDateString('tr-TR')}
-                    </span>
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
                   </div>
-                )}
-                
-                {subscriptionPeriodEnd && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Yenileme Tarihi:</span>
-                    <span className="font-medium">
-                      {subscriptionPeriodEnd.toLocaleDateString('tr-TR')}
-                      {subscriptionDetails.cancelAtPeriodEnd && 
-                        " (İptal edildi, bu tarihte sonlanacak)"}
-                    </span>
+                  <div>
+                    <h3 className="font-medium">Sınırsız bütçe hedefi</h3>
+                    <p className="text-sm text-muted-foreground">İstediğiniz sayıda bütçe hedefi belirleyebilirsiniz</p>
                   </div>
-                )}
-                
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Otomatik Yenileme:</span>
-                  <span className="font-medium">
-                    {subscriptionDetails.cancelAtPeriodEnd ? 
-                      <span className="text-destructive">Kapalı</span> : 
-                      <span className="text-green-600 dark:text-green-400">Açık</span>}
-                  </span>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Detaylı raporlar</h3>
+                    <p className="text-sm text-muted-foreground">Gelir gider analizlerinizi detaylı grafiklerle takip edin</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Tüm kategoriler</h3>
+                    <p className="text-sm text-muted-foreground">Gelir gider işlemlerinizi detaylı kategorilere ayırın</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Harcama analizi</h3>
+                    <p className="text-sm text-muted-foreground">Harcamalarınızı analiz edin, tasarruf fırsatlarını keşfedin</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Tekrarlayan işlemler</h3>
+                    <p className="text-sm text-muted-foreground">Düzenli ödemelerinizi kolayca takip edin</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 rounded-full p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Öncelikli destek</h3>
+                    <p className="text-sm text-muted-foreground">Sorularınıza hızlı ve öncelikli yanıt, kesintisiz hizmet</p>
+                  </div>
                 </div>
               </div>
-              
-              <div className="mt-6 pt-4 border-t">
-                <h3 className="text-sm font-medium mb-2">Abonelik Ayarları</h3>
-                <div className="space-x-2">
-                  {!subscriptionDetails.cancelAtPeriodEnd && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleCancelSubscription}
-                      disabled={cancelLoading}
-                    >
-                      {cancelLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          İptal Ediliyor...
-                        </>
-                      ) : "Aboneliği İptal Et"}
-                    </Button>
-                  )}
-                  
-                  {subscriptionDetails.cancelAtPeriodEnd && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={async () => {
-                        // İptal edilmiş aboneliği yeniden aktifleştir
-                        if (!subscriptionId) {
-                          toast.error("Abonelik bilgisi bulunamadı.");
-                          return;
-                        }
-                        
-                        setCancelLoading(true);
-                        
-                        try {
-                          const response = await fetch('/api/reactivate-subscription', {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                              subscriptionId,
-                            }),
-                          });
-                          
-                          if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.error || "Abonelik yenilenemiyor.");
-                          }
-                          
-                          toast.success("Aboneliğiniz başarıyla yenilendi. Otomatik yenileme tekrar aktif.");
-                          
-                          // Sayfayı yeniden yükle
-                          setTimeout(() => {
-                            window.location.reload();
-                          }, 2000);
-                          
-                        } catch (error) {
-                          console.error("Abonelik yenileme hatası:", error);
-                          toast.error(error instanceof Error ? error.message : "Abonelik yenilenirken bir hata oluştu.");
-                        } finally {
-                          setCancelLoading(false);
-                        }
-                      }}
-                      disabled={cancelLoading}
-                    >
-                      {cancelLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          İşleniyor...
-                        </>
-                      ) : "Aboneliği Yenile"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 } 
