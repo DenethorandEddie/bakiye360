@@ -3,27 +3,26 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useTheme } from "next-themes";
-
-// Lucide ikonlarını dinamik olarak import edelim
-const Home = dynamic(() => import("lucide-react").then((mod) => mod.Home), { ssr: false });
-const ListTodo = dynamic(() => import("lucide-react").then((mod) => mod.ListTodo), { ssr: false });
-const BarChart3 = dynamic(() => import("lucide-react").then((mod) => mod.BarChart3), { ssr: false });
-const Target = dynamic(() => import("lucide-react").then((mod) => mod.Target), { ssr: false });
-const Settings = dynamic(() => import("lucide-react").then((mod) => mod.Settings), { ssr: false });
-const LogOut = dynamic(() => import("lucide-react").then((mod) => mod.LogOut), { ssr: false });
-const User = dynamic(() => import("lucide-react").then((mod) => mod.User), { ssr: false });
-const CreditCard = dynamic(() => import("lucide-react").then((mod) => mod.CreditCard), { ssr: false });
-const ChevronLeft = dynamic(() => import("lucide-react").then((mod) => mod.ChevronLeft), { ssr: false });
-const ChevronRight = dynamic(() => import("lucide-react").then((mod) => mod.ChevronRight), { ssr: false });
-const Menu = dynamic(() => import("lucide-react").then((mod) => mod.Menu), { ssr: false });
-const Sun = dynamic(() => import("lucide-react").then((mod) => mod.Sun), { ssr: false });
-const Moon = dynamic(() => import("lucide-react").then((mod) => mod.Moon), { ssr: false });
-const X = dynamic(() => import("lucide-react").then((mod) => mod.X), { ssr: false });
+import {
+  Home,
+  ListTodo,
+  BarChart3,
+  Target,
+  Settings,
+  LogOut,
+  User,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  Sun,
+  Moon,
+  X,
+  CalendarClock
+} from "lucide-react";
 
 // Sidebar context
 export const SidebarContext = createContext({
@@ -50,7 +49,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isSidebarExpanded, setSidebarExpanded] = useState(true);
   const { theme, setTheme } = useTheme();
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isClientSide, setIsClientSide] = useState(false);
 
@@ -76,59 +75,32 @@ export default function DashboardLayout({
     };
   }, [isMobileMenuOpen]);
 
-  // Premium kontrol
+  // Kullanıcının abonelik durumunu kontrol et
   useEffect(() => {
-    async function checkSubscription() {
+    const checkSubscriptionStatus = async () => {
       try {
-        setIsLoading(true);
-        
-        // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !user) {
-          console.error("Kullanıcı bilgisi alınamadı", userError);
-          setIsLoading(false);
-          return;
-        }
-
-        // 1. Önce subscriptions tablosundan kontrol et
-        const { data: subscriptionData, error: subscriptionError } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle();
-          
-        // Aktif bir abonelik varsa, premium olarak ayarla
-        if (subscriptionData) {
-          console.log("Aktif abonelik bulundu:", subscriptionData);
-          setIsPremium(true);
-          setIsLoading(false);
-          return;
-        }
-        
-        // 2. Eğer subscriptions'da yoksa, user_settings tablosundaki durumu kontrol et
-        const { data: userSettingsData, error: userSettingsError } = await supabase
-          .from('user_settings')
-          .select('subscription_status')
-          .eq('user_id', user.id)
-          .single();
-          
-        if (userSettingsData && userSettingsData.subscription_status === 'premium') {
-          console.log("User settings'te premium abonelik bulundu");
-          setIsPremium(true);
-        } else {
-          console.log("Premium abonelik bulunamadı, ücretsiz kullanıcı");
-          setIsPremium(false);
-        }
+        setIsPremium(true); // Her zaman premium
       } catch (error) {
-        console.error("Abonelik durumu kontrol edilirken hata:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Abonelik durumu kontrol hatası:", error);
+        setIsPremium(true); // Hata durumunda bile premium
       }
-    }
+    };
 
-    checkSubscription();
+    checkSubscriptionStatus();
+  }, [supabase]);
+
+  // Kullanıcı ayarlarını kontrol et
+  useEffect(() => {
+    const checkUserSettings = async () => {
+      try {
+        setIsPremium(true); // Her zaman premium
+      } catch (error) {
+        console.error("Kullanıcı ayarları kontrol hatası:", error);
+        setIsPremium(true); // Hata durumunda bile premium
+      }
+    };
+
+    checkUserSettings();
   }, [supabase]);
 
   // Ekran genişliğine göre sidebar durumunu ayarla
@@ -158,6 +130,8 @@ export default function DashboardLayout({
   }, []);
 
   const isActive = (path: string) => {
+    if (!pathname) return false;
+    
     if (path === "/dashboard" && pathname === "/dashboard") {
       return true;
     }
@@ -183,28 +157,19 @@ export default function DashboardLayout({
     setMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // Abonelik sayfasını menüde gösterme veya gizleme
-  // Premium kullanıcılar için gizlemek üzere conditional rendering kullanacağız
-  const shouldShowSubscriptionLink = !isPremium;
-
   // Navigasyon öğeleri
   const navigationItems = [
     { name: "Ana Sayfa", href: "/dashboard", icon: Home },
     { name: "İşlemler", href: "/dashboard/transactions", icon: ListTodo },
     { name: "Bütçe Hedefleri", href: "/dashboard/budget-goals", icon: Target },
+    { name: "Abonelikler", href: "/dashboard/subscriptions", icon: CalendarClock },
     { name: "Raporlar", href: "/dashboard/reports", icon: BarChart3 },
   ];
 
   // Ayarlar grubu
   const settingsItems = [
     { name: "Profil", href: "/dashboard/profile", icon: User },
-    { name: "Ayarlar", href: "/dashboard/settings", icon: Settings },
   ];
-
-  // Abonelik sadece ücretsiz kullanıcılar için
-  if (shouldShowSubscriptionLink && !isLoading) {
-    settingsItems.push({ name: "Abonelik", href: "/dashboard/subscription", icon: CreditCard });
-  }
 
   // Client tarafı render kontrolü yaparak hydration hatalarını önle
   if (!isClientSide) {
@@ -242,7 +207,7 @@ export default function DashboardLayout({
             "modern-sidebar",
             isSidebarExpanded && "expanded",
             isMobileMenuOpen && "mobile-open",
-            isSidebarExpanded ? "w-56" : "w-14",
+            isSidebarExpanded ? "w-56" : "w-20",
           )}
         >
           {/* Mobil kapatma butonu */}
@@ -251,39 +216,24 @@ export default function DashboardLayout({
           </button>
 
           {/* Logo Bölümü */}
-          <div className="sidebar-logo">
-            <Link href="/dashboard" className="relative block">
-              <div className="relative w-8 h-8">
+          <div className="sidebar-logo pt-0">
+            <Link href="/dashboard" className="block mt-[-106px]">
+              <div className="w-16 h-16">
                 {/* Light mode logo */}
                 <img 
                   src="/logo.png" 
                   alt="Bakiye360 Logo" 
-                  className="absolute inset-0 w-full h-full object-contain dark:opacity-0 transition-opacity"
+                  className="w-full h-full object-contain dark:opacity-0 transition-opacity"
                 />
                 {/* Dark mode logo */}
                 <img 
                   src="/logo_dark.png" 
                   alt="Bakiye360 Logo" 
-                  className="absolute inset-0 w-full h-full object-contain opacity-0 dark:opacity-100 transition-opacity"
+                  className="w-full h-full object-contain opacity-0 dark:opacity-100 transition-opacity"
                 />
               </div>
             </Link>
-            
-            {isSidebarExpanded && (
-              <div className="absolute top-1/2 left-14 -translate-y-1/2 font-bold text-base transition-all duration-300">
-                Bakiye<span className="text-primary">360</span>
-              </div>
-            )}
           </div>
-
-          {/* Sidebar genişlet/daralt butonu - sadece desktop */}
-          <button 
-            onClick={toggleSidebar} 
-            className="toggle-button"
-            aria-label={isSidebarExpanded ? "Sidebar'ı daralt" : "Sidebar'ı genişlet"}
-          >
-            {isClientSide && (isSidebarExpanded ? <ChevronLeft size={10} /> : <ChevronRight size={10} />)}
-          </button>
 
           {/* Ana Navigasyon */}
           <nav className="nav-group">
@@ -309,6 +259,34 @@ export default function DashboardLayout({
                 <span className="nav-item-indicator"></span>
               </Link>
             ))}
+
+            {/* Yeni tasarım: Sidebar genişlet/daralt butonu */}
+            <div className="relative">
+              <button 
+                onClick={toggleSidebar} 
+                className={cn(
+                  "absolute right-0 top-2 transform translate-x-1/2",
+                  "flex items-center justify-center",
+                  "w-5 h-10 rounded-full",
+                  "bg-background border border-border shadow-sm",
+                  "hover:bg-accent hover:border-accent-foreground/20",
+                  "transition-all duration-200",
+                  "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "dark:bg-background dark:border-border"
+                )}
+                aria-label={isSidebarExpanded ? "Sidebar'ı daralt" : "Sidebar'ı genişlet"}
+              >
+                {isClientSide && (
+                  <div className="flex items-center justify-center w-full h-full">
+                    {isSidebarExpanded ? (
+                      <ChevronLeft className="h-3 w-3 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </div>
+                )}
+              </button>
+            </div>
 
             {/* Alt kısımda yer alan ayarlar vb. */}
             <div>
@@ -378,7 +356,7 @@ export default function DashboardLayout({
             "flex-1 transition-all duration-300 ease-in-out",
             isSidebarExpanded 
               ? "lg:pl-60" 
-              : "lg:pl-[4.5rem]"
+              : "lg:pl-24"
           )}
         >
           <div className="p-4 md:p-6 pt-16 lg:pt-6 min-h-screen overflow-x-hidden">

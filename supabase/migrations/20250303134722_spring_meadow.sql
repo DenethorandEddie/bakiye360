@@ -8,8 +8,6 @@
       - `category_id` (uuid, references categories.id)
       - `name` (text, not null)
       - `target_amount` (numeric, not null)
-      - `start_date` (date, not null)
-      - `end_date` (date, not null)
       - `created_at` (timestamptz)
   2. Security
     - Enable RLS on `budget_goals` table
@@ -22,8 +20,6 @@ CREATE TABLE IF NOT EXISTS budget_goals (
   category_id uuid REFERENCES categories(id),
   name text NOT NULL,
   target_amount numeric(12, 2) NOT NULL CHECK (target_amount > 0),
-  start_date date NOT NULL,
-  end_date date NOT NULL,
   created_at timestamptz DEFAULT now()
 );
 

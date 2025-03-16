@@ -52,7 +52,7 @@ export default function TransactionsPage() {
     to: endOfMonth(new Date()),
   });
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>({
-    isPremium: false,
+    isPremium: true,
     monthlyTransactionCount: 0
   });
   const [reachedTransactionLimit, setReachedTransactionLimit] = useState(false);
@@ -77,7 +77,7 @@ export default function TransactionsPage() {
         }
 
         // Abonelik durumunu kontrol et
-        await checkSubscriptionStatus(user.id);
+        await checkSubscriptionStatus();
 
         // Kullanıcının işlemlerini al
         const { data, error } = await supabase
@@ -131,49 +131,28 @@ export default function TransactionsPage() {
   }, [supabase]);
 
   // Abonelik durumunu ve bu ayki işlem sayısını kontrol et
-  const checkSubscriptionStatus = async (userId: string) => {
+  const checkSubscriptionStatus = async () => {
     try {
-      // SADECE user_settings tablosundan abonelik durumunu kontrol et
-      const { data: userSettings, error: userSettingsError } = await supabase
-        .from("user_settings")
-        .select("subscription_status")
-        .eq("user_id", userId)
-        .single();
-        
-      let isPremium = false;
+      // Her zaman premium olarak ayarla
+      let isPremium = true;
       
-      if (userSettings && userSettings.subscription_status === 'premium') {
-        console.log("User settings tablosunda premium abonelik bulundu");
-        isPremium = true;
-      }
-
-      // Bu ayki işlemlerin sayısını kontrol et
-      const currentMonthStart = startOfMonth(new Date()).toISOString();
-      const currentMonthEnd = endOfMonth(new Date()).toISOString();
-      
-      const { count, error: countError } = await supabase
-        .from("transactions")
-        .select("*", { count: "exact", head: false })
-        .eq("user_id", userId)
-        .gte("date", currentMonthStart)
-        .lte("date", currentMonthEnd);
-
-      if (countError) {
-        console.error("İşlem sayısı alınamadı:", countError);
-      }
-
-      const monthlyTransactionCount = count || 0;
-      
+      // User settings tablosundaki güncelleme yapılıyor
       setSubscriptionStatus({
         isPremium,
-        monthlyTransactionCount
+        monthlyTransactionCount: 0
       });
-
-      // Ücretsiz kullanıcı ve aylık limit aşıldıysa
-      setReachedTransactionLimit(!isPremium && monthlyTransactionCount >= 30);
+      
+      // İşlem limitini her zaman false yap
+      setReachedTransactionLimit(false);
       
     } catch (error) {
-      console.error("Abonelik durumu kontrol edilirken bir hata oluştu:", error);
+      console.error("Abonelik kontrol hatası:", error);
+      // Hata durumunda bile premium yap
+      setSubscriptionStatus({
+        isPremium: true,
+        monthlyTransactionCount: 0
+      });
+      setReachedTransactionLimit(false);
     }
   };
 
@@ -246,46 +225,6 @@ export default function TransactionsPage() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">İşlemler</h1>
 
-      {reachedTransactionLimit && !subscriptionStatus.isPremium && (
-        <Alert className="mb-6 border-amber-500 bg-amber-500/10">
-          <AlertCircle className="h-5 w-5 text-amber-500" />
-          <AlertTitle>İşlem limiti aşıldı</AlertTitle>
-          <AlertDescription>
-            {subscriptionStatus.monthlyTransactionCount > 30 ? (
-              <>
-                Premium üyeliğiniz sona erdiği için yeni işlem ekleyemiyorsunuz. 
-                Bu ay {subscriptionStatus.monthlyTransactionCount} işlem girdiniz, ücretsiz pakette ise aylık 30 işlem hakkınız vardır.
-                Mevcut işlemlerinizi görüntüleyebilir veya düzenleyebilirsiniz, ancak yeni işlem eklemek için premium üyeliğinizi yenilemeniz gerekiyor.
-              </>
-            ) : (
-              <>
-                Ücretsiz pakette aylık 30 işlem girişi yapabilirsiniz. Bu ay için işlem limitinize ulaştınız.
-              </>
-            )}
-            <div className="mt-2">
-              <Button
-                variant="outline"
-                className="bg-background"
-                onClick={() => window.location.href = "/dashboard/subscription"}
-              >
-                <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
-                Premium'a Yükselt
-          </Button>
-        </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {subscriptionStatus.isPremium && (
-        <Alert className="mb-6 border-primary bg-primary/10">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <AlertTitle>Premium Özellik Aktif</AlertTitle>
-          <AlertDescription>
-            Premium üyeliğiniz sayesinde sınırsız işlem girişi yapabilirsiniz. Bu ay şu ana kadar {subscriptionStatus.monthlyTransactionCount} işlem girdiniz.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Filtreler</CardTitle>
@@ -347,11 +286,6 @@ export default function TransactionsPage() {
           <h2 className="text-xl font-medium">
             {filteredTransactions.length} İşlem Bulundu
           </h2>
-          {!subscriptionStatus.isPremium && (
-            <p className="text-sm text-muted-foreground">
-              Bu ay {subscriptionStatus.monthlyTransactionCount}/30 işlem girişi yaptınız
-            </p>
-          )}
           {subscriptionStatus.isPremium && (
             <p className="text-sm text-primary">
               Premium kullanıcı: Sınırsız işlem hakkınız var
@@ -362,9 +296,8 @@ export default function TransactionsPage() {
           <Button
             variant="default"
             onClick={() => window.location.href = "/dashboard/transactions/new"}
-            disabled={reachedTransactionLimit && !subscriptionStatus.isPremium}
           >
-            {reachedTransactionLimit && !subscriptionStatus.isPremium ? "İşlem Limiti Aşıldı" : "Yeni İşlem Ekle"}
+            Yeni İşlem Ekle
           </Button>
         </div>
       </div>

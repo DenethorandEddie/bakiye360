@@ -516,21 +516,8 @@ export default function DashboardPage() {
           
           // Eğer veritabanından bütçe hedefleri çekilebildiyse onları kullan
           if (budgetGoalsData && budgetGoalsData.length > 0) {
-            // Aktif bütçe hedeflerini filtrele
-            const activeGoals = budgetGoalsData.filter(goal => {
-              // Eğer başlangıç ve bitiş tarihi varsa, hedefin şu an aktif olup olmadığını kontrol et
-              if (goal.start_date && goal.end_date) {
-                const startDate = new Date(goal.start_date);
-                const endDate = new Date(goal.end_date);
-                const now = new Date();
-                return now >= startDate && now <= endDate;
-              }
-              // Tarih bilgisi yoksa varsayılan olarak aktif kabul et
-              return true;
-            });
-            
             // Her bir bütçe hedefi için mevcut harcamaları hesapla
-            const goalsWithExpenses = activeGoals.map(goal => {
+            const goalsWithExpenses = budgetGoalsData.map(goal => {
               // Veritabanındaki sütun adları ile UI'daki prop adları farklı olabilir
               // Kategori bilgisini bul
               const categoryId = goal.category_id || '';

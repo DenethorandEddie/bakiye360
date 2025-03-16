@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import supabase from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 
 export default function NotificationSettings() {
   const [settings, setSettings] = useState({
@@ -10,51 +11,51 @@ export default function NotificationSettings() {
     budget: false,
     reports: false
   });
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      setLoading(true);
+    const loadUserSettings = async () => {
       try {
-        // Kullanıcı bilgisini al
+        setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
+        
         if (!user) return;
         
-        // Kullanıcı ayarlarını getir
-        const { data: userSettings } = await supabase
+        const { data: userSettings, error } = await supabase
           .from('user_settings')
-          .select('subscription_status, email_notifications, budget_alerts, monthly_reports')
+          .select('email_notifications, budget_alerts, monthly_reports')
           .eq('user_id', user.id)
           .single();
         
-        // Premium durumunu kontrol et
-        setIsPremium(userSettings?.subscription_status === 'premium');
+        if (error) throw error;
         
-        // Bildirim ayarlarını ayarla
-        setSettings({
-          email: userSettings?.email_notifications || false,
-          budget: userSettings?.budget_alerts || false,
-          reports: userSettings?.monthly_reports || false
-        });
+        if (userSettings) {
+          setSettings({
+            email: userSettings.email_notifications || false,
+            budget: userSettings.budget_alerts || false,
+            reports: userSettings.monthly_reports || false,
+          });
+        }
+        
+        // Her zaman premium
+        setIsPremium(true);
+        
       } catch (error) {
-        console.error("Ayarlar yüklenirken hata:", error);
+        console.error('Kullanıcı ayarları yüklenirken hata:', error);
+        toast.error('Kullanıcı ayarları yüklenemedi');
+        // Hata durumunda bile premium yap
+        setIsPremium(true);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchSettings();
-  }, []);
+    loadUserSettings();
+  }, [supabase]);
 
   const updateSetting = async (field: string, value: boolean) => {
     try {
-      // Premium kontrolü yap
-      if (!isPremium) {
-        toast.error("Bu özellik sadece premium kullanıcılar için kullanılabilir");
-        return;
-      }
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("Kullanıcı bilgileri alınamadı");
@@ -97,54 +98,53 @@ export default function NotificationSettings() {
       <h1 className="text-2xl font-bold mb-6">Bildirim Ayarları</h1>
       <p className="text-muted-foreground mb-6">
         Hangi bildirimler hakkında bilgilendirilmek istediğinizi seçin
-        {!isPremium && (
-          <span className="block mt-2 text-sm text-amber-600 dark:text-amber-400">
-            Premium abonelik olmadan bildirim ayarlarını değiştiremezsiniz.
-            <a href="/dashboard/subscription" className="underline ml-1">Premium'a yükselt</a>
-          </span>
-        )}
       </p>
       
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">E-posta Bildirimleri</h3>
+      <div className="grid gap-8 mt-6">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="emailNotifications" className="font-medium">E-posta Bildirimleri</Label>
+            <Switch
+              id="emailNotifications"
+              name="emailNotifications"
+              checked={settings.email}
+              onCheckedChange={(checked) => updateSetting('email', checked)}
+            />
+          </div>
           <p className="text-sm text-muted-foreground">
-            Önemli güncellemeler ve bildirimler için e-posta alın
+            Hesabınızla ilgili önemli bildirimler ve güncellemeler için e-posta alın.
           </p>
         </div>
-        <Switch 
-          checked={settings.email} 
-          onCheckedChange={(val) => updateSetting('email', val)}
-          disabled={!isPremium}
-        />
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">Bütçe Uyarıları</h3>
+        
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="budgetAlerts" className="font-medium">Bütçe Uyarıları</Label>
+            <Switch
+              id="budgetAlerts"
+              name="budgetAlerts"
+              checked={settings.budget}
+              onCheckedChange={(checked) => updateSetting('budget', checked)}
+            />
+          </div>
           <p className="text-sm text-muted-foreground">
-            Bütçe limitinize yaklaştığınızda veya aştığınızda bildirim alın
+            Bütçe hedeflerinize yaklaştığınızda veya aştığınızda bildirimler alın.
           </p>
         </div>
-        <Switch 
-          checked={settings.budget} 
-          onCheckedChange={(val) => updateSetting('budget', val)}
-          disabled={!isPremium}
-        />
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">Aylık Raporlar</h3>
+        
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="monthlyReports" className="font-medium">Aylık Rapor Özetleri</Label>
+            <Switch
+              id="monthlyReports"
+              name="monthlyReports"
+              checked={settings.reports}
+              onCheckedChange={(checked) => updateSetting('reports', checked)}
+            />
+          </div>
           <p className="text-sm text-muted-foreground">
-            Her ayın sonunda finansal durumunuzla ilgili özet rapor alın
+            Her ayın sonunda finansal durumunuzla ilgili özet rapor alın.
           </p>
         </div>
-        <Switch 
-          checked={settings.reports} 
-          onCheckedChange={(val) => updateSetting('reports', val)}
-          disabled={!isPremium}
-        />
       </div>
     </div>
   );

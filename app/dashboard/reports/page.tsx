@@ -517,40 +517,17 @@ export default function ReportsPage() {
         return;
       }
       
-      try {
-        // SADECE user_settings tablosundan abonelik durumunu kontrol et
-        const { data, error } = await supabase
-          .from('user_settings')
-          .select('subscription_status')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Abonelik bilgisi alınamadı:', error);
-        }
-
-        if (data && data.subscription_status) {
-          setSubscriptionStatus(String(data.subscription_status));
-        } else {
-          setSubscriptionStatus('free');
-        }
-      } catch (error) {
-        console.error('Abonelik kontrolü hatası:', error);
-        setSubscriptionStatus('free'); // Hata durumunda varsayılan free
-      } finally {
-        setLoadingSubscription(false);
-      }
+      // Her kullanıcıyı premium olarak ayarla
+      setSubscriptionStatus('premium');
+      setLoadingSubscription(false);
     };
     
     checkSubscription();
-  }, [supabase, user]);
+  }, [user]);
   
-  // Premium olmayan kullanıcı için zorunlu olarak "thisMonth" periyoduna sınırla
+  // Premium olmayan kullanıcı için zorunlu olarak "thisMonth" periyoduna sınırla - Bu kısıtlamayı kaldır
   useEffect(() => {
-    if (!loadingSubscription && subscriptionStatus !== 'premium' && selectedPeriod !== 'thisMonth') {
-      setSelectedPeriod('thisMonth');
-      toast.info('Ücretsiz pakette sadece bu ay için raporlar görüntülenebilir. Geçmiş dönem raporları için premium pakete geçebilirsiniz.');
-    }
+    // Kısıtlamayı kaldır - tüm kullanıcılar tüm özelliklere erişebilir
   }, [loadingSubscription, subscriptionStatus, selectedPeriod]);
 
   useEffect(() => {
@@ -786,12 +763,6 @@ export default function ReportsPage() {
   };
 
   const handlePeriodChange = (value: string) => {
-    // Premium olmayan kullanıcı için sadece "thisMonth" periyoduna izin ver
-    if (subscriptionStatus !== 'premium' && value !== 'thisMonth') {
-      toast.info('Ücretsiz pakette sadece bu ay için raporlar görüntülenebilir. Geçmiş dönem raporları için premium pakete geçebilirsiniz.');
-      return;
-    }
-    
     setSelectedPeriod(value);
   };
 
@@ -1174,34 +1145,10 @@ export default function ReportsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="thisMonth">Bu Ay</SelectItem>
-                <SelectItem 
-                  value="last3Months" 
-                  disabled={subscriptionStatus !== 'premium'}
-                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
-                >
-                  Son 3 Ay {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
-                </SelectItem>
-                <SelectItem 
-                  value="last6Months" 
-                  disabled={subscriptionStatus !== 'premium'}
-                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
-                >
-                  Son 6 Ay {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
-                </SelectItem>
-                <SelectItem 
-                  value="thisYear" 
-                  disabled={subscriptionStatus !== 'premium'}
-                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
-                >
-                  Bu Yıl {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
-                </SelectItem>
-                <SelectItem 
-                  value="custom" 
-                  disabled={subscriptionStatus !== 'premium'}
-                  className={subscriptionStatus !== 'premium' ? "text-muted-foreground" : ""}
-                >
-                  Özel Tarih {subscriptionStatus !== 'premium' && <span className="ml-2 text-xs">(Premium)</span>}
-                </SelectItem>
+                <SelectItem value="last3Months">Son 3 Ay</SelectItem>
+                <SelectItem value="last6Months">Son 6 Ay</SelectItem>
+                <SelectItem value="thisYear">Bu Yıl</SelectItem>
+                <SelectItem value="custom">Özel Tarih</SelectItem>
               </SelectContent>
             </Select>
             

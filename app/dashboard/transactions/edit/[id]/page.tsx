@@ -44,7 +44,7 @@ export default function EditTransactionPage({ params }: { params: { id: string }
   const [loadingTransaction, setLoadingTransaction] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(true);
   const [formData, setFormData] = useState({
     description: "",
     amount: "",
@@ -112,44 +112,21 @@ export default function EditTransactionPage({ params }: { params: { id: string }
     fetchTransaction();
   }, [supabase, user, params.id, router]);
 
-  // Kullanıcının abonelik durumunu kontrol et
+  // Abonelik kontrolünü basitleştir ve her zaman premium yap
   useEffect(() => {
-    const checkSubscription = async () => {
-      if (!user) return;
-      
+    const checkSubscriptionStatus = async () => {
       try {
-        // User settings tablosundan abonelik durumunu kontrol et
-        const { data: userSettings, error: settingsError } = await supabase
-          .from('user_settings')
-          .select('subscription_status')
-          .eq('user_id', user.id)
-          .single();
-
-        console.log("User settings tablosundan abonelik durumu sorgulanıyor...");
-        
-        if (settingsError) {
-          if (settingsError.code === 'PGRST116') {
-            console.log("Kullanıcının settings kaydı bulunamadı");
-          } else {
-            console.error('Abonelik bilgisi alınamadı:', settingsError);
-          }
-        }
-        
-        if (userSettings && userSettings.subscription_status === 'premium') {
-          setIsPremium(true);
-          console.log("Kullanıcı premium aboneliğe sahip olarak işaretlendi");
-        } else {
-          setIsPremium(false);
-          console.log("Kullanıcı ücretsiz planda olarak işaretlendi");
-        }
+        // Her zaman premium yap
+        setIsPremium(true);
       } catch (error) {
-        console.error('Abonelik kontrolünde beklenmeyen hata:', error);
-        setIsPremium(false); // Hata durumunda varsayılan olarak free
+        console.error("Abonelik kontrolü hatası:", error);
+        // Hata durumunda bile premium yap
+        setIsPremium(true);
       }
     };
-    
-    checkSubscription();
-  }, [supabase, user]);
+
+    checkSubscriptionStatus();
+  }, []);
 
   // Kategorileri yükle
   useEffect(() => {
@@ -383,21 +360,6 @@ export default function EditTransactionPage({ params }: { params: { id: string }
                         ))}
                       </SelectContent>
                     </Select>
-                    
-                    {!isPremium && (
-                      <div className="mt-2 text-xs p-2 rounded bg-amber-50 border border-amber-200 text-amber-700 flex items-start">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 mt-0.5 flex-shrink-0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                        <span>
-                          Premium aboneliğe geçerek çok daha fazla kategoriye erişebilir ve işlemlerinizi daha detaylı kategorize edebilirsiniz.
-                          <button 
-                            onClick={() => router.push("/dashboard/subscription")} 
-                            className="ml-1 underline font-medium hover:text-amber-800"
-                          >
-                            Premium'a geç
-                          </button>
-                        </span>
-                      </div>
-                    )}
                   </>
                 )}
               </div>

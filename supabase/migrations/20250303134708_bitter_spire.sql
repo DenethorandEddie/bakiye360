@@ -11,6 +11,7 @@
       - `description` (text)
       - `date` (date, not null)
       - `is_recurring` (boolean, default false)
+      - `frequency` (text, CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')))
       - `notes` (text)
       - `created_at` (timestamptz)
   2. Security
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   description text NOT NULL,
   date date NOT NULL,
   is_recurring boolean DEFAULT false,
+  frequency text CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly')),
   notes text,
   created_at timestamptz DEFAULT now()
 );

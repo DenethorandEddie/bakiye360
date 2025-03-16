@@ -399,70 +399,100 @@ export default function Home() {
         </section>
 
         {/* How It Works */}
-        <section className="py-16 md:py-24 bg-muted/30">
-          <div className="container px-4 md:px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
+        <section className="py-16 md:py-24 bg-muted/30 relative overflow-hidden">
+          <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none"></div>
+          <div className="container px-4 md:px-6 relative">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
                 Nasıl Çalışır?
               </h2>
               <p className="mx-auto mt-4 max-w-[700px] text-muted-foreground md:text-xl">
                 Sadece üç kolay adımda finansal kontrolü elinize alın
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="relative flex flex-col items-center text-center p-6 bg-card rounded-lg border shadow-sm">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                  1
+            <div className="relative">
+              {/* Connection Line */}
+              <div className="absolute hidden md:block left-1/2 top-1/2 w-[calc(66.666%-6rem)] h-0.5 bg-gradient-to-r from-primary/40 via-primary to-primary/40 -translate-y-1/2 -translate-x-1/2"></div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
+                <div className="relative group">
+                  <div className="relative flex flex-col items-center text-center">
+                    {/* Step Number */}
+                    <div className="absolute -top-6 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg z-10 group-hover:scale-110 transition-transform">
+                      1
+                    </div>
+                    {/* Card */}
+                    <div className="w-full pt-8 p-6 bg-card rounded-xl border-2 border-primary/10 shadow-xl group-hover:shadow-2xl group-hover:-translate-y-1 transition-all duration-300">
+                      <div className="mb-6 h-48 w-full relative rounded-lg overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10"></div>
+                        <Image
+                          src="https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=300&auto=format&fit=crop"
+                          alt="Kayıt ol"
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      </div>
+                      <h3 className="text-xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">Hesap Oluşturun</h3>
+                      <p className="text-muted-foreground">
+                        Hızlı ve kolay bir şekilde hesabınızı oluşturun ve uygulamaya giriş yapın.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-6 mb-4 h-48 w-full relative">
-                  <Image
-                    src="https://images.unsplash.com/photo-1556155092-490a1ba16284?q=80&w=300&auto=format&fit=crop"
-                    alt="Kayıt ol"
-                    fill
-                    className="rounded-lg object-cover"
-                  />
+
+                <div className="relative group">
+                  <div className="relative flex flex-col items-center text-center">
+                    <div className="absolute -top-6 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg z-10 group-hover:scale-110 transition-transform">
+                      2
+                    </div>
+                    <div className="w-full pt-8 p-6 bg-card rounded-xl border-2 border-primary/10 shadow-xl group-hover:shadow-2xl group-hover:-translate-y-1 transition-all duration-300">
+                      <div className="mb-6 h-48 w-full relative rounded-lg overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10"></div>
+                        <Image
+                          src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=300&auto=format&fit=crop"
+                          alt="İşlemleri girin"
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      </div>
+                      <h3 className="text-xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">İşlemlerinizi Girin</h3>
+                      <p className="text-muted-foreground">
+                        Gelir ve giderlerinizi kategorilere göre ekleyin, düzenli işlemlerinizi otomatikleştirin.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Hesap Oluşturun</h3>
-                <p className="text-muted-foreground">
-                  Hızlı ve kolay bir şekilde hesabınızı oluşturun ve uygulamaya giriş yapın.
-                </p>
-              </div>
-              <div className="relative flex flex-col items-center text-center p-6 bg-card rounded-lg border shadow-sm">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                  2
+
+                <div className="relative group">
+                  <div className="relative flex flex-col items-center text-center">
+                    <div className="absolute -top-6 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg z-10 group-hover:scale-110 transition-transform">
+                      3
+                    </div>
+                    <div className="w-full pt-8 p-6 bg-card rounded-xl border-2 border-primary/10 shadow-xl group-hover:shadow-2xl group-hover:-translate-y-1 transition-all duration-300">
+                      <div className="mb-6 h-48 w-full relative rounded-lg overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10"></div>
+                        <Image
+                          src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=300&auto=format&fit=crop"
+                          alt="Analiz edin"
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      </div>
+                      <h3 className="text-xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">Analizleri İnceleyin</h3>
+                      <p className="text-muted-foreground">
+                        Detaylı raporlar ve grafiklerle finansal durumunuzu analiz edin, tasarruf fırsatlarını keşfedin.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-6 mb-4 h-48 w-full relative">
-                  <Image
-                    src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=300&auto=format&fit=crop"
-                    alt="İşlemleri girin"
-                    fill
-                    className="rounded-lg object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-bold mb-2">İşlemlerinizi Girin</h3>
-                <p className="text-muted-foreground">
-                  Gelir ve giderlerinizi kategorilere göre ekleyin, düzenli işlemlerinizi otomatikleştirin.
-                </p>
-              </div>
-              <div className="relative flex flex-col items-center text-center p-6 bg-card rounded-lg border shadow-sm">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                  3
-                </div>
-                <div className="mt-6 mb-4 h-48 w-full relative">
-                  <Image
-                    src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=300&auto=format&fit=crop"
-                    alt="Analiz edin"
-                    fill
-                    className="rounded-lg object-cover"
-                  />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Analizleri İnceleyin</h3>
-                <p className="text-muted-foreground">
-                  Detaylı raporlar ve grafiklerle finansal durumunuzu analiz edin, tasarruf fırsatlarını keşfedin.
-                </p>
               </div>
             </div>
           </div>
+          
+          {/* Background decorative elements */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-primary/5 opacity-70 pointer-events-none -z-10"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-primary/10 opacity-70 pointer-events-none -z-10"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border border-primary/20 opacity-70 pointer-events-none -z-10"></div>
         </section>
 
         {/* Testimonials */}
@@ -547,128 +577,90 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Pricing */}
+        {/* Completely Free */}
         <section id="pricing" className="py-16 md:py-24 bg-muted/30">
           <div className="container px-4 md:px-6">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-                Basit ve Şeffaf Fiyatlandırma
+                Tamamen Ücretsiz
               </h2>
               <p className="mx-auto mt-4 max-w-[700px] text-muted-foreground md:text-xl">
-                İhtiyaçlarınıza uygun planı seçin ve finansal kontrolü elinize alın
+                Bakiye360 platformunda tüm özellikler ücretsiz ve sınırsız kullanımınıza sunulmuştur
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {/* Ücretsiz Paket */}
-              <div className="flex flex-col p-6 rounded-lg border bg-card shadow-sm h-full">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/40 to-primary/10"></div>
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold">Ücretsiz Paket</h3>
-                  <div className="mt-4 mb-4">
-                    <span className="text-4xl font-bold">₺0</span>
-                    <span className="text-muted-foreground">/ay</span>
+            <div className="max-w-4xl mx-auto">
+              <div className="flex flex-col p-8 rounded-xl border-2 border-primary bg-card shadow-xl transform hover:scale-105 transition-all duration-300 overflow-hidden">
+                <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+                <div className="absolute -top-32 -left-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+                <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-primary to-primary/60 rounded-t-lg"></div>
+                <div className="text-center mb-8">
+                  <div className="mt-4 mb-6 flex justify-center items-center">
+                    <div className="relative">
+                      <span className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">Ücretsiz</span>
+                      <span className="absolute -right-7 top-1 text-3xl font-bold text-primary">✓</span>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Temel finansal yönetim özellikleri
+                  <div className="h-1 w-24 bg-gradient-to-r from-primary/40 to-primary/10 rounded-full mx-auto mb-6"></div>
+                  <p className="text-lg text-muted-foreground">
+                    Tüm özelliklere hiçbir kısıtlama olmadan erişin
                   </p>
                 </div>
-                <ul className="space-y-3 mb-6 flex-1">
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Aylık 30 işlem girişi</span>
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Sınırsız işlem girişi</span>
                   </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>1 bütçe hedefi oluşturma</span>
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Sınırsız bütçe hedefi</span>
                   </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Temel gelir-gider raporları</span>
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Gelişmiş kategorilere erişim</span>
                   </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Temel harcama kategorileri</span>
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Gelişmiş analiz grafikleri</span>
                   </li>
-                  <li className="flex items-center">
-                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
-                    <span className="text-muted-foreground">Sınırsız işlem girişi</span>
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Tekrarlayan işlem takibi</span>
                   </li>
-                  <li className="flex items-center">
-                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
-                    <span className="text-muted-foreground">Sınırsız bütçe hedefi</span>
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Veri dışa aktarma</span>
                   </li>
-                  <li className="flex items-center">
-                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
-                    <span className="text-muted-foreground">Gelişmiş kategorilere erişim</span>
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Öncelikli destek</span>
                   </li>
-                  <li className="flex items-center">
-                    <XCircle className="w-5 h-5 mr-3 text-destructive flex-shrink-0" />
-                    <span className="text-muted-foreground">Gelişmiş analiz grafikleri</span>
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full group mt-auto" asChild>
-                  <Link href="/register">
-                    Ücretsiz Başla
-                    <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                </Button>
-              </div>
-              
-              {/* Premium Paket */}
-              <div className="flex flex-col p-6 rounded-lg border-2 border-primary bg-card shadow-xl relative h-full transform hover:scale-105 transition-all duration-300 z-10">
-                <div className="absolute -top-5 -left-5 -right-5 -bottom-5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl -z-10 blur-sm"></div>
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-primary/60 rounded-t-lg"></div>
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold py-1 px-4 rounded-full shadow-lg">
-                  Önerilen
-                </div>
-                <div className="text-center mb-6 pt-2">
-                  <h3 className="text-xl font-bold">Premium Paket</h3>
-                  <div className="mt-4 mb-4">
-                    <span className="text-4xl font-bold">₺149.99</span>
-                    <span className="text-muted-foreground">/ay</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Gelişmiş finansal analiz ve planlama
-                  </p>
-                </div>
-                <ul className="space-y-3 mb-6 flex-1">
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Sınırsız işlem girişi</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Sınırsız bütçe hedefi</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Gelişmiş kategorilere erişim</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Gelişmiş analiz grafikleri</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Tekrarlayan işlem takibi</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Veri dışa aktarma</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Öncelikli destek</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle2 className="w-5 h-5 mr-3 text-primary flex-shrink-0" />
-                    <span>Bütçe aşım bildirimleri</span>
+                  <li className="flex items-center group">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                    </div>
+                    <span className="text-base">Bütçe aşım bildirimleri</span>
                   </li>
                 </ul>
-                <Button className="w-full group mt-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-md" asChild>
-                  <Link href="/register">
-                    Şimdi Başla
-                    <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <Button className="w-full group mt-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg py-7 text-lg relative overflow-hidden" asChild>
+                  <Link href="/register" className="relative z-10 flex items-center justify-center">
+                    Hemen Başla
+                    <ChevronRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-primary to-primary/80 -z-10"></span>
+                    <span className="absolute inset-0 w-0 bg-gradient-to-r from-primary/90 to-primary hover:w-full transition-all duration-300 -z-5"></span>
                   </Link>
                 </Button>
               </div>

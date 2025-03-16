@@ -1,28 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import Stripe from "stripe";
 
 // App Router için modern config
 export const dynamic = 'force-dynamic';
 
 // Stripe API anahtarı
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-02-24.acacia" as any, // Güncel API versiyonu
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-02-24.acacia",
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const { subscriptionId } = await request.json();
+
+  if (!subscriptionId) {
+    return NextResponse.json(
+      { error: "Abonelik kimliği gereklidir" },
+      { status: 400 }
+    );
+  }
+
   try {
-    const requestData = await request.json();
-    const { subscriptionId } = requestData;
-
-    if (!subscriptionId) {
-      return NextResponse.json(
-        { error: "Abonelik ID'si bulunamadı" },
-        { status: 400 }
-      );
-    }
-
     // Supabase client oluştur
     const supabase = createRouteHandlerClient({ cookies });
 
@@ -44,6 +43,7 @@ export async function POST(request: Request) {
       .single();
 
     if (subscriptionError) {
+      console.error("Abonelik bilgisi alınırken hata:", subscriptionError);
       return NextResponse.json(
         { error: "Abonelik bilgisi bulunamadı" },
         { status: 404 }
@@ -58,10 +58,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Stripe'dan aboneliği iptal et
-    await stripe.subscriptions.cancel(subscription.stripe_subscription_id);
+    // Stripe'da aboneliği iptal et
+    const canceledSubscription = await stripe.subscriptions.cancel(subscription.stripe_subscription_id);
 
-    // 1. Veritabanında subscriptions tablosundaki abonelik durumunu güncelle
+    // Veritabanında subscriptions tablosundaki abonelik durumunu güncelle
     const { error: subUpdateError } = await supabase
       .from('subscriptions')
       .update({
@@ -77,39 +77,13 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-    
-    // 2. User settings tablosunu da güncelle
-    const { error: settingsError } = await supabase
-      .from('user_settings')
-      .update({
-        subscription_status: 'free',
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', user.id);
-      
-    if (settingsError) {
-      console.error("User settings güncellenirken hata:", settingsError);
-      // İşlemi durdurmuyoruz, çünkü subscriptions tablosu birincil kaynaktır
-    } else {
-      console.log("✅ User settings'te abonelik durumu FREE olarak güncellendi");
-      
-      // Güncelleme sonrası kontrol et
-      const { data: updatedSettings } = await supabase
-        .from('user_settings')
-        .select('subscription_status')
-        .eq('user_id', user.id)
-        .single();
-        
-      console.log("Abonelik iptali sonrası user_settings:", updatedSettings);
-    }
 
-    return NextResponse.json({ 
-      success: true,
-      message: "Abonelik başarıyla iptal edildi" 
-    });
-    
+    return NextResponse.json(
+      { message: "Abonelik başarıyla iptal edildi", subscription: canceledSubscription },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("Abonelik iptali hatası:", error);
+    console.error("Abonelik iptal hatası:", error);
     return NextResponse.json(
       { error: "Abonelik iptal edilirken bir hata oluştu" },
       { status: 500 }
