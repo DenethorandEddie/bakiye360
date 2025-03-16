@@ -105,5 +105,47 @@ export async function POST(req: NextApiRequest, res: NextApiResponse) {
     }
   }
 
+  // Handle the invoice.payment_failed event
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object as Stripe.Invoice;
+    const subscriptionId = invoice.subscription;
+
+    try {
+      // Cancel the subscription
+      await stripe.subscriptions.cancel(subscriptionId as string);
+
+      // Fetch the user's record from Supabase
+      const { data: userData, error: userError } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('stripe_subscription_id', subscriptionId)
+        .single();
+
+      if (userError) {
+        throw userError;
+      }
+
+      // Update the user's subscription status in Supabase
+      const { error: updateError } = await supabase
+        .from('user_settings')
+        .update({
+          subscription_status: 'free',
+          email_notifications: false,
+          budget_alerts: false,
+          monthly_reports: false,
+        })
+        .eq('id', userData.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      console.log('Subscription cancelled due to payment failure');
+    } catch (error) {
+      console.error('Error processing payment failure:', error);
+      return res.status(400).send('Webhook handler failed. View logs.');
+    }
+  }
+
   res.json({ received: true });
 }

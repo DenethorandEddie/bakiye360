@@ -99,16 +99,49 @@ export default function SettingsPage() {
               console.log("Abonelik tarihleri bulunamadı, varsayılan değerler kullanılacak");
             }
             
-            setSubscriptionDetails({
-              currentPeriodStart: startDate,
-              currentPeriodEnd: endDate,
-              stripeSubscriptionId: userSettingsData.stripe_subscription_id ? String(userSettingsData.stripe_subscription_id) : null
-            });
+            // Abonelik bitiş tarihini kontrol et
+            const currentDate = new Date();
+            const endDateObj = endDate ? new Date(endDate) : null;
             
-            console.log("Ayarlanan abonelik tarih detayları:", {
-              başlangıç: startDate,
-              bitiş: endDate
-            });
+            if (endDateObj && endDateObj < currentDate) {
+              console.log("Abonelik süresi dolmuş, ücretsiz plana geçiriliyor...");
+              
+              // Aboneliği sonlandır ve ücretsiz plana geçir
+              await supabase
+                .from('user_settings')
+                .update({
+                  subscription_status: 'free',
+                  email_notifications: false,
+                  budget_alerts: false,
+                  monthly_reports: false,
+                })
+                .eq('user_id', user.id);
+                
+              // Yerel state'i güncelle  
+              setSubscriptionStatus('free');
+              setSubscriptionDetails({
+                currentPeriodStart: null,
+                currentPeriodEnd: null,
+                stripeSubscriptionId: null
+              });
+              setSettings(prev => ({
+                ...prev,
+                notifications: {
+                  email: false,
+                  budgetAlerts: false,
+                  monthlyReports: false,
+                }
+              }));
+              
+              toast.error("Aboneliğiniz sona erdi. Lütfen yenileyin.");
+            } else {
+              // Abonelik hala geçerli, detayları ayarla
+              setSubscriptionDetails({
+                currentPeriodStart: startDate,
+                currentPeriodEnd: endDate,
+                stripeSubscriptionId: userSettingsData.stripe_subscription_id ? String(userSettingsData.stripe_subscription_id) : null
+              });
+            }
           } else {
             // Free kullanıcı için abonelik detaylarını sıfırla
             setSubscriptionDetails({
