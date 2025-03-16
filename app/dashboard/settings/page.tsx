@@ -91,26 +91,21 @@ export default function SettingsPage() {
             });
 
             // Eğer tarihler null veya undefined ise, varsayılan değerler atayalım
-            let startDate = userSettingsData.subscription_period_start ? String(userSettingsData.subscription_period_start) : null;
-            let endDate = userSettingsData.subscription_period_end ? String(userSettingsData.subscription_period_end) : null;
+            let startDate = userSettingsData.subscription_start ? String(userSettingsData.subscription_start) : null;
+            let endDate = userSettingsData.subscription_end ? String(userSettingsData.subscription_end) : null;
             
-            // Eğer tarihler hala null ise, şu anki premium kullanıcılar için örnek tarihler kullanalım
+            // Eğer tarihler hala null ise, subscription_period_start ve subscription_period_end'i deneyelim
             if (!startDate) {
-              // Bir ay öncesi için örnek tarih
-              const today = new Date();
-              const lastMonth = new Date(today);
-              lastMonth.setMonth(today.getMonth() - 1);
-              startDate = lastMonth.toISOString();
-              console.log("Başlangıç tarihi bulunamadı, varsayılan değer atandı:", startDate);
+              startDate = userSettingsData.subscription_period_start ? String(userSettingsData.subscription_period_start) : null;
             }
             
             if (!endDate) {
-              // Bir ay sonrası için örnek tarih
-              const today = new Date();
-              const nextMonth = new Date(today);
-              nextMonth.setMonth(today.getMonth() + 1);
-              endDate = nextMonth.toISOString();
-              console.log("Bitiş tarihi bulunamadı, varsayılan değer atandı:", endDate);
+              endDate = userSettingsData.subscription_period_end ? String(userSettingsData.subscription_period_end) : null;
+            }
+            
+            // Eğer hala null ise, hesaplama yapmayalım, kayıtlı tarihleri kullanalım
+            if (!startDate || !endDate) {
+              console.log("Abonelik tarihleri bulunamadı, varsayılan değerler kullanılacak");
             }
             
             setSubscriptionDetails({

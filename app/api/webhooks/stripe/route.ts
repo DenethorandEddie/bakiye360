@@ -23,11 +23,31 @@ export async function POST(req: Request) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       
+      // Abonelik detaylarını Stripe'dan al
+      const subscription = session.subscription 
+        ? await stripe.subscriptions.retrieve(session.subscription as string)
+        : null;
+      
+      const currentDate = new Date().toISOString();
+      // Bir sonraki ay için tarih hesapla (varsayılan)
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      
       await supabase
         .from('user_settings')
         .update({ 
           subscription_status: 'premium',
           stripe_subscription_id: session.subscription,
+          subscription_start: currentDate, // Abonelik başlangıç tarihi
+          subscription_end: subscription?.current_period_end 
+            ? new Date(subscription.current_period_end * 1000).toISOString() 
+            : nextMonth.toISOString(), // Abonelik bitiş tarihi (Stripe'dan veya hesaplanmış)
+          subscription_period_start: subscription?.current_period_start 
+            ? new Date(subscription.current_period_start * 1000).toISOString() 
+            : currentDate, // Mevcut dönem başlangıcı
+          subscription_period_end: subscription?.current_period_end 
+            ? new Date(subscription.current_period_end * 1000).toISOString() 
+            : nextMonth.toISOString(), // Mevcut dönem bitişi
           email_notifications: true,
           budget_alerts: true,
           monthly_reports: true
