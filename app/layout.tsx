@@ -5,6 +5,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { SupabaseProvider } from '@/components/supabase-provider';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
+import { AnalyticsPageView } from '@/components/AnalyticsPageView';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -27,6 +29,12 @@ export default function RootLayout({
       <body className={`${inter.className} dark:bg-gray-900 dark-bg`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <SupabaseProvider>
+            {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+              <>
+                <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+                <AnalyticsPageView />
+              </>
+            )}
             {children}
             <Toaster />
             <SonnerToaster />

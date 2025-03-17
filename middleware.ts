@@ -7,6 +7,11 @@ export async function middleware(request: NextRequest) {
   const supabase = createMiddlewareClient({ req: request, res });
   const { data: { session } } = await supabase.auth.getSession();
 
+  // Analytics için pageview'u header'a ekle
+  // Bu header'ı client side'da yakalayıp analytics olayı olarak kullanabilirsiniz
+  const url = request.nextUrl.pathname;
+  res.headers.set('x-pathname', url);
+
   // Protect admin routes
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!session) {
@@ -29,5 +34,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*']
+  matcher: ['/admin/:path*', '/:path*']
 }
