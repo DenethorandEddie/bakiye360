@@ -216,20 +216,20 @@ export default function DashboardLayout({
           </button>
 
           {/* Logo Bölümü */}
-          <div className="sidebar-logo pt-0">
-            <Link href="/dashboard" className="block mt-[-106px]">
-              <div className="w-16 h-16">
+          <div className="sidebar-logo">
+            <Link href="/dashboard" className="block">
+              <div className="relative w-16 h-16">
                 {/* Light mode logo */}
                 <img 
                   src="/logo.png" 
                   alt="Bakiye360 Logo" 
-                  className="w-full h-full object-contain dark:opacity-0 transition-opacity"
+                  className="absolute top-0 left-0 w-full h-full object-contain dark:opacity-0 transition-opacity"
                 />
                 {/* Dark mode logo */}
                 <img 
                   src="/logo_dark.png" 
                   alt="Bakiye360 Logo" 
-                  className="w-full h-full object-contain opacity-0 dark:opacity-100 transition-opacity"
+                  className="absolute top-0 left-0 w-full h-full object-contain opacity-0 dark:opacity-100 transition-opacity"
                 />
               </div>
             </Link>
