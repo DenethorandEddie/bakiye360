@@ -722,9 +722,6 @@ export default function Home() {
                 <li>
                   <a href="#pricing" className="text-muted-foreground hover:text-foreground">Fiyatlandırma</a>
                 </li>
-                <li>
-                  <a href="#" className="text-muted-foreground hover:text-foreground">Sık Sorulan Sorular</a>
-                </li>
               </ul>
             </div>
             <div>
