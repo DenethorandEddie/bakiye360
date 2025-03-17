@@ -104,10 +104,10 @@ export default function Home() {
             </nav>
             <div className="flex items-center gap-2">
               <ModeToggle />
-              <Button variant="ghost" asChild>
+              <Button variant="ghost" asChild className="dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-100">
                 <Link href="/login">Giriş Yap</Link>
               </Button>
-              <Button asChild>
+              <Button asChild className="dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white">
                 <Link href="/login">
                   Panele Git
                   <ArrowRight className="ml-2 h-4 w-4" />

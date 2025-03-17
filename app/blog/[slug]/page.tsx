@@ -117,12 +117,12 @@ export default function BlogPostPage({
                 </Link>
               </nav>
               <div className="flex items-center gap-3">
-                <Button variant="outline" className="hidden sm:flex" asChild>
+                <Button variant="outline" className="hidden sm:flex dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200" asChild>
                   <Link href="/register">
                     Kayıt Ol
                   </Link>
                 </Button>
-                <Button asChild>
+                <Button asChild className="dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white">
                   <Link href="/login" className="flex items-center">
                     <ArrowRight className="mr-2 h-4 w-4" />
                     Giriş Yap / Panel
@@ -183,12 +183,12 @@ export default function BlogPostPage({
               </Link>
             </nav>
             <div className="flex items-center gap-3">
-              <Button variant="outline" className="hidden sm:flex" asChild>
+              <Button variant="outline" className="hidden sm:flex dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200" asChild>
                 <Link href="/register">
                   Kayıt Ol
                 </Link>
               </Button>
-              <Button asChild>
+              <Button asChild className="dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-white">
                 <Link href="/login" className="flex items-center">
                   <ArrowRight className="mr-2 h-4 w-4" />
                   Giriş Yap / Panel
