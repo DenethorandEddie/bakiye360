@@ -5,11 +5,17 @@ const path = require('path');
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['wemufsahwsnmeyuedczw.supabase.co', 'i.pravatar.cc', 'images.unsplash.com'],
+    domains: ['wemufsahwsnmeyuedczw.supabase.co', 'i.pravatar.cc', 'images.unsplash.com', 'images.pexels.com', 'pexels.com'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'wemufsahwsnmeyuedczw.supabase.co',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.pexels.com',
         port: '',
         pathname: '/**',
       },

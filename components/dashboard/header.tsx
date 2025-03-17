@@ -22,10 +22,11 @@ import { useRouter } from "next/navigation";
 // Lucide ikonlarını dinamik olarak import edelim
 const Bell = dynamic(() => import("lucide-react").then((mod) => mod.Bell), { ssr: false });
 const User = dynamic(() => import("lucide-react").then((mod) => mod.User), { ssr: false });
+const Shield = dynamic(() => import("lucide-react").then((mod) => mod.Shield), { ssr: false });
 
 export default function Header() {
   const { theme } = useTheme();
-  const { isSidebarExpanded } = useSidebar();
+  const { isSidebarExpanded, toggleSidebar } = useSidebar();
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [userInitials, setUserInitials] = useState("U");
@@ -33,10 +34,12 @@ export default function Header() {
   const [hasUnread, setHasUnread] = useState(false);
   const [userName, setUserName] = useState("");
   const [isClientSide, setIsClientSide] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // Client-side rendering kontrolü
   useEffect(() => {
     setIsClientSide(true);
+    checkAdminStatus();
   }, []);
   
   // Kullanıcı bilgilerini al
@@ -172,6 +175,23 @@ export default function Header() {
     router.push("/login");
   };
 
+  async function checkAdminStatus() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      setIsAdmin(profile?.role === 'admin');
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  }
+
   return (
     <header className="flex items-center justify-end h-16 px-4 md:px-6 border-b bg-card">
       {/* Logo - sadece mobil görünümde ve ortada */}
@@ -266,6 +286,14 @@ export default function Header() {
                 <span>Profil</span>
               </Link>
             </DropdownMenuItem>
+            {isAdmin && (
+              <DropdownMenuItem asChild>
+                <Link href="/admin">
+                  {isClientSide && <Shield className="mr-2 h-4 w-4" />}
+                  <span>Admin Paneli</span>
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
               <Link href="/dashboard/settings">
                 <svg

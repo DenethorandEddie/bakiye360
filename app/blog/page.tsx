@@ -1,211 +1,332 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, Search, Filter } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
-// Sample blog post data
-const blogPosts = [
-  {
-    id: 1,
-    title: "Kişisel Finans Yönetiminde 5 Temel İpucu",
-    excerpt: "Finansal özgürlüğünüze giden yolda size yardımcı olacak temel ipuçlarını derledik.",
-    date: "15 Mart 2024",
-    readTime: "5 dk",
-    category: "Finansal Tavsiyeler",
-    image: "/blog/financial-tips.jpg"
-  },
-  {
-    id: 2,
-    title: "Bütçe Planlaması Nasıl Yapılır?",
-    excerpt: "Etkili bir bütçe planlaması için adım adım rehber ve öneriler.",
-    date: "10 Mart 2024",
-    readTime: "7 dk",
-    category: "Bütçe Yönetimi",
-    image: "/blog/budget-planning.jpg"
-  },
-  {
-    id: 3,
-    title: "Tasarruf Etmenin Akıllı Yolları",
-    excerpt: "Günlük hayatta uygulayabileceğiniz pratik tasarruf yöntemleri.",
-    date: "5 Mart 2024",
-    readTime: "6 dk",
-    category: "Tasarruf",
-    image: "/blog/saving-money.jpg"
-  }
-];
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string;
+  featured_image: string;
+  category: Category;
+  published_at: string;
+}
 
 export default function BlogPage() {
   const { theme } = useTheme();
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    fetchPosts();
+    fetchCategories();
+  }, []);
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
+  async function fetchCategories() {
+    try {
+      const { data, error } = await supabase
+        .from('blog_categories')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  }
+
+  async function fetchPosts() {
+    try {
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select(`
+          *,
+          category:blog_categories(*)
+        `)
+        .eq('status', 'published')
+        .order('published_at', { ascending: false });
+
+      if (error) throw error;
+      setPosts(data || []);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filteredPosts = posts.filter(post =>
+    (selectedCategory ? post.category?.id === selectedCategory : true) &&
+    (
+      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.category?.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
+  // Kategorilere göre yazıları grupla
+  const groupedByCategory = filteredPosts.reduce((acc, post) => {
+    const categoryId = post.category?.id || 'uncategorized';
+    if (!acc[categoryId]) {
+      acc[categoryId] = [];
+    }
+    acc[categoryId].push(post);
+    return acc;
+  }, {} as Record<string, BlogPost[]>);
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/">
+            <Link href="/" className="transition-transform hover:scale-105">
               <Image 
                 src={theme === "dark" ? "/logo_dark.png" : "/logo.png"} 
                 alt="Bakiye360 Logo" 
-                width={180} 
-                height={80} 
+                width={150} 
+                height={60} 
                 className="h-auto w-auto"
-                style={{ maxHeight: '118px' }}
+                style={{ maxHeight: '100px' }}
                 priority
               />
             </Link>
           </div>
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-6">
-              <Link href="/#features" className="text-sm font-medium transition-colors hover:text-primary">
-                Özellikler
-              </Link>
-              <Link href="/#testimonials" className="text-sm font-medium transition-colors hover:text-primary">
-                Kullanıcı Yorumları
-              </Link>
-              <Link href="/#pricing" className="text-sm font-medium transition-colors hover:text-primary">
-                Fiyatlandırma
-              </Link>
-              <Link href="/blog" className="text-sm font-medium text-primary">
+              <Link 
+                href="/blog" 
+                className="text-sm font-medium relative group"
+              >
                 Blog
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full"></span>
               </Link>
             </nav>
-            <Button variant="ghost" asChild>
-              <Link href="/login">Giriş Yap</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/login">
-                Panele Git
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" className="hidden sm:flex" asChild>
+                <Link href="/register">
+                  Kayıt Ol
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/login" className="flex items-center">
+                  <ArrowRight className="mr-2 h-4 w-4" />
+                  Giriş Yap / Panel
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="py-12 md:py-16 bg-muted/30">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tighter">
-                Bakiye360 Blog
-              </h1>
-              <p className="text-muted-foreground max-w-[600px]">
-                Finansal özgürlüğünüz için güncel bilgiler, ipuçları ve uzman tavsiyeleri.
+      <main className="flex-1 container py-8">
+        <div className="space-y-8">
+          {/* Search and Title Section */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight dark:text-white">Blog</h1>
+              <p className="text-muted-foreground mt-1 dark:text-gray-400">
+                Finans dünyasından en güncel haberler ve ipuçları
               </p>
-              <div className="w-full max-w-sm space-y-2">
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Blog yazılarında ara..."
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-72">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Blog yazılarında ara..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="pl-8"
+                />
               </div>
+              <Button variant="default" size="icon" onClick={handleSearch} aria-label="Ara">
+                <Search className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem 
+                      onClick={() => setSelectedCategory(null)}
+                      className="cursor-pointer"
+                    >
+                      Tüm Kategoriler
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {categories.map((category) => (
+                      <DropdownMenuItem 
+                        key={category.id} 
+                        onClick={() => setSelectedCategory(category.id)}
+                        className="cursor-pointer"
+                      >
+                        {category.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-        </section>
 
-        {/* Blog Posts Grid */}
-        <section className="py-12 md:py-16">
-          <div className="container px-4 md:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {blogPosts
-                .filter(post => 
-                  post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  post.category.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-                .map(post => (
-                  <article key={post.id} className="group relative flex flex-col space-y-2">
-                    <Image
-                      src={post.image}
-                      alt={post.title}
-                      width={600}
-                      height={400}
-                      className="rounded-lg object-cover w-full aspect-[16/9]"
-                    />
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <span>{post.category}</span>
-                      <span>•</span>
-                      <span>{post.date}</span>
-                      <span>•</span>
-                      <span>{post.readTime}</span>
-                    </div>
-                    <h2 className="text-xl font-bold">{post.title}</h2>
-                    <p className="text-muted-foreground">{post.excerpt}</p>
-                    <Button variant="link" className="p-0 h-auto font-medium">
-                      Devamını Oku
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </article>
-                ))}
+          {/* Selected Category Badge */}
+          {selectedCategory && (
+            <div className="flex items-center">
+              <Badge variant="outline" className="px-3 py-1 dark:border-gray-700 dark:text-gray-300">
+                Kategori: {categories.find(c => c.id === selectedCategory)?.name}
+                <button 
+                  className="ml-2 text-muted-foreground hover:text-foreground dark:hover:text-gray-200"
+                  onClick={() => setSelectedCategory(null)}
+                >
+                  ✕
+                </button>
+              </Badge>
             </div>
-          </div>
-        </section>
+          )}
+
+          {/* Blog Posts Grid */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <div className="aspect-video bg-muted rounded-lg animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
+                    <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredPosts.length > 0 ? (
+            <div className="space-y-12">
+              {Object.entries(groupedByCategory).map(([categoryId, posts]) => {
+                const category = categories.find(c => c.id === categoryId) || { name: 'Diğer' };
+                return (
+                  <div key={categoryId} className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-2xl font-bold tracking-tight">{category.name}</h2>
+                      <Badge variant="outline">{posts.length}</Badge>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {posts.map((post) => (
+                        <Link key={post.id} href={`/blog/${post.slug}`}>
+                          <article className="group relative flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary/50 transition-colors hover:shadow-md">
+                            <div className="overflow-hidden">
+                              {post.featured_image ? (
+                                <div className="aspect-video bg-muted">
+                                  <Image
+                                    src={post.featured_image}
+                                    alt={post.title}
+                                    width={600}
+                                    height={400}
+                                    className="aspect-video object-cover h-full w-full transition-transform group-hover:scale-105 duration-300"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="aspect-video bg-muted" />
+                              )}
+                            </div>
+                            <div className="flex flex-col flex-grow p-4 space-y-3">
+                              <h2 className="text-xl font-semibold tracking-tight group-hover:text-primary transition-colors line-clamp-2 dark:text-foreground">
+                                {post.title}
+                              </h2>
+                              {post.excerpt && (
+                                <div 
+                                  className="text-muted-foreground text-sm line-clamp-3 prose-sm dark:prose-invert dark:text-gray-300"
+                                  dangerouslySetInnerHTML={{ __html: post.excerpt }}
+                                />
+                              )}
+                              <div className="flex items-center justify-between gap-2 text-sm mt-auto pt-3">
+                                <span className="text-primary px-2 py-1 bg-primary/10 rounded-full text-xs dark:bg-primary/20">
+                                  {post.category?.name}
+                                </span>
+                                <time className="text-muted-foreground text-xs dark:text-gray-400">
+                                  {new Date(post.published_at).toLocaleDateString('tr-TR', {
+                                    day: 'numeric',
+                                    month: 'long'
+                                  })}
+                                </time>
+                              </div>
+                            </div>
+                          </article>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <h2 className="text-xl font-semibold">Sonuç Bulunamadı</h2>
+              <p className="text-muted-foreground mt-1">
+                Arama kriterlerinize uygun blog yazısı bulunamadı.
+              </p>
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t py-12 md:py-16">
-        <div className="container px-4 md:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <Image 
-                  src={theme === "dark" ? "/logo_dark.png" : "/logo.png"} 
-                  alt="Bakiye360 Logo" 
-                  width={180} 
-                  height={45} 
-                  className="h-auto w-auto"
-                  style={{ maxHeight: '112px' }}
-                  priority
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Finansal özgürlüğünüz için akıllı bütçe yönetimi çözümü.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Ürün</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/#features" className="text-muted-foreground hover:text-foreground">
-                    Özellikler
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/#pricing" className="text-muted-foreground hover:text-foreground">
-                    Fiyatlandırma
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Şirket</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/about" className="text-muted-foreground hover:text-foreground">
-                    Hakkımızda
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/blog" className="text-muted-foreground hover:text-foreground">
-                    Blog
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
+      <footer className="border-t py-6 md:py-0">
+        <div className="container flex flex-col md:flex-row items-center justify-between gap-4 md:h-16">
+          <p className="text-sm text-muted-foreground">
+            © {new Date().getFullYear()} Bakiye360. Tüm hakları saklıdır.
+          </p>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+              Gizlilik Politikası
+            </Link>
+            <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+              Kullanım Koşulları
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

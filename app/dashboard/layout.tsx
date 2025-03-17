@@ -21,7 +21,8 @@ import {
   Sun,
   Moon,
   X,
-  CalendarClock
+  CalendarClock,
+  Shield
 } from "lucide-react";
 
 // Sidebar context
@@ -52,6 +53,7 @@ export default function DashboardLayout({
   const [isPremium, setIsPremium] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isClientSide, setIsClientSide] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Mobil görünüm için sidebar durumu
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -59,6 +61,7 @@ export default function DashboardLayout({
   // Client-side rendering kontrolü
   useEffect(() => {
     setIsClientSide(true);
+    checkAdminStatus();
   }, []);
 
   // Mobil menü açıkken body'ye class ekle/çıkar
@@ -129,6 +132,23 @@ export default function DashboardLayout({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  async function checkAdminStatus() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      setIsAdmin(profile?.role === 'admin');
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  }
+
   const isActive = (path: string) => {
     if (!pathname) return false;
     
@@ -169,6 +189,15 @@ export default function DashboardLayout({
   // Ayarlar grubu
   const settingsItems = [
     { name: "Profil", href: "/dashboard/profile", icon: User },
+  ];
+
+  // Admin menüsü öğeleri
+  const adminItems = [
+    {
+      name: "Admin Paneli",
+      href: "/admin",
+      icon: Shield
+    }
   ];
 
   // Client tarafı render kontrolü yaparak hydration hatalarını önle
@@ -259,6 +288,32 @@ export default function DashboardLayout({
                 <span className="nav-item-indicator"></span>
               </Link>
             ))}
+
+            {/* Admin menüsü */}
+            {isAdmin && (
+              <>
+                {isSidebarExpanded && (
+                  <div className="nav-section-title">Yönetim</div>
+                )}
+                {adminItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      "nav-item",
+                      isActive(item.href) && "active"
+                    )}
+                    title={item.name}
+                  >
+                    <span className="nav-item-icon">
+                      {isClientSide ? <item.icon size={isSidebarExpanded ? 18 : 17} /> : <LoadingPlaceholder />}
+                    </span>
+                    <span className="nav-item-text">{item.name}</span>
+                    <span className="nav-item-indicator"></span>
+                  </Link>
+                ))}
+              </>
+            )}
 
             {/* Yeni tasarım: Sidebar genişlet/daralt butonu */}
             <div className="relative">
