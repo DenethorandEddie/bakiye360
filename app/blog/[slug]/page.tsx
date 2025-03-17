@@ -89,9 +89,9 @@ export default function BlogPostPage({
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="min-h-screen bg-background dark:bg-gray-900">
         {/* Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
           <div className="container flex h-16 items-center justify-between">
             <div className="flex items-center">
               <Link href="/" className="transition-transform hover:scale-105">
@@ -134,16 +134,16 @@ export default function BlogPostPage({
         </header>
 
         {/* Loading State */}
-        <main className="flex-1 container py-8">
+        <main className="flex-1 container py-8 dark:bg-gray-900">
           <div className="max-w-3xl mx-auto space-y-8">
             <div className="space-y-4">
-              <div className="h-8 w-3/4 bg-muted rounded animate-pulse" />
-              <div className="h-6 w-1/2 bg-muted rounded animate-pulse" />
+              <div className="h-8 w-3/4 bg-muted dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-6 w-1/2 bg-muted dark:bg-gray-700 rounded animate-pulse" />
             </div>
-            <div className="aspect-video bg-muted rounded-lg animate-pulse" />
+            <div className="aspect-video bg-muted dark:bg-gray-700 rounded-lg animate-pulse" />
             <div className="space-y-4">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-4 bg-muted rounded animate-pulse" />
+                <div key={i} className="h-4 bg-muted dark:bg-gray-700 rounded animate-pulse" />
               ))}
             </div>
           </div>
@@ -155,9 +155,9 @@ export default function BlogPostPage({
   if (!post) return null;
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen bg-background dark:bg-gray-900">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="transition-transform hover:scale-105">
@@ -200,7 +200,7 @@ export default function BlogPostPage({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container py-8">
+      <main className="container py-12 dark:bg-gray-900">
         <article className="max-w-3xl mx-auto">
           {/* Back to Blog */}
           <div className="mb-8">
@@ -215,7 +215,7 @@ export default function BlogPostPage({
           {/* Article Header */}
           <header className="space-y-4 mb-8">
             <div className="flex items-center gap-2 text-sm mb-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary dark:bg-primary/20">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground">
                 {post.category?.name}
               </span>
               <span className="text-muted-foreground dark:text-gray-400">•</span>
@@ -264,7 +264,7 @@ export default function BlogPostPage({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {relatedPosts.map((relatedPost) => (
                 <Link key={relatedPost.id} href={`/blog/${relatedPost.slug}`}>
-                  <article className="group relative flex flex-col space-y-3 border rounded-lg p-3 hover:border-primary/50 transition-colors">
+                  <article className="group relative flex flex-col space-y-3 border rounded-lg p-3 hover:border-primary/50 transition-colors dark:border-gray-700 dark:bg-gray-800">
                     {relatedPost.featured_image ? (
                       <div className="overflow-hidden rounded-lg">
                         <Image
@@ -290,16 +290,16 @@ export default function BlogPostPage({
       </main>
 
       {/* Footer */}
-      <footer className="border-t py-6 md:py-0">
+      <footer className="border-t py-6 md:py-0 dark:bg-gray-900 dark:border-gray-800">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-4 md:h-16">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground dark:text-gray-400">
             © {new Date().getFullYear()} Bakiye360. Tüm hakları saklıdır.
           </p>
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors dark:text-gray-400 dark:hover:text-white">
               Gizlilik Politikası
             </Link>
-            <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors dark:text-gray-400 dark:hover:text-white">
               Kullanım Koşulları
             </Link>
           </nav>

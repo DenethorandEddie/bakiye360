@@ -116,9 +116,9 @@ export default function BlogPage() {
   }, {} as Record<string, BlogPost[]>);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen bg-background dark:bg-gray-900">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="transition-transform hover:scale-105">
@@ -161,7 +161,7 @@ export default function BlogPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container py-8">
+      <main className="container py-12 space-y-12 dark:bg-gray-900">
         <div className="space-y-8">
           {/* Search and Title Section */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -234,11 +234,11 @@ export default function BlogPage() {
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="space-y-3">
-                  <div className="aspect-video bg-muted rounded-lg animate-pulse" />
+                <div key={i} className="space-y-3 dark:bg-gray-800 p-4 rounded-lg border dark:border-gray-700">
+                  <div className="aspect-video bg-muted dark:bg-gray-700 rounded-lg animate-pulse" />
                   <div className="space-y-2">
-                    <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
-                    <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+                    <div className="h-4 w-3/4 bg-muted dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-4 w-1/2 bg-muted dark:bg-gray-700 rounded animate-pulse" />
                   </div>
                 </div>
               ))}
@@ -250,16 +250,16 @@ export default function BlogPage() {
                 return (
                   <div key={categoryId} className="space-y-6">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-2xl font-bold tracking-tight">{category.name}</h2>
-                      <Badge variant="outline">{posts.length}</Badge>
+                      <h2 className="text-2xl font-bold tracking-tight dark:text-white">{category.name}</h2>
+                      <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-200">{posts.length}</Badge>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {posts.map((post) => (
                         <Link key={post.id} href={`/blog/${post.slug}`}>
-                          <article className="group relative flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary/50 transition-colors hover:shadow-md">
+                          <article className="group relative flex flex-col h-full border rounded-lg overflow-hidden hover:border-primary/50 transition-colors hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
                             <div className="overflow-hidden">
                               {post.featured_image ? (
-                                <div className="aspect-video bg-muted">
+                                <div className="aspect-video bg-muted dark:bg-gray-700">
                                   <Image
                                     src={post.featured_image}
                                     alt={post.title}
@@ -269,7 +269,7 @@ export default function BlogPage() {
                                   />
                                 </div>
                               ) : (
-                                <div className="aspect-video bg-muted" />
+                                <div className="aspect-video bg-muted dark:bg-gray-700" />
                               )}
                             </div>
                             <div className="flex flex-col flex-grow p-4 space-y-3">
@@ -283,7 +283,7 @@ export default function BlogPage() {
                                 />
                               )}
                               <div className="flex items-center justify-between gap-2 text-sm mt-auto pt-3">
-                                <span className="text-primary px-2 py-1 bg-primary/10 rounded-full text-xs dark:bg-primary/20">
+                                <span className="text-primary px-2 py-1 bg-primary/10 rounded-full text-xs dark:bg-primary/20 dark:text-primary-foreground font-medium">
                                   {post.category?.name}
                                 </span>
                                 <time className="text-muted-foreground text-xs dark:text-gray-400">
@@ -314,16 +314,16 @@ export default function BlogPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t py-6 md:py-0">
+      <footer className="border-t py-6 md:py-0 dark:bg-gray-900 dark:border-gray-800">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-4 md:h-16">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground dark:text-gray-400">
             © {new Date().getFullYear()} Bakiye360. Tüm hakları saklıdır.
           </p>
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors dark:text-gray-400 dark:hover:text-white">
               Gizlilik Politikası
             </Link>
-            <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors dark:text-gray-400 dark:hover:text-white">
               Kullanım Koşulları
             </Link>
           </nav>
