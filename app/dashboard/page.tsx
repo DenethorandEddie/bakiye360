@@ -13,6 +13,7 @@ import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditC
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { sendBudgetAlertEmail } from "@/app/utils/email";
+import SubscriptionsWidget from "@/app/components/dashboard/SubscriptionsWidget";
 
 // Grafik renkleri - daha profesyonel ve uyumlu renkler
 const COLORS = [
@@ -976,6 +977,9 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Abonelikler */}
+              <SubscriptionsWidget />
             </div>
           </div>
 
