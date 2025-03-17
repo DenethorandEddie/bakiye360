@@ -731,7 +731,7 @@ export default function Home() {
                   <Link href="/about" className="text-muted-foreground hover:text-foreground">Hakkımızda</Link>
                 </li>
                 <li>
-                  <a href="#" className="text-muted-foreground hover:text-foreground">Blog</a>
+                  <Link href="/blog" className="text-muted-foreground hover:text-foreground">Blog</Link>
                 </li>
               </ul>
             </div>
