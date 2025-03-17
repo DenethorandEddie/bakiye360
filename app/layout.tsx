@@ -24,7 +24,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className={`${inter.className} dark:bg-gray-900`}>
+      <body className={`${inter.className} dark:bg-gray-900 dark-bg`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <SupabaseProvider>
             {children}

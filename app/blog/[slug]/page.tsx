@@ -89,7 +89,7 @@ export default function BlogPostPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background dark:bg-gray-900">
+      <div className="min-h-screen dark:bg-gray-900 bg-background w-full overflow-x-hidden dark-bg">
         {/* Header */}
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
           <div className="container flex h-16 items-center justify-between">
@@ -155,7 +155,7 @@ export default function BlogPostPage({
   if (!post) return null;
 
   return (
-    <div className="min-h-screen bg-background dark:bg-gray-900">
+    <div className="min-h-screen dark:bg-gray-900 bg-background w-full overflow-x-hidden dark-bg">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:bg-gray-900/95 dark:border-gray-800">
         <div className="container flex h-16 items-center justify-between">
@@ -200,7 +200,7 @@ export default function BlogPostPage({
       </header>
 
       {/* Main Content */}
-      <main className="container py-12 dark:bg-gray-900">
+      <main className="container py-12 dark:bg-gray-900 w-full">
         <article className="max-w-3xl mx-auto">
           {/* Back to Blog */}
           <div className="mb-8">
@@ -290,7 +290,7 @@ export default function BlogPostPage({
       </main>
 
       {/* Footer */}
-      <footer className="border-t py-6 md:py-0 dark:bg-gray-900 dark:border-gray-800">
+      <footer className="border-t py-6 md:py-0 dark:bg-gray-900 dark:border-gray-800 w-full">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-4 md:h-16">
           <p className="text-sm text-muted-foreground dark:text-gray-400">
             © {new Date().getFullYear()} Bakiye360. Tüm hakları saklıdır.
