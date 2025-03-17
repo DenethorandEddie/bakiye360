@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAnalytics } from '@/hooks/useAnalytics';
 
-export function AnalyticsPageView() {
+// useSearchParams hook'unu kullanan bileşen
+function AnalyticsPageViewTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { trackPageView } = useAnalytics();
@@ -19,4 +20,13 @@ export function AnalyticsPageView() {
 
   // Bu bir görünmez bileşendir ve render işlemi yapmaz
   return null;
+}
+
+// Ana bileşen, Suspense ile sarmalanmış
+export function AnalyticsPageView() {
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsPageViewTracker />
+    </Suspense>
+  );
 } 
