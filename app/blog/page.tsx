@@ -123,11 +123,20 @@ export default function BlogPage() {
           <div className="flex items-center">
             <Link href="/" className="transition-transform hover:scale-105">
               <Image 
-                src={theme === "dark" ? "/logo_dark.png" : "/logo.png"} 
+                src="/logo.png" 
                 alt="Bakiye360 Logo" 
                 width={150} 
                 height={60} 
-                className="h-auto w-auto"
+                className="h-auto w-auto dark:hidden"
+                style={{ maxHeight: '100px' }}
+                priority
+              />
+              <Image 
+                src="/logo_dark.png" 
+                alt="Bakiye360 Logo" 
+                width={150} 
+                height={60} 
+                className="h-auto w-auto hidden dark:block"
                 style={{ maxHeight: '100px' }}
                 priority
               />
@@ -137,7 +146,7 @@ export default function BlogPage() {
             <nav className="hidden md:flex items-center gap-6">
               <Link 
                 href="/blog" 
-                className="text-sm font-medium relative group"
+                className="text-sm font-medium relative group dark:text-white"
               >
                 Blog
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full"></span>

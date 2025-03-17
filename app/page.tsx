@@ -80,15 +80,24 @@ export default function Home() {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Image 
-              src={currentTheme === "dark" ? "/logo_dark.png" : "/logo.png"} 
-              alt="Bakiye360 Logo" 
-              width={180} 
-              height={80} 
-              className="h-auto w-auto"
-              style={{ maxHeight: '118px' }}
-              priority
-            />
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/logo.png"
+                alt="Bakiye360"
+                width={150}
+                height={50}
+                className="dark:hidden"
+                priority
+              />
+              <Image
+                src="/logo_dark.png"
+                alt="Bakiye360"
+                width={150}
+                height={50}
+                className="hidden dark:block"
+                priority
+              />
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-6">
