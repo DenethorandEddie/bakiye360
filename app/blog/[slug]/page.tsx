@@ -8,6 +8,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface Category {
   id: string;
@@ -126,6 +127,7 @@ export default function BlogPostPage({
                 </Link>
               </nav>
               <div className="flex items-center gap-3">
+                <ModeToggle />
                 <Button variant="outline" className="hidden sm:flex dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200" asChild>
                   <Link href="/register">
                     Kayıt Ol
@@ -201,6 +203,7 @@ export default function BlogPostPage({
               </Link>
             </nav>
             <div className="flex items-center gap-3">
+              <ModeToggle />
               <Button variant="outline" className="hidden sm:flex dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200" asChild>
                 <Link href="/register">
                   Kayıt Ol

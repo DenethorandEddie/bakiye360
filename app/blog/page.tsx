@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface Category {
   id: string;
@@ -153,6 +154,7 @@ export default function BlogPage() {
               </Link>
             </nav>
             <div className="flex items-center gap-3">
+              <ModeToggle />
               <Button variant="outline" className="hidden sm:flex dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200" asChild>
                 <Link href="/register">
                   Kayıt Ol

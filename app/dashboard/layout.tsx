@@ -22,7 +22,8 @@ import {
   Moon,
   X,
   CalendarClock,
-  Shield
+  Shield,
+  ArrowRight
 } from "lucide-react";
 
 // Sidebar context

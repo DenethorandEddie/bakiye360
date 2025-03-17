@@ -17,6 +17,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { ModeToggle } from "@/components/mode-toggle";
 
 const adminNavItems = [
   {
@@ -84,6 +85,9 @@ export default function AdminLayout({
                 Admin Panel
               </span>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
           </div>
         </div>
       </header>
