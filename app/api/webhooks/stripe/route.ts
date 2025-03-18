@@ -30,6 +30,14 @@ export async function POST(request: Request) {
     const body = await request.text();
     const signature = request.headers.get('stripe-signature') as string;
     
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      console.error('STRIPE_WEBHOOK_SECRET is not configured');
+      return NextResponse.json(
+        { error: 'Webhook secret is not configured' },
+        { status: 500 }
+      );
+    }
+    
     const supabase = createRouteHandlerClient({ cookies });
     
     let event: Stripe.Event;
@@ -38,60 +46,70 @@ export async function POST(request: Request) {
       event = stripe.webhooks.constructEvent(
         body,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET as string
+        process.env.STRIPE_WEBHOOK_SECRET
       );
     } catch (error: any) {
       console.error('Webhook signature verification failed:', error.message);
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Webhook signature verification failed', details: error.message },
+        { status: 400 }
+      );
     }
+    
+    console.log('Webhook event received:', {
+      type: event.type,
+      id: event.id,
+      created: new Date(event.created * 1000).toISOString()
+    });
     
     // Handle the checkout.session.completed event
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      console.log('Webhook: checkout.session.completed olayı alındı - DETAYLI LOG:', JSON.stringify(session, null, 2));
-      console.log('Webhook: checkout.session.completed olayı özet:', {
+      
+      console.log('Processing checkout.session.completed:', {
         sessionId: session.id,
         customerId: session.customer,
-        subscriptionId: session.subscription,
-        mode: session.mode,
-        customerEmail: session.customer_details?.email || session.customer_email,
-        paymentStatus: session.payment_status
+        paymentStatus: session.payment_status,
+        metadata: session.metadata
       });
-  
+      
+      // Metadata'dan userId'yi al
+      const userId = session.metadata?.userId;
+      
+      if (!userId) {
+        console.error('User ID not found in session metadata:', session);
+        return NextResponse.json(
+          { error: 'User ID not found in session metadata' },
+          { status: 400 }
+        );
+      }
+      
       try {
-        // Kullanıcıyı bul - önce customer ID ile dene
-        console.log(`Webhook: Supabase'den kullanıcı bilgileri alınıyor (Customer ID: ${session.customer}, Email: ${session.customer_details?.email || session.customer_email})`);
-        
-        // İlk olarak kullanıcı e-posta adresini alalım
-        const userEmail = session.customer_details?.email || session.customer_email;
-        
-        if (!userEmail) {
-          console.error('Webhook: Kullanıcı e-posta adresi bulunamadı:', session);
-          return NextResponse.json({ error: 'Kullanıcı e-posta adresi bulunamadı' }, { status: 400 });
-        }
-        
-        // Profil tablosunda e-posta ile kullanıcıyı bul
-        const { data: userData, error: userError } = await supabase
+        // Kullanıcıyı ID ile bul
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('email', userEmail)
+          .eq('id', userId)
           .single();
-          
-        if (userError || !userData) {
-          console.error('Webhook: Kullanıcı bulunamadı:', userError, userEmail);
-          return NextResponse.json({ 
-            error: 'Kullanıcı bulunamadı',
-            email: userEmail,
-            customerId: session.customer
-          }, { status: 404 });
+        
+        if (profileError || !profile) {
+          console.error('Profile not found:', { userId, error: profileError });
+          return NextResponse.json(
+            { error: 'Profile not found', userId },
+            { status: 404 }
+          );
         }
         
-        console.log('Webhook: Kullanıcı bulundu:', userData);
+        console.log('Profile found:', {
+          userId: profile.id,
+          currentTier: profile.subscription_tier,
+          currentStatus: profile.subscription_status
+        });
         
-        // Kullanıcı bulundu, premium abonelik bilgilerini ayarla
+        // Abonelik tarihlerini ayarla
         const now = new Date();
         const oneMonthLater = new Date();
-        oneMonthLater.setMonth(now.getMonth() + 1); // 1 aylık premium
+        oneMonthLater.setMonth(now.getMonth() + 1);
         
         // Kullanıcının abonelik bilgilerini güncelle
         const { error: updateError } = await supabase
@@ -99,41 +117,47 @@ export async function POST(request: Request) {
           .update({
             subscription_tier: 'premium',
             subscription_status: 'active',
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: session.subscription || session.payment_intent || session.id, // Tek seferlik ödeme için payment_intent veya session ID'yi kullan
             subscription_start_date: now.toISOString(),
-            subscription_end_date: oneMonthLater.toISOString(), // 1 aylık premium
+            subscription_end_date: oneMonthLater.toISOString(),
+            stripe_customer_id: session.customer as string,
+            stripe_payment_id: session.id,
             updated_at: now.toISOString()
           })
-          .eq('id', userData.id);
+          .eq('id', userId);
         
         if (updateError) {
-          console.error('Webhook: Kullanıcı abonelik bilgisi güncelleme hatası:', updateError);
-          return NextResponse.json({ error: 'Kullanıcı bilgileri güncellenirken hata oluştu' }, { status: 500 });
+          console.error('Failed to update profile:', {
+            userId,
+            error: updateError
+          });
+          return NextResponse.json(
+            { error: 'Failed to update profile', details: updateError },
+            { status: 500 }
+          );
         }
         
-        console.log('Webhook: Kullanıcının abonelik bilgileri başarıyla güncellendi! Yeni bilgiler:', {
-          userId: userData.id,
-          email: userEmail,
-          subscriptionTier: 'premium',
-          subscriptionStatus: 'active',
+        console.log('Profile updated successfully:', {
+          userId,
+          newTier: 'premium',
+          newStatus: 'active',
           startDate: now.toISOString(),
           endDate: oneMonthLater.toISOString()
         });
         
-        return NextResponse.json({ 
-          received: true, 
+        return NextResponse.json({
+          received: true,
           updated: true,
-          userId: userData.id,
-          email: userEmail,
-          status: 'premium'
-        }, { status: 200 });
-      } catch (error) {
-        console.error('Webhook işleme hatası:', error);
-        return NextResponse.json({ error: 'Internal server error', details: String(error) }, { status: 500 });
+          userId: userId
+        });
+      } catch (error: any) {
+        console.error('Error processing webhook:', error);
+        return NextResponse.json(
+          { error: 'Error processing webhook', details: error.message },
+          { status: 500 }
+        );
       }
     }
-  
+    
     // Handle the customer.subscription.deleted event
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription;
@@ -233,9 +257,12 @@ export async function POST(request: Request) {
       }
     }
     
-    return NextResponse.json({ received: true }, { status: 200 });
-  } catch (error) {
-    console.error('Error in webhook handler:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ received: true });
+  } catch (error: any) {
+    console.error('Unexpected webhook error:', error);
+    return NextResponse.json(
+      { error: 'Unexpected webhook error', details: error.message },
+      { status: 500 }
+    );
   }
 }
