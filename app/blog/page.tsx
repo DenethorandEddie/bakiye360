@@ -296,7 +296,7 @@ export default function BlogPage() {
                                 </time>
                               </div>
                               
-                              <h2 className="text-xl sm:text-xl text-lg font-semibold tracking-tight group-hover:text-primary transition-colors line-clamp-2 dark:text-foreground">
+                              <h2 className="text-xl sm:text-xl text-lg font-semibold tracking-tight group-hover:text-primary transition-colors dark:text-foreground">
                                 {post.title}
                               </h2>
                               
