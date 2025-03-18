@@ -88,7 +88,9 @@ export default function LoginPage() {
         
         // Rate limit hatasını yakala ve kullanıcıya özel mesaj göster
         if (error.message?.includes('rate limit') || error.status === 429) {
-          toast.error("Çok fazla giriş denemesi yaptınız. Lütfen birkaç dakika bekleyip tekrar deneyin.");
+          toast.error(
+            "Çok fazla giriş denemesi yapıldı. Bu hata, aynı ağdaki diğer kullanıcıların giriş denemeleri nedeniyle de görülebilir. Lütfen birkaç dakika bekleyip tekrar deneyin veya farklı bir ağ üzerinden giriş yapmayı deneyin."
+          );
           return;
         }
         
@@ -111,7 +113,7 @@ export default function LoginPage() {
       
       // Genel try-catch bloğunda da rate limit kontrolü yapalım
       if (error?.message?.includes('rate limit') || error?.status === 429) {
-        toast.error("Çok fazla giriş denemesi yaptınız. Lütfen birkaç dakika bekleyip tekrar deneyin.");
+        toast.error("Çok fazla giriş denemesi yapıldı. Bu hata, aynı ağdaki diğer kullanıcıların giriş denemeleri nedeniyle de görülebilir. Lütfen birkaç dakika bekleyip tekrar deneyin veya farklı bir ağ üzerinden giriş yapmayı deneyin.");
       } else {
         toast.error("Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
       }

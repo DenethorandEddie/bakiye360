@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { SupabaseProvider } from '@/components/supabase-provider';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import { AnalyticsPageView } from '@/components/AnalyticsPageView';
 
@@ -29,15 +30,17 @@ export default function RootLayout({
       <body className={`${inter.className} dark:bg-gray-900 dark-bg`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <SupabaseProvider>
-            {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-              <>
-                <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-                <AnalyticsPageView />
-              </>
-            )}
-            {children}
-            <Toaster />
-            <SonnerToaster />
+            <SubscriptionProvider>
+              {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+                <>
+                  <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
+                  <AnalyticsPageView />
+                </>
+              )}
+              {children}
+              <Toaster />
+              <SonnerToaster />
+            </SubscriptionProvider>
           </SupabaseProvider>
         </ThemeProvider>
       </body>

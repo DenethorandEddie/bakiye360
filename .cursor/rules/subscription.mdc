@@ -1,0 +1,98 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+1. Freemium / Temel Plan Sınırlamaları
+📊 Veri Sınırlamaları
+İşlem Limiti: Ücretsiz hesaplar aylık 30 işlem girebilsin (gelir/gider)
+Kategori Sınırı: Maksimum 7 ana kişiselleştirilebilir kategori
+Geçmiş Veri: Sadece son 3 aylık veri görüntülenebilir
+Bütçe Hedefleri: 1 aktif bütçe hedefi oluşturabilme
+Abonelik: 1 tane abonelik oluşturabilmek
+
+Premium modelde bütün özellikler açık ve sınırsız olacak. Hiç bir engelleme olmayacak.
+
+1.2. Kullanıcı Yapısının Hazırlanması
+Supabase içerisinde kullanılacak.
+Mevcut Yapı Analizi
+user_settings tablosunda zaten şu kullanışlı alanlar var:
+subscription_start_date (timestamp): Aboneliğin başlangıç tarihini tutmak için
+subscription_end_date (timestamp): Aboneliğin bitiş tarihini takip etmek için
+stripe_customer_id (varchar): Stripe'daki müşteri ID'sini depolamak için
+stripe_subscription_id (varchar): Stripe'daki abonelik ID'sini kaydetmek için
+app_preferences (jsonb): JSON formatında kullanıcı tercihlerini saklayabilen bir alan
+İhtiyaç Tespiti
+Mevcut tablo yapınızda ek tablo oluşturmaya gerek yok, user_settings tablosu yeterli olacaktır
+Eksik olduğunu düşündüğüm tek alan bir subscription_status alanı olabilir (aktif, iptal edilmiş, askıya alınmış gibi durumları izlemek için)
+Supabase Row Level Security (RLS) politikalarınızın premium içerik erişimini kontrol edecek şekilde güncellenmesi gerekecek
+Önerilen İyileştirmeler
+user_settings tablosuna subscription_tier veya subscription_plan alanı eklenebilir (free, premium, pro gibi değerler için)
+app_preferences JSON alanını premium özellikleri etkinleştirmek/devre dışı bırakmak için kullanabilirsiniz
+İsteğe bağlı olarak, payment_history veya benzeri bir JSON alanı ekleyerek ödeme geçmişi özetini saklayabilirsiniz
+Veri Modelleme Yaklaşımı
+Yeni bir tablo eklemek yerine, mevcut user_settings tablosunu ve ilişkili tabloları kullanacak bir veri modelleme yaklaşımı izlenecektir:
+Kullanıcıların premium durumunu subscription_end_date > current_timestamp sorgusu ile hızlıca kontrol edebilirsiniz
+Yetkili erişim kontrolleri için middleware'de bu kontrolü kullanabilirsiniz
+Stripe webhook'ları ile gelen abonelik durum güncellemelerini doğrudan bu tabloya yansıtabilirsiniz
+Bu yaklaşım, ekstra tablo oluşturmadan ve mevcut yapınızı bozmadan premium üyelik sistemini entegre etmenize olanak sağlayacaktır.
+
+2. Stripe Ürün ve Fiyat Ayarlarının Yapılması
+Ürün Adı: "Bakiye360 Premium"
+Sadece aylık abonelik var ve fiyat: TL149.99 TRY
+Fiyat ID: price_1QzYZMGUPk4i0W9usDIbLXan (.env dosyası içerisinde NEXT_PUBLIC_STRIPE_PRICE_ID olarak kaydedildi.)
+Ürün ID: prod_RtLFieRdfw3Vrc 
+
+
+3. Backend Yapılandırması
+3.1. API Route'ları Oluşturma
+/api/checkout/session: Ödeme oturumu başlatmak için
+/api/subscription/status: Abonelik durumunu kontrol etmek için
+/api/webhooks/stripe: Stripe webhook'larını işlemek için
+
+3.2. Webhook Ayarları
+Stripe CLI ya da mcp kullanarak test webhook'ları için gereken güvenlik ayarlarını yapın
+Stripe Dashboard'da webhook endpoint'inizi kaydedin: https://www.bakiye360.com/api/webhooks/stripe
+checkout.session.completed, customer.subscription.updated, customer.subscription.deleted event'lerini dinleyin
+
+3.3. Kullanıcı Yetkilendirme Sistemi
+Middleware kullanarak premium içeriğe erişimi kontrol edin
+Kullanıcı rollerine göre farklı içerikleri gösterme/gizleme mantığını oluşturun
+4. Frontend Geliştirmesi
+4.1. Premium Abonelik Sayfası Oluşturma
+/pricing veya /premium gibi bir rota oluşturun
+Ücretsiz vs. premium özellikleri karşılaştıran bir tablo ekleyin
+"Premium'a Geç" butonları yerleştirin
+4.2. Ödeme Sayfası
+Stripe Checkout entegrasyonu için frontend bileşenleri oluşturun
+Kullanıcı dostu ödeme akışı tasarlayın
+4.3. Hesap Yönetimi
+/dashboard/account sayfasında abonelik bilgilerini gösterin
+Aboneliği yönetme (iptal etme, yükseltme) seçenekleri ekleyin
+Fatura geçmişi ve ödeme metodları yönetimi
+4.4. Premium İçerik UI Göstergeleri
+Premium özellikleri vurgulayan UI elementleri ekleyin
+Premium olmayan kullanıcılara "Premium'a geçin" mesajları gösterin
+
+
+5.2. Row Level Security (RLS) Politikaları
+Premium içeriğe erişimi kısıtlayacak güvenlik politikaları ekleyin
+Kullanıcıların sadece kendi abonelik bilgilerine erişmesini sağlayın
+
+
+6. Test ve Kontrol
+6.1. Test Ortamında Ödeme Akışı Testi
+Stripe test kartlarıyla ödeme işlemini test edin
+Webhook'ların doğru çalıştığını doğrulayın
+Abonelik yaşam döngüsünü test edin (oluşturma, iptal etme, yenileme)
+6.2. Premium İçerik Erişim Testleri
+Premium ve ücretsiz kullanıcılar için doğru içeriklerin gösterildiğini kontrol edin
+Edge case'leri test edin (örn: abonelik süresi dolan kullanıcılar)
+7. Canlıya Alma
+7.1. Stripe Canlı API Anahtarlarına Geçiş
+Test modundan canlı moda geçin
+Canlı ortam API anahtarlarını .env dosyasına ekleyin
+
+7.2. Son Kontroller
+Gerçek ödeme testleri yapın
+Kullanıcı deneyimini gözden geçirin

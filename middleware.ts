@@ -2,20 +2,51 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req: request, res });
-  const { data: { session } } = await supabase.auth.getSession();
-
+  const supabase = createMiddlewareClient({ req, res });
+  
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  
+  // Protected routes that require authentication
+  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
+    const redirectUrl = new URL('/login', req.url);
+    redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+  
+  // Check for premium-only features
+  if (session && 
+      (req.nextUrl.pathname.includes('/premium-features') || 
+       req.nextUrl.pathname.includes('/reports'))) {
+    
+    // Check if user has premium access
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('subscription_status, subscription_end_date')
+      .eq('user_id', session.user.id)
+      .single();
+    
+    const isPremium = userSettings?.subscription_status === 'premium' && 
+      userSettings?.subscription_end_date && 
+      new Date(userSettings.subscription_end_date) > new Date();
+      
+    if (!isPremium) {
+      return NextResponse.redirect(new URL('/pricing', req.url));
+    }
+  }
+  
   // Analytics için pageview'u header'a ekle
   // Bu header'ı client side'da yakalayıp analytics olayı olarak kullanabilirsiniz
-  const url = request.nextUrl.pathname;
+  const url = req.nextUrl.pathname;
   res.headers.set('x-pathname', url);
 
   // Protect admin routes
-  if (request.nextUrl.pathname.startsWith('/admin')) {
+  if (req.nextUrl.pathname.startsWith('/admin')) {
     if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      return NextResponse.redirect(new URL('/login', req.url));
     }
 
     // Check if user has admin role
@@ -26,7 +57,7 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (!profile || profile.role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return NextResponse.redirect(new URL('/dashboard', req.url));
     }
   }
 
@@ -34,5 +65,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/:path*']
-}
+  matcher: [
+    '/dashboard/:path*',
+    '/premium-features/:path*',
+    '/reports/:path*',
+    '/admin/:path*',
+  ],
+};
