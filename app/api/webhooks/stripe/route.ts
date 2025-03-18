@@ -32,16 +32,34 @@ export async function POST(request: Request) {
     // Handle the checkout.session.completed event
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
+      console.log('Webhook: checkout.session.completed olayı alındı', {
+        sessionId: session.id,
+        customerId: session.customer,
+        subscriptionId: session.subscription
+      });
   
       try {
+        if (!session.subscription) {
+          console.error('Webhook: Oturum içinde subscription alanı bulunamadı!', session);
+          return NextResponse.json({ error: 'Subscription ID missing in session' }, { status: 400 });
+        }
+  
         // Retrieve the subscription details from Stripe
+        console.log(`Webhook: Stripe'dan abonelik detayları alınıyor (ID: ${session.subscription})`);
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+        console.log('Webhook: Stripe abonelik verileri alındı', {
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          startDate: new Date(subscription.current_period_start * 1000).toISOString(),
+          endDate: new Date(subscription.current_period_end * 1000).toISOString(),
+        });
   
         // Calculate the subscription start and end dates
         const subscriptionStart = new Date(subscription.current_period_start * 1000).toISOString();
         const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
   
         // Fetch the user's record from Supabase
+        console.log(`Webhook: Supabase'den kullanıcı bilgileri alınıyor (Customer ID: ${session.customer})`);
         const { data: userData, error: userError } = await supabase
           .from('user_settings')
           .select('*')
@@ -49,10 +67,18 @@ export async function POST(request: Request) {
           .single();
   
         if (userError) {
+          console.error('Webhook: Supabase kullanıcı verileri alınamadı', userError);
           throw userError;
         }
   
+        console.log('Webhook: Kullanıcı verileri alındı', {
+          userId: userData.user_id,
+          currentStatus: userData.subscription_status,
+          currentTier: userData.subscription_tier
+        });
+  
         // Update the user's subscription details in Supabase
+        console.log('Webhook: Kullanıcı abonelik bilgileri güncelleniyor');
         const { error: updateError } = await supabase
           .from('user_settings')
           .update({
@@ -65,12 +91,36 @@ export async function POST(request: Request) {
           .eq('user_id', userData.user_id);
   
         if (updateError) {
+          console.error('Webhook: Kullanıcı abonelik bilgileri güncellenemedi', updateError);
           throw updateError;
         }
   
-        console.log('Subscription updated successfully in Supabase');
+        console.log('Webhook: Abonelik Supabase\'de başarıyla güncellendi', {
+          userId: userData.user_id,
+          subscriptionTier: 'premium',
+          subscriptionStatus: 'active',
+          endDate: subscriptionEnd
+        });
+  
+        // Kullanıcıya bildirim ekle
+        try {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: userData.user_id,
+              title: 'Aboneliğiniz Aktifleştirildi',
+              content: 'Premium aboneliğiniz başarıyla aktifleştirildi. Artık tüm premium özelliklere erişebilirsiniz.',
+              read: false,
+              created_at: new Date().toISOString(),
+              link: '/dashboard/account'
+            });
+          console.log('Webhook: Kullanıcıya bildirim eklendi');
+        } catch (notificationError) {
+          console.error('Webhook: Bildirim ekleme hatası', notificationError);
+          // Bildirim hatası kritik değil, devam et
+        }
       } catch (error) {
-        console.error('Error processing subscription:', error);
+        console.error('Webhook: Abonelik işleme hatası', error);
         return NextResponse.json({ error: 'Webhook handler failed' }, { status: 400 });
       }
     }

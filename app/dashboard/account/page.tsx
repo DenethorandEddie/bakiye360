@@ -10,24 +10,51 @@ export default function AccountPage() {
   const { isPremium, subscriptionEndDate, refreshSubscription } = useSubscriptionContext();
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    // Ödeme durumunu kontrol et
-    const success = searchParams.get('success');
-    const canceled = searchParams.get('canceled');
-    
-    if (success === 'true') {
-      setShowSuccess(true);
-      // Abonelik bilgilerini güncelle
-      refreshSubscription();
-    }
-    
-    if (canceled === 'true') {
-      router.push('/pricing?canceled=true');
-    }
-    
-    setLoading(false);
-  }, [searchParams, router, refreshSubscription]);
+    const checkSubscription = async () => {
+      setLoading(true);
+      
+      // Ödeme durumunu kontrol et
+      const success = searchParams?.get('success');
+      const canceled = searchParams?.get('canceled');
+      
+      if (success === 'true') {
+        setShowSuccess(true);
+        setRefreshing(true);
+        
+        // Abonelik bilgilerini güncelle
+        try {
+          // API'ye istek göndermeden önce kısa bir bekleme
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Abonelik durumunu kontrol için API'yi çağır
+          await refreshSubscription();
+          
+          // Verinin güncel olduğundan emin olmak için sayfayı yenile
+          if (!isPremium) {
+            // Premium olmadıysa, API yanıtını bekle
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            window.location.reload();
+            return;
+          }
+        } catch (error) {
+          console.error('Abonelik durumu güncellenirken hata:', error);
+        } finally {
+          setRefreshing(false);
+        }
+      }
+      
+      if (canceled === 'true') {
+        router.push('/pricing?canceled=true');
+      }
+      
+      setLoading(false);
+    };
+
+    checkSubscription();
+  }, [searchParams, router, refreshSubscription, isPremium]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Bilinmiyor';
@@ -39,10 +66,15 @@ export default function AccountPage() {
     }).format(date);
   };
 
-  if (loading) {
+  if (loading || refreshing) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+          <p className="text-gray-600">
+            {refreshing ? 'Abonelik bilgileriniz güncelleniyor...' : 'Yükleniyor...'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -51,13 +83,24 @@ export default function AccountPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Hesap Bilgilerim</h1>
       
-      {showSuccess && (
+      {showSuccess && isPremium && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
           <div className="flex items-center">
             <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
             </svg>
             <span className="font-medium">Ödeme başarıyla tamamlandı! Premium hesabınız aktifleştirildi.</span>
+          </div>
+        </div>
+      )}
+      
+      {showSuccess && !isPremium && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 102 0V7zm0 8a1 1 0 10-2 0 1 1 0 102 0z" clipRule="evenodd"></path>
+            </svg>
+            <span className="font-medium">Ödemeniz alındı, fakat abonelik henüz aktifleştirilmedi. Lütfen biraz bekleyin ve sayfayı yenileyin.</span>
           </div>
         </div>
       )}
@@ -90,7 +133,7 @@ export default function AccountPage() {
           )}
         </div>
         
-        {!isPremium && (
+        {!isPremium && !showSuccess && (
           <div className="mt-4">
             <button
               onClick={() => router.push('/pricing')}
