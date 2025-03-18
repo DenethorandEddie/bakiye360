@@ -7,20 +7,47 @@ import { cookies } from 'next/headers';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Hata yanıtı oluşturan yardımcı fonksiyon
+function createErrorResponse(message: string, debug: string, status: number, extraData = {}) {
+  console.error(`Checkout API Error: ${message}`, { debug, ...extraData });
+  return NextResponse.json(
+    { error: message, debug, ...extraData },
+    { status }
+  );
+}
+
 export async function POST(request: Request) {
   console.log('--- Checkout Session API Çağrıldı ---', new Date().toISOString());
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+  
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return createErrorResponse(
+      'Stripe configuration missing',
+      'STRIPE_SECRET_KEY not found',
+      500
+    );
+  }
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const supabase = createRouteHandlerClient({ cookies });
   
   try {
     // Kullanıcı oturum bilgisini al
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      return createErrorResponse(
+        'Authentication error',
+        'Session retrieval failed',
+        401,
+        { sessionError }
+      );
+    }
     
     if (!session) {
-      console.error('Checkout API: Oturum bulunamadı');
-      return NextResponse.json(
-        { error: 'Authenticated session required', debug: 'Checkout API - auth hatası' },
-        { status: 401 }
+      return createErrorResponse(
+        'Authentication required',
+        'No active session found',
+        401
       );
     }
     
@@ -34,13 +61,11 @@ export async function POST(request: Request) {
       .single();
     
     if (userError || !user) {
-      console.error('Checkout API: Kullanıcı bulunamadı', {
-        userId: session.user.id,
-        error: userError
-      });
-      return NextResponse.json(
-        { error: 'User not found', debug: 'Checkout API - user bulunamadı', userId: session.user.id },
-        { status: 404 }
+      return createErrorResponse(
+        'User not found',
+        'Profile lookup failed',
+        404,
+        { userId: session.user.id, error: userError }
       );
     }
     
@@ -54,16 +79,16 @@ export async function POST(request: Request) {
     const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
     
     if (!priceId) {
-      console.error('Checkout API: NEXT_PUBLIC_STRIPE_PRICE_ID tanımlanmamış');
-      return NextResponse.json(
-        { error: 'Price ID is not configured', debug: 'Checkout API - price ID hatası' },
-        { status: 500 }
+      return createErrorResponse(
+        'Configuration error',
+        'STRIPE_PRICE_ID missing',
+        500
       );
     }
     
     // Checkout session parametrelerini ayarla
     const params: Stripe.Checkout.SessionCreateParams = {
-      mode: 'payment', // Tek seferlik ödeme için "payment" kullan
+      mode: 'payment',
       payment_method_types: ['card'],
       line_items: [
         {
@@ -79,7 +104,6 @@ export async function POST(request: Request) {
       }
     };
     
-    // Debug bilgilerini logla
     console.log('Checkout API: Checkout session oluşturuluyor', {
       mode: params.mode,
       priceId,
@@ -92,29 +116,22 @@ export async function POST(request: Request) {
     // Checkout session oluştur
     const checkoutSession = await stripe.checkout.sessions.create(params);
     
-    // Session ID'yi logla
-    console.log('Checkout API: Checkout session oluşturuldu - ID:', checkoutSession.id);
+    console.log('Checkout API: Session başarıyla oluşturuldu', {
+      sessionId: checkoutSession.id,
+      url: checkoutSession.url
+    });
     
-    // Session URL'sini döndür
     return NextResponse.json({ 
       sessionUrl: checkoutSession.url,
       sessionId: checkoutSession.id
     });
-  } catch (error) {
-    console.error('Checkout API: Beklenmeyen hata', error);
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { 
-          error: 'Checkout session oluşturulurken hata oluştu', 
-          debug: 'Checkout API - genel hata',
-          message: error.message 
-        },
-        { status: 500 }
-      );
-    }
-    return NextResponse.json(
-      { error: 'Bilinmeyen bir hata oluştu', debug: 'Checkout API - bilinmeyen hata' },
-      { status: 500 }
+    
+  } catch (error: any) {
+    return createErrorResponse(
+      'Unexpected error',
+      error.message || 'Unknown error occurred',
+      500,
+      { error }
     );
   }
 } 

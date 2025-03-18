@@ -7,25 +7,43 @@ export async function middleware(req: NextRequest) {
   const supabase = createMiddlewareClient({ req, res });
   
   // Refresh session if it exists
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  // Log session status for debugging
+  console.log('[Middleware] Session durumu:', {
+    path: req.nextUrl.pathname,
+    hasSession: !!session,
+    error: sessionError?.message
+  });
   
   // Protected routes that require authentication
   if (!session && (
     req.nextUrl.pathname.startsWith('/dashboard') ||
     req.nextUrl.pathname.startsWith('/api/checkout')
   )) {
+    // API routes should return JSON response
     if (req.nextUrl.pathname.startsWith('/api/')) {
-      console.log('[Middleware] Oturum bulunamadı, API isteği:', {
+      console.log('[Middleware] API isteği reddedildi:', {
         path: req.nextUrl.pathname,
-        session: session ? 'var' : 'yok'
+        reason: 'Oturum bulunamadı'
       });
-      return NextResponse.json({ 
-        error: 'Unauthorized', 
-        errorType: 'AUTH_ERROR',
-        message: 'Bu API endpoint\'i için oturum açmanız gerekiyor',
-        debug: 'Middleware - auth kontrolü'
-      }, { status: 401 });
+      
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Unauthorized',
+          message: 'Authentication required',
+          path: req.nextUrl.pathname
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
     }
+    
+    // Regular routes should redirect to login
     const redirectUrl = new URL('/login', req.url);
     redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
@@ -37,15 +55,16 @@ export async function middleware(req: NextRequest) {
        req.nextUrl.pathname.includes('/reports'))) {
     
     // Check if user has premium access
-    const { data: userSettings } = await supabase
-      .from('user_settings')
-      .select('subscription_status, subscription_end_date')
-      .eq('user_id', session.user.id)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('subscription_tier, subscription_status, subscription_end_date')
+      .eq('id', session.user.id)
       .single();
     
-    const isPremium = userSettings?.subscription_status === 'premium' && 
-      userSettings?.subscription_end_date && 
-      new Date(userSettings.subscription_end_date) > new Date();
+    const isPremium = profile?.subscription_tier === 'premium' && 
+      profile?.subscription_status === 'active' &&
+      profile?.subscription_end_date && 
+      new Date(profile.subscription_end_date) > new Date();
       
     if (!isPremium) {
       return NextResponse.redirect(new URL('/pricing', req.url));
@@ -53,7 +72,6 @@ export async function middleware(req: NextRequest) {
   }
   
   // Analytics için pageview'u header'a ekle
-  // Bu header'ı client side'da yakalayıp analytics olayı olarak kullanabilirsiniz
   const url = req.nextUrl.pathname;
   res.headers.set('x-pathname', url);
 
@@ -84,7 +102,7 @@ export const config = {
     '/premium-features/:path*',
     '/reports/:path*',
     '/admin/:path*',
-    '/api/checkout/session',
-    '/api/checkout/:path*'
+    '/api/checkout/:path*',
+    '/api/webhooks/:path*'
   ],
 };
