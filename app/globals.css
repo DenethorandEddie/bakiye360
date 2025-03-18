@@ -226,6 +226,35 @@
   input[type="password"] {
     min-height: 2.5rem;
   }
+  
+  /* Blog özet kısmı için mobil düzenleme */
+  .blog-excerpt-wrapper {
+    padding: 0.5rem !important;
+  }
+  
+  .blog-excerpt {
+    font-size: 0.75rem !important; /* 12px */
+    line-height: 1.1rem !important;
+  }
+  
+  .blog-excerpt p,
+  .blog-excerpt div,
+  .blog-excerpt span {
+    font-size: 0.75rem !important; /* 12px */
+    line-height: 1.1rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .blog-excerpt * {
+    font-size: 0.75rem !important; /* 12px */
+  }
+  
+  /* Blog card içindeki line-clamp değerini azaltarak daha az satır göster */
+  article .blog-excerpt div {
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    max-height: 2.2rem !important;
+  }
 }
 
 /* Mobil scroll iyileştirmeleri */

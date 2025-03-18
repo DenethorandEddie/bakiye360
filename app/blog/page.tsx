@@ -283,19 +283,19 @@ export default function BlogPage() {
                                 <div className="aspect-video bg-muted dark:bg-gray-700" />
                               )}
                             </div>
-                            <div className="flex flex-col flex-grow p-4 space-y-3">
-                              <h2 className="text-xl font-semibold tracking-tight group-hover:text-primary transition-colors line-clamp-2 dark:text-foreground">
+                            <div className="flex flex-col flex-grow p-4 sm:p-4 p-3 space-y-2 sm:space-y-3">
+                              <h2 className="text-xl sm:text-xl text-lg font-semibold tracking-tight group-hover:text-primary transition-colors line-clamp-2 dark:text-foreground">
                                 {post.title}
                               </h2>
                               {post.excerpt && (
                                 <div className="blog-excerpt-wrapper dark:bg-gray-800 dark:text-gray-300">
                                   <div 
-                                    className="text-muted-foreground text-sm line-clamp-3 prose-sm dark:prose-invert dark:text-gray-300 blog-excerpt"
+                                    className="text-muted-foreground text-sm line-clamp-3 sm:line-clamp-3 line-clamp-2 prose-sm dark:prose-invert dark:text-gray-300 blog-excerpt"
                                     dangerouslySetInnerHTML={{ __html: post.excerpt }}
                                   />
                                 </div>
                               )}
-                              <div className="flex items-center justify-between gap-2 text-sm mt-auto pt-3">
+                              <div className="flex items-center justify-between gap-2 text-sm mt-auto pt-2 sm:pt-3">
                                 <span className="text-primary px-2 py-1 bg-primary/10 rounded-full text-xs dark:bg-primary/20 dark:text-primary-foreground font-medium blog-category-tag">
                                   {post.category?.name}
                                 </span>
