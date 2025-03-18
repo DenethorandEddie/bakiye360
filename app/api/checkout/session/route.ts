@@ -204,6 +204,8 @@ export async function POST() {
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
         payment_method_types: ['card'],
       });
+
+      console.log('Checkout session created:', session);
       
       if (!session.url) {
         console.error('Checkout session created but no URL returned', {
