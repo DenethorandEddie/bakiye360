@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/app/components/ui/button';
-import { useToast } from '@/app/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function CheckoutButton() {
   const [loading, setLoading] = useState(false);
@@ -18,6 +18,7 @@ export default function CheckoutButton() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
 
       const data = await response.json();

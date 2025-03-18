@@ -6,12 +6,17 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
   
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Refresh session if it exists
+  const { data: { session } } = await supabase.auth.getSession();
   
   // Protected routes that require authentication
-  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
+  if (!session && (
+    req.nextUrl.pathname.startsWith('/dashboard') ||
+    req.nextUrl.pathname.startsWith('/api/checkout')
+  )) {
+    if (req.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized', errorType: 'AUTH_ERROR' }, { status: 401 });
+    }
     const redirectUrl = new URL('/login', req.url);
     redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
@@ -70,5 +75,6 @@ export const config = {
     '/premium-features/:path*',
     '/reports/:path*',
     '/admin/:path*',
+    '/api/checkout/:path*'
   ],
 };
