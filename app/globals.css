@@ -148,6 +148,7 @@
 .blog-excerpt-wrapper {
   border-radius: 0.375rem;
   overflow: hidden;
+  padding: 0.5rem !important;
 }
 
 .dark .blog-excerpt-wrapper {
@@ -158,6 +159,34 @@
 /* Daha güçlü ve spesifik özet stili düzeltmeleri */
 .dark .blog-excerpt {
   background-color: transparent !important;
+}
+
+.blog-excerpt {
+  line-height: 1.4;
+}
+
+.blog-excerpt p {
+  margin-bottom: 0.5rem;
+}
+
+.blog-excerpt p:last-child {
+  margin-bottom: 0;
+}
+
+.blog-excerpt div,
+.blog-excerpt span,
+.blog-excerpt h1,
+.blog-excerpt h2,
+.blog-excerpt h3,
+.blog-excerpt h4,
+.blog-excerpt h5,
+.blog-excerpt h6,
+.blog-excerpt a,
+.blog-excerpt ul,
+.blog-excerpt ol,
+.blog-excerpt li {
+  margin: 0;
+  line-height: 1.4;
 }
 
 .dark .blog-excerpt p,
@@ -181,10 +210,6 @@
 /* CKEditor veya benzer editörlerin uyguladığı stiller için düzeltme */
 .dark [style*="background-color"] {
   background-color: transparent !important;
-}
-
-.dark [style*="color"] {
-  color: #d1d5db !important; /* gray-300 */
 }
 
 /* Kategori etiketi ve diğer blog bileşenlerinin dark mode düzeltmeleri */
@@ -234,14 +259,19 @@
   
   .blog-excerpt {
     font-size: 0.75rem !important; /* 12px */
-    line-height: 1.1rem !important;
+    line-height: 1.2rem !important;
+    max-height: 3.6rem;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
   
   .blog-excerpt p,
   .blog-excerpt div,
   .blog-excerpt span {
     font-size: 0.75rem !important; /* 12px */
-    line-height: 1.1rem !important;
+    line-height: 1.2rem !important;
     margin-bottom: 0.25rem !important;
   }
   
@@ -250,10 +280,9 @@
   }
   
   /* Blog card içindeki line-clamp değerini azaltarak daha az satır göster */
-  article .blog-excerpt div {
+  article .blog-excerpt {
     -webkit-line-clamp: 2 !important;
-    line-clamp: 2 !important;
-    max-height: 2.2rem !important;
+    max-height: 2.4rem !important;
   }
 }
 

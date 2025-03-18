@@ -290,7 +290,7 @@ export default function BlogPage() {
                               {post.excerpt && (
                                 <div className="blog-excerpt-wrapper dark:bg-gray-800 dark:text-gray-300">
                                   <div 
-                                    className="text-muted-foreground text-sm line-clamp-3 sm:line-clamp-3 line-clamp-2 prose-sm dark:prose-invert dark:text-gray-300 blog-excerpt"
+                                    className="text-muted-foreground text-sm prose-sm dark:prose-invert dark:text-gray-300 blog-excerpt"
                                     dangerouslySetInnerHTML={{ __html: post.excerpt }}
                                   />
                                 </div>
