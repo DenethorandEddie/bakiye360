@@ -13,7 +13,21 @@ export default function AccountPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [manualRefreshNeeded, setManualRefreshNeeded] = useState(false);
+
+  // Debug bilgilerini göster
+  useEffect(() => {
+    console.log("Account sayfası durumu:", {
+      isPremium,
+      user: user ? 'Var' : 'Yok',
+      loading,
+      refreshing,
+      retryCount,
+      success: searchParams?.get('success'),
+      manualRefreshNeeded
+    });
+  }, [isPremium, user, loading, refreshing, retryCount, searchParams, manualRefreshNeeded]);
 
   // Kimlik doğrulama kontrolü
   useEffect(() => {
@@ -21,60 +35,53 @@ export default function AccountPage() {
     if (!user && !loading) {
       console.log("Kullanıcı oturum açmadı, giriş sayfasına yönlendiriliyor");
       router.push('/login?redirect=/dashboard/account' + (searchParams?.get('success') ? '?success=true' : ''));
-    } else if (user) {
-      // Kullanıcı oturum açmışsa, kimlik kontrolünü tamamlandı olarak işaretle
-      setAuthChecked(true);
     }
   }, [user, loading, router, searchParams]);
 
+  // Başarı parametresi varsa manuel yenileme gerektiğini ayarla
   useEffect(() => {
-    // Kimlik doğrulama kontrolü tamamlanmadıysa işlemi erken sonlandır
-    if (!authChecked || !user) return;
+    if (searchParams?.get('success') === 'true') {
+      setShowSuccess(true);
+      // URL'den success parametresini kaldır (geçmişi değiştirmeden)
+      window.history.replaceState({}, '', '/dashboard/account');
+    }
+  }, [searchParams]);
+
+  // Abonelik kontrolü
+  useEffect(() => {
+    if (!user) return;
 
     const checkSubscription = async () => {
       try {
         setLoading(true);
         
-        // Ödeme durumunu kontrol et
-        const success = searchParams?.get('success');
-        const canceled = searchParams?.get('canceled');
-        
-        if (success === 'true') {
-          setShowSuccess(true);
+        // Ödeme başarı durumunu kontrol et
+        if (showSuccess) {
           setRefreshing(true);
           
-          // Abonelik bilgilerini güncelle
-          try {
-            console.log("Abonelik durumu güncelleniyor...");
-            
-            // Abonelik durumunu kontrol için API'yi çağır
-            await refreshSubscription();
-            
-            // Kısa bir bekleme
-            await new Promise(resolve => setTimeout(resolve, 1500));
-          } catch (error) {
-            console.error('Abonelik durumu güncellenirken hata:', error);
-          } finally {
-            setRefreshing(false);
-            setLoading(false);
-          }
-        } else {
-          // Ödeme başarılı değilse sadece loading durumunu kaldır
-          setLoading(false);
+          console.log("Abonelik durumu yenileniyor...");
+          await refreshSubscription();
+          
+          // 3 saniye bekle ve sayfayı yenile
+          setTimeout(() => {
+            console.log("Sayfa yenileniyor...");
+            window.location.reload();
+          }, 3000);
+          
+          return; // Diğer işlemleri yapma
         }
         
-        if (canceled === 'true') {
-          router.push('/pricing?canceled=true');
-        }
+        setLoading(false);
       } catch (error) {
         console.error("Abonelik kontrolünde hata:", error);
         setLoading(false);
         setRefreshing(false);
+        setManualRefreshNeeded(true);
       }
     };
 
     checkSubscription();
-  }, [authChecked, user, searchParams, router, refreshSubscription]);
+  }, [user, showSuccess, refreshSubscription]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Bilinmiyor';
@@ -86,8 +93,13 @@ export default function AccountPage() {
     }).format(date);
   };
 
-  // Kimlik kontrolü yapılana kadar veya yükleme devam ederken
-  if (!user || loading || refreshing) {
+  // Manuel yenileme fonksiyonu
+  const handleManualRefresh = () => {
+    window.location.reload();
+  };
+
+  // Yükleme ekranı
+  if (loading || refreshing) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center">
@@ -96,7 +108,29 @@ export default function AccountPage() {
             {!user ? 'Oturum kontrol ediliyor...' : 
              refreshing ? 'Abonelik bilgileriniz güncelleniyor...' : 'Yükleniyor...'}
           </p>
+          {refreshing && (
+            <p className="text-sm text-gray-500 mt-2">
+              Bu işlem birkaç saniye sürebilir...
+            </p>
+          )}
+          {manualRefreshNeeded && (
+            <button 
+              onClick={handleManualRefresh}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+            >
+              Sayfayı Yenile
+            </button>
+          )}
         </div>
+      </div>
+    );
+  }
+
+  // Kullanıcı yoksa veya yüklenme tamamlanmadıysa içerik gösterme
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-600">Oturum bilgileri yüklenemedi.</p>
       </div>
     );
   }
@@ -122,8 +156,14 @@ export default function AccountPage() {
             <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 102 0V7zm0 8a1 1 0 10-2 0 1 1 0 102 0z" clipRule="evenodd"></path>
             </svg>
-            <span className="font-medium">Ödemeniz alındı, fakat abonelik henüz aktifleştirilmedi. Lütfen biraz bekleyin ve sayfayı yenileyin.</span>
+            <span className="font-medium">Ödemeniz alındı, fakat abonelik henüz aktifleştirilmedi.</span>
           </div>
+          <button 
+            onClick={handleManualRefresh}
+            className="mt-2 px-3 py-1 bg-yellow-200 text-yellow-800 text-sm rounded hover:bg-yellow-300"
+          >
+            Durumu Kontrol Et
+          </button>
         </div>
       )}
       

@@ -24,39 +24,49 @@ export function useSubscription() {
   const [subscription, setSubscription] = useState<SubscriptionStatus>(defaultStatus);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const getSubscription = async () => {
-      if (!user) {
-        setSubscription(defaultStatus);
-        setIsLoading(false);
-        return;
-      }
+  // Abonelik bilgilerini getiren fonksiyon
+  const fetchSubscription = async () => {
+    if (!user) {
+      setSubscription(defaultStatus);
+      return;
+    }
 
-      try {
-        const response = await fetch('/api/subscription/status');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch subscription status');
+    setIsLoading(true);
+    
+    try {
+      console.log("useSubscription: Abonelik bilgileri getiriliyor...");
+      const response = await fetch('/api/subscription/status', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
-        
-        const data = await response.json();
-        
-        setSubscription({
-          subscription_tier: data.subscription_tier || 'free',
-          subscription_status: data.subscription_status,
-          subscription_start_date: data.subscription_start_date,
-          subscription_end_date: data.subscription_end_date,
-          isActive: data.isActive || false
-        });
-      } catch (error) {
-        console.error('Error loading subscription:', error);
-        setSubscription(defaultStatus);
-      } finally {
-        setIsLoading(false);
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch subscription status: ' + response.status);
       }
-    };
+      
+      const data = await response.json();
+      console.log("useSubscription: Abonelik bilgileri alındı:", data);
+      
+      setSubscription({
+        subscription_tier: data.subscription_tier || 'free',
+        subscription_status: data.subscription_status,
+        subscription_start_date: data.subscription_start_date,
+        subscription_end_date: data.subscription_end_date,
+        isActive: data.isActive || false
+      });
+    } catch (error) {
+      console.error('useSubscription: Abonelik bilgileri alınırken hata:', error);
+      setSubscription(defaultStatus);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    getSubscription();
+  useEffect(() => {
+    fetchSubscription();
   }, [user]);
 
   const isSubscribed = subscription.subscription_tier === 'premium' && subscription.isActive;
@@ -68,5 +78,6 @@ export function useSubscription() {
     isSubscribed,
     isActive: subscription.isActive,
     isPastDue,
+    fetchSubscription
   };
 } 
