@@ -90,8 +90,8 @@ export async function POST(request: Request) {
         
         // Kullanıcı bulundu, premium abonelik bilgilerini ayarla
         const now = new Date();
-        const oneYearLater = new Date();
-        oneYearLater.setFullYear(now.getFullYear() + 1); // 1 yıllık premium
+        const oneMonthLater = new Date();
+        oneMonthLater.setMonth(now.getMonth() + 1); // 1 aylık premium
         
         // Kullanıcının abonelik bilgilerini güncelle
         const { error: updateError } = await supabase
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription || session.payment_intent || session.id, // Tek seferlik ödeme için payment_intent veya session ID'yi kullan
             subscription_start_date: now.toISOString(),
-            subscription_end_date: oneYearLater.toISOString(), // 1 yıllık premium
+            subscription_end_date: oneMonthLater.toISOString(), // 1 aylık premium
             updated_at: now.toISOString()
           })
           .eq('id', userData.id);
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
           subscriptionTier: 'premium',
           subscriptionStatus: 'active',
           startDate: now.toISOString(),
-          endDate: oneYearLater.toISOString()
+          endDate: oneMonthLater.toISOString()
         });
         
         return NextResponse.json({ 
