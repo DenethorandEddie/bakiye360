@@ -125,6 +125,31 @@
   background-size: 40px 40px;
 }
 
+/* Blog post excerpt styles - Fix dark mode issues */
+.dark article div[dangerouslySetInnerHTML] * {
+  background-color: transparent !important;
+  color: #d1d5db !important; /* gray-300 */
+}
+
+.dark article div[dangerouslySetInnerHTML] p,
+.dark article div[dangerouslySetInnerHTML] span,
+.dark article div[dangerouslySetInnerHTML] div {
+  background-color: transparent !important;
+  color: #d1d5db !important; /* gray-300 */
+}
+
+/* Doğrudan blog-excerpt sınıfı için stil */
+.dark .blog-excerpt * {
+  background-color: transparent !important;
+  color: #d1d5db !important; /* gray-300 */
+}
+
+/* Kategori etiketi ve diğer blog bileşenlerinin dark mode düzeltmeleri */
+.dark .blog-category-tag {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
 /* Mobil Uyumluluk İyileştirmeleri */
 @media (max-width: 768px) {
   /* Küçük ekranlarda fontları küçült */

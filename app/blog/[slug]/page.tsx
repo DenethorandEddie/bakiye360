@@ -236,7 +236,7 @@ export default function BlogPostPage({
           {/* Article Header */}
           <header className="space-y-4 mb-8">
             <div className="flex items-center gap-2 text-sm mb-2">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground blog-category-tag">
                 {post.category?.name}
               </span>
               <span className="text-muted-foreground dark:text-gray-400">•</span>
@@ -255,25 +255,22 @@ export default function BlogPostPage({
 
           {/* Featured Image */}
           {post.featured_image && (
-            <div className="mb-8 rounded-lg overflow-hidden shadow-xl">
+            <div className="relative aspect-video mb-8 bg-muted dark:bg-gray-800 rounded-lg overflow-hidden">
               <Image
                 src={post.featured_image}
                 alt={post.title}
-                width={1200}
-                height={630}
-                className="w-full object-cover hover:scale-105 transition-transform duration-500"
+                fill
+                className="object-cover"
                 priority
               />
             </div>
           )}
 
           {/* Article Content */}
-          {post.content && (
-            <div 
-              className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-primary prose-img:rounded-lg prose-img:shadow-md dark:text-gray-200"
-              dangerouslySetInnerHTML={{ __html: post.content }}
-            />
-          )}
+          <div 
+            className="prose prose-slate max-w-none dark:prose-invert blog-excerpt"
+            dangerouslySetInnerHTML={{ __html: post.content }}
+          />
         </article>
 
         {/* Related Posts */}

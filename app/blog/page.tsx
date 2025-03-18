@@ -289,12 +289,12 @@ export default function BlogPage() {
                               </h2>
                               {post.excerpt && (
                                 <div 
-                                  className="text-muted-foreground text-sm line-clamp-3 prose-sm dark:prose-invert dark:text-gray-300"
+                                  className="text-muted-foreground text-sm line-clamp-3 prose-sm dark:prose-invert dark:text-gray-300 blog-excerpt"
                                   dangerouslySetInnerHTML={{ __html: post.excerpt }}
                                 />
                               )}
                               <div className="flex items-center justify-between gap-2 text-sm mt-auto pt-3">
-                                <span className="text-primary px-2 py-1 bg-primary/10 rounded-full text-xs dark:bg-primary/20 dark:text-primary-foreground font-medium">
+                                <span className="text-primary px-2 py-1 bg-primary/10 rounded-full text-xs dark:bg-primary/20 dark:text-primary-foreground font-medium blog-category-tag">
                                   {post.category?.name}
                                 </span>
                                 <time className="text-muted-foreground text-xs dark:text-gray-400">
