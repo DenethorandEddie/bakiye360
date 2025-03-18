@@ -100,9 +100,7 @@ export async function POST() {
     
     // Initialize Stripe
     console.log('Initializing Stripe...');
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-      typescript: true,
-    });
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
     
     // Create or retrieve Stripe customer
     let customerId = userSettings?.stripe_customer_id;
@@ -192,7 +190,7 @@ export async function POST() {
     });
     
     try {
-      // Create checkout session
+      // Create checkout session with minimal configuration
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         line_items: [
@@ -202,13 +200,9 @@ export async function POST() {
           },
         ],
         mode: 'subscription',
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?checkout=success`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?checkout=canceled`,
-        metadata: {
-          userId: user.id,
-        },
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?success=true`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
         payment_method_types: ['card'],
-        billing_address_collection: 'auto',
       });
       
       if (!session.url) {
