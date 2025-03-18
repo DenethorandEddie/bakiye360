@@ -3,55 +3,78 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSubscriptionContext } from '@/app/context/SubscriptionContext';
+import { useSupabase } from '@/components/supabase-provider';
 
 export default function AccountPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isPremium, subscriptionEndDate, refreshSubscription } = useSubscriptionContext();
+  const { user } = useSupabase();
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Kimlik doğrulama kontrolü
+  useEffect(() => {
+    // Kullanıcı oturum açmamışsa ve kontrol tamamlanmışsa
+    if (!user && !loading) {
+      console.log("Kullanıcı oturum açmadı, giriş sayfasına yönlendiriliyor");
+      router.push('/login?redirect=/dashboard/account' + (searchParams?.get('success') ? '?success=true' : ''));
+    } else if (user) {
+      // Kullanıcı oturum açmışsa, kimlik kontrolünü tamamlandı olarak işaretle
+      setAuthChecked(true);
+    }
+  }, [user, loading, router, searchParams]);
 
   useEffect(() => {
+    // Kimlik doğrulama kontrolü tamamlanmadıysa işlemi erken sonlandır
+    if (!authChecked || !user) return;
+
     const checkSubscription = async () => {
-      setLoading(true);
-      
-      // Ödeme durumunu kontrol et
-      const success = searchParams?.get('success');
-      const canceled = searchParams?.get('canceled');
-      
-      if (success === 'true') {
-        setShowSuccess(true);
-        setRefreshing(true);
+      try {
+        setLoading(true);
         
-        // Abonelik bilgilerini güncelle
-        try {
-          // Abonelik durumunu kontrol için API'yi çağır
-          await refreshSubscription();
+        // Ödeme durumunu kontrol et
+        const success = searchParams?.get('success');
+        const canceled = searchParams?.get('canceled');
+        
+        if (success === 'true') {
+          setShowSuccess(true);
+          setRefreshing(true);
           
-          // Kısa bir bekleme
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          // Yükleme durumlarını kaldır
-          setRefreshing(false);
-          setLoading(false);
-        } catch (error) {
-          console.error('Abonelik durumu güncellenirken hata:', error);
-          setRefreshing(false);
+          // Abonelik bilgilerini güncelle
+          try {
+            console.log("Abonelik durumu güncelleniyor...");
+            
+            // Abonelik durumunu kontrol için API'yi çağır
+            await refreshSubscription();
+            
+            // Kısa bir bekleme
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          } catch (error) {
+            console.error('Abonelik durumu güncellenirken hata:', error);
+          } finally {
+            setRefreshing(false);
+            setLoading(false);
+          }
+        } else {
+          // Ödeme başarılı değilse sadece loading durumunu kaldır
           setLoading(false);
         }
-      } else {
-        // Ödeme başarılı değilse sadece loading durumunu kaldır
+        
+        if (canceled === 'true') {
+          router.push('/pricing?canceled=true');
+        }
+      } catch (error) {
+        console.error("Abonelik kontrolünde hata:", error);
         setLoading(false);
-      }
-      
-      if (canceled === 'true') {
-        router.push('/pricing?canceled=true');
+        setRefreshing(false);
       }
     };
 
     checkSubscription();
-  }, [searchParams, router, refreshSubscription]);
+  }, [authChecked, user, searchParams, router, refreshSubscription]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Bilinmiyor';
@@ -63,13 +86,15 @@ export default function AccountPage() {
     }).format(date);
   };
 
-  if (loading || refreshing) {
+  // Kimlik kontrolü yapılana kadar veya yükleme devam ederken
+  if (!user || loading || refreshing) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
           <p className="text-gray-600">
-            {refreshing ? 'Abonelik bilgileriniz güncelleniyor...' : 'Yükleniyor...'}
+            {!user ? 'Oturum kontrol ediliyor...' : 
+             refreshing ? 'Abonelik bilgileriniz güncelleniyor...' : 'Yükleniyor...'}
           </p>
         </div>
       </div>
