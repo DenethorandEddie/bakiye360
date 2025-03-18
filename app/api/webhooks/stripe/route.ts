@@ -5,9 +5,10 @@ import Stripe from 'stripe';
 import { PostgrestError } from '@supabase/supabase-js';
 
 // Tip tanımlamaları
-interface UserSettings {
+interface UserProfile {
   id: string;
-  user_id: string;
+  email?: string;
+  display_name?: string;
   subscription_tier?: string;
   subscription_status?: string;
   stripe_customer_id?: string;
@@ -16,11 +17,6 @@ interface UserSettings {
   subscription_end_date?: string;
   created_at?: string;
   updated_at?: string;
-}
-
-interface UserProfile {
-  id: string;
-  email?: string;
 }
 
 // Route segment config for API route
@@ -56,7 +52,8 @@ export async function POST(request: Request) {
         sessionId: session.id,
         customerId: session.customer,
         subscriptionId: session.subscription,
-        mode: session.mode
+        mode: session.mode,
+        customerEmail: session.customer_email
       });
   
       try {
@@ -67,55 +64,59 @@ export async function POST(request: Request) {
         let subscriptionEnd: string;
         
         if (session.mode === 'subscription' && subscriptionId) {
-          // Abonelik modu, subscription ID var
-          console.log(`Webhook: Stripe'dan abonelik detayları alınıyor (ID: ${subscriptionId})`);
           try {
+            // Subscription detaylarını Stripe'dan al
+            console.log(`Webhook: Stripe'dan abonelik detayları alınıyor (ID: ${subscriptionId})`);
             const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-            console.log('Webhook: Stripe abonelik verileri alındı', {
-              subscriptionId: subscription.id,
-              status: subscription.status,
-              startDate: new Date(subscription.current_period_start * 1000).toISOString(),
-              endDate: new Date(subscription.current_period_end * 1000).toISOString(),
-            });
             
-            // Abonelik tarihleri
-            subscriptionStart = new Date(subscription.current_period_start * 1000).toISOString();
-            subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-          } catch (subError) {
-            console.error('Webhook: Abonelik verileri alınamadı', subError);
-            // Varsayılan tarihler oluştur (1 ay)
+            const currentPeriodStart = new Date(subscription.current_period_start * 1000);
+            const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+            
+            subscriptionStart = currentPeriodStart.toISOString();
+            subscriptionEnd = currentPeriodEnd.toISOString();
+            
+            console.log('Webhook: Abonelik detayları alındı', {
+              start: subscriptionStart,
+              end: subscriptionEnd,
+              status: subscription.status
+            });
+          } catch (stripeError) {
+            console.error('Webhook: Stripe abonelik bilgisi alınamadı:', stripeError);
+            // Varsayılan değerler ata
             const now = new Date();
+            const oneMonthLater = new Date();
+            oneMonthLater.setMonth(now.getMonth() + 1);
+            
             subscriptionStart = now.toISOString();
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + 1);
-            subscriptionEnd = endDate.toISOString();
+            subscriptionEnd = oneMonthLater.toISOString();
           }
         } else {
-          // Abonelik modu değil veya subscription ID yok - Tek seferlik ödeme olarak işle
-          console.log('Webhook: Abonelik ID bulunamadı, tek seferlik ödeme olarak işleniyor');
+          // Tek seferlik ödeme için 1 aylık premium abonelik oluştur
+          console.log('Webhook: Tek seferlik ödeme için abonelik tarihleri ayarlanıyor');
           const now = new Date();
+          const oneMonthLater = new Date();
+          oneMonthLater.setMonth(now.getMonth() + 1);
+          
           subscriptionStart = now.toISOString();
-          const endDate = new Date();
-          endDate.setMonth(endDate.getMonth() + 1); // Varsayılan olarak 1 aylık premium ver
-          subscriptionEnd = endDate.toISOString();
-          // Yoksa subscription ID oluştur
-          subscriptionId = session.id || `manual_sub_${Date.now()}`;
+          subscriptionEnd = oneMonthLater.toISOString();
         }
 
         // Kullanıcıyı bul - önce customer ID ile dene
         console.log(`Webhook: Supabase'den kullanıcı bilgileri alınıyor (Customer ID: ${session.customer})`);
-        let userData: UserSettings | null = null;
+        let userData: UserProfile | null = null;
         let userError: PostgrestError | null = null;
         
         try {
-          const result = await supabase
-            .from('user_settings')
-            .select('*')
-            .eq('stripe_customer_id', session.customer)
-            .single();
-          
-          userData = result.data as UserSettings;
-          userError = result.error;
+          if (session.customer) {
+            const result = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('stripe_customer_id', session.customer)
+              .single();
+            
+            userData = result.data as UserProfile;
+            userError = result.error;
+          }
         } catch (dbError) {
           console.error('Webhook: Veritabanı sorgusu hatası:', dbError);
         }
@@ -126,44 +127,16 @@ export async function POST(request: Request) {
             console.log(`Webhook: Kullanıcı customer ID ile bulunamadı, e-posta ile aranıyor: ${session.customer_email}`);
             const profileResult = await supabase
               .from('profiles')
-              .select('id, email')
+              .select('*')
               .eq('email', session.customer_email)
               .single();
             
             if (profileResult.data) {
               console.log('Webhook: E-posta ile kullanıcı bulundu:', profileResult.data);
-              const profile = profileResult.data as UserProfile;
-              
-              // Bu kullanıcı ID'si ile user_settings tablosunda kayıt var mı?
-              const settingsResult = await supabase
-                .from('user_settings')
-                .select('*')
-                .eq('user_id', profile.id)
-                .single();
-                
-              if (settingsResult.data) {
-                userData = settingsResult.data as UserSettings;
-                userError = null;
-              } else {
-                // user_settings kaydı yok, yeni oluşturulmalı
-                console.log('Webhook: Kullanıcının settings kaydı yok, yeni oluşturulacak');
-                const insertResult = await supabase
-                  .from('user_settings')
-                  .insert({
-                    user_id: profile.id,
-                    stripe_customer_id: session.customer,
-                    created_at: new Date().toISOString()
-                  })
-                  .select()
-                  .single();
-                
-                if (insertResult.data) {
-                  userData = insertResult.data as UserSettings;
-                  userError = null;
-                } else {
-                  userError = insertResult.error;
-                }
-              }
+              userData = profileResult.data as UserProfile;
+              userError = null;
+            } else {
+              userError = profileResult.error;
             }
           } catch (profileError) {
             console.error('Webhook: Profil arama hatası:', profileError);
@@ -175,13 +148,14 @@ export async function POST(request: Request) {
           
           // Kullanıcının abonelik bilgilerini güncelle
           const { error: updateError } = await supabase
-            .from('user_settings')
+            .from('profiles')
             .update({
               stripe_subscription_id: subscriptionId,
               subscription_status: 'active',
               subscription_tier: 'premium',
               subscription_start_date: subscriptionStart,
               subscription_end_date: subscriptionEnd,
+              stripe_customer_id: session.customer || userData.stripe_customer_id,
               updated_at: new Date().toISOString()
             })
             .eq('id', userData.id);
@@ -195,87 +169,118 @@ export async function POST(request: Request) {
           return NextResponse.json({ received: true, updated: true }, { status: 200 });
         } else {
           console.error('Webhook: Kullanıcı bulunamadı veya veritabanı hatası:', userError);
-          return NextResponse.json({ error: 'Kullanıcı bulunamadı veya veritabanı hatası' }, { status: 404 });
+          return NextResponse.json({ 
+            error: 'Kullanıcı bulunamadı veya veritabanı hatası',
+            customer_email: session.customer_email,
+            customer_id: session.customer
+          }, { status: 404 });
         }
       } catch (error) {
-        console.error('Webhook: Abonelik işleme hatası', error);
-        return NextResponse.json({ error: 'Webhook handler failed' }, { status: 400 });
+        console.error('Webhook işleme hatası:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
       }
     }
   
     // Handle the customer.subscription.deleted event
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription;
-  
+      console.log('Webhook: customer.subscription.deleted olayı alındı', subscription);
+      
       try {
-        // Fetch the user's record from Supabase
+        // Kullanıcıyı bul
         const { data: userData, error: userError } = await supabase
-          .from('user_settings')
+          .from('profiles')
           .select('*')
           .eq('stripe_subscription_id', subscription.id)
           .single();
-  
-        if (userError) {
-          throw userError;
+        
+        if (userData) {
+          // Kullanıcının abonelik bilgilerini güncelle
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              subscription_status: 'inactive',
+              subscription_tier: 'basic',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userData.id);
+          
+          if (updateError) {
+            console.error('Webhook: Kullanıcı abonelik bilgisi güncellenemedi', updateError);
+            return NextResponse.json({ error: 'Kullanıcı bilgileri güncellenemedi' }, { status: 500 });
+          }
+          
+          console.log('Webhook: Kullanıcının aboneliği iptal edildi (inactive)');
+          return NextResponse.json({ received: true, updated: true }, { status: 200 });
+        } else {
+          console.log('Webhook: İptal edilen abonelik için kullanıcı bulunamadı', userError);
+          return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
         }
-  
-        // Update the user's subscription status in Supabase
-        const { error: updateError } = await supabase
-          .from('user_settings')
-          .update({
-            subscription_tier: 'free',
-            subscription_status: 'inactive',
-          })
-          .eq('user_id', userData.user_id);
-  
-        if (updateError) {
-          throw updateError;
-        }
-  
-        console.log('Subscription cancelled successfully in Supabase');
       } catch (error) {
-        console.error('Error processing subscription cancellation:', error);
-        return NextResponse.json({ error: 'Webhook handler failed' }, { status: 400 });
+        console.error('Webhook işleme hatası:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
       }
     }
   
-    // Handle customer.subscription.updated event
+    // Handle the customer.subscription.updated event
     if (event.type === 'customer.subscription.updated') {
       const subscription = event.data.object as Stripe.Subscription;
+      console.log('Webhook: customer.subscription.updated olayı alındı', subscription);
       
       try {
-        // Fetch the user's record from Supabase
+        // Kullanıcıyı bul
         const { data: userData, error: userError } = await supabase
-          .from('user_settings')
+          .from('profiles')
           .select('*')
           .eq('stripe_subscription_id', subscription.id)
           .single();
-  
-        if (userError) {
-          throw userError;
+        
+        if (userData) {
+          // Abonelik durumunu kontrol et
+          let subscriptionStatus: string;
+          let subscriptionTier: string;
+          
+          if (subscription.status === 'active' || subscription.status === 'trialing') {
+            subscriptionStatus = 'active';
+            subscriptionTier = 'premium';
+          } else {
+            subscriptionStatus = 'inactive';
+            subscriptionTier = 'basic';
+          }
+          
+          // Kullanıcının abonelik bilgilerini güncelle
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              subscription_status: subscriptionStatus,
+              subscription_tier: subscriptionTier,
+              subscription_start_date: new Date(subscription.current_period_start * 1000).toISOString(),
+              subscription_end_date: new Date(subscription.current_period_end * 1000).toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userData.id);
+          
+          if (updateError) {
+            console.error('Webhook: Kullanıcı abonelik bilgisi güncellenemedi', updateError);
+            return NextResponse.json({ error: 'Kullanıcı bilgileri güncellenemedi' }, { status: 500 });
+          }
+          
+          console.log('Webhook: Kullanıcının abonelik bilgileri güncellendi', {
+            status: subscriptionStatus,
+            tier: subscriptionTier
+          });
+          return NextResponse.json({ received: true, updated: true }, { status: 200 });
+        } else {
+          console.log('Webhook: Güncellenen abonelik için kullanıcı bulunamadı', userError);
+          return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
         }
-  
-        // Update subscription details
-        const { error: updateError } = await supabase
-          .from('user_settings')
-          .update({
-            subscription_status: subscription.status,
-            subscription_end_date: new Date(subscription.current_period_end * 1000).toISOString(),
-          })
-          .eq('user_id', userData.user_id);
-  
-        if (updateError) {
-          throw updateError;
-        }
-  
-        console.log('Subscription updated successfully in Supabase');
       } catch (error) {
-        console.error('Error processing subscription update:', error);
-        return NextResponse.json({ error: 'Webhook handler failed' }, { status: 400 });
+        console.error('Webhook işleme hatası:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
       }
     }
     
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error('Error in webhook handler:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
