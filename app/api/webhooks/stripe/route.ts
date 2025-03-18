@@ -3,6 +3,10 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
+// Route segment config for API route
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2025-02-24.acacia',
 });
@@ -151,10 +155,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
-// Need to disable the default body parser for Stripe webhooks
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
