@@ -39,9 +39,9 @@ export default function PricingPage() {
         throw new Error(`Ödeme hatası: ${responseData.error || 'Bilinmeyen hata'}`);
       }
       
-      if (responseData.url) {
-        console.log('Stripe ödeme sayfasına yönlendiriliyor:', responseData.url);
-        window.location.href = responseData.url;
+      if (responseData.sessionUrl) {
+        console.log('Stripe ödeme sayfasına yönlendiriliyor:', responseData.sessionUrl);
+        window.location.href = responseData.sessionUrl;
       } else {
         console.error('Checkout URL bulunamadı:', responseData);
         setError('Ödeme sayfası URL\'si bulunamadı');
