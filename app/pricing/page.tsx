@@ -8,10 +8,15 @@ export default function PricingPage() {
   const router = useRouter();
   const { isPremium } = useSubscriptionContext();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCheckout = async () => {
     try {
       setIsLoading(true);
+      setError(null);
+      
+      console.log('Checkout başlatılıyor...');
+      
       const response = await fetch('/api/checkout/session', {
         method: 'POST',
         headers: {
@@ -20,26 +25,31 @@ export default function PricingPage() {
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Checkout error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        });
-        throw new Error(`Ödeme hatası: ${errorData.error || 'Bilinmeyen hata'}`);
-      }
+      console.log('Checkout yanıtı alındı:', {
+        status: response.status,
+        statusText: response.statusText
+      });
 
-      const data = await response.json();
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('Failed to create checkout session');
+      const responseData = await response.json();
+      console.log('Checkout yanıt verisi:', responseData);
+
+      if (!response.ok) {
+        console.error('Checkout hatası:', responseData);
+        setError(`Ödeme hatası: ${responseData.error || 'Bilinmeyen hata'}`);
+        throw new Error(`Ödeme hatası: ${responseData.error || 'Bilinmeyen hata'}`);
       }
-    } catch (error) {
-      console.error('Error during checkout:', error);
-      alert('Ödeme işlemi başlatılırken bir hata oluştu.');
+      
+      if (responseData.url) {
+        console.log('Stripe ödeme sayfasına yönlendiriliyor:', responseData.url);
+        window.location.href = responseData.url;
+      } else {
+        console.error('Checkout URL bulunamadı:', responseData);
+        setError('Ödeme sayfası URL\'si bulunamadı');
+        throw new Error('Ödeme sayfası URL\'si bulunamadı');
+      }
+    } catch (error: any) {
+      console.error('Checkout işlemi sırasında hata:', error);
+      setError(error.message || 'Ödeme işlemi başlatılırken bir hata oluştu');
     } finally {
       setIsLoading(false);
     }
@@ -48,6 +58,12 @@ export default function PricingPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
       <h1 className="text-3xl font-bold text-center mb-12">Bakiye360 Planları</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+          <p>{error}</p>
+        </div>
+      )}
       
       <div className="grid md:grid-cols-2 gap-8">
         {/* Free Plan */}
@@ -89,13 +105,23 @@ export default function PricingPage() {
               Aktif Abonelik
             </button>
           ) : (
-            <button 
-              className="w-full py-2 px-4 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-              onClick={handleCheckout}
-              disabled={isLoading}
-            >
-              {isLoading ? 'İşleniyor...' : 'Premium\'a Geç'}
-            </button>
+            <div className="space-y-4">
+              <button 
+                className="w-full py-2 px-4 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                onClick={handleCheckout}
+                disabled={isLoading}
+              >
+                {isLoading ? 'İşleniyor...' : 'Premium\'a Geç'}
+              </button>
+              
+              <button 
+                className="w-full py-2 px-4 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                onClick={() => window.open('https://dashboard.stripe.com/test/dashboard', '_blank')}
+                disabled={isLoading}
+              >
+                Stripe Dashboard
+              </button>
+            </div>
           )}
         </div>
       </div>
