@@ -122,6 +122,8 @@ export async function POST(req: Request) {
           },
         ],
         mode: "subscription",
+        billing_address_collection: "auto",
+        payment_method_types: ["card"],
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?success=true`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
       });
@@ -140,6 +142,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ url: session.url });
     } catch (error: any) {
       console.error("Error creating checkout session:", error.message, error);
+      
+      // Test with payment mode if subscription fails
+      if (error.message.includes("subscription") || error.message.includes("recurring price")) {
+        console.log("Retrying with payment mode instead of subscription");
+        try {
+          const oneTimeSession = await stripe.checkout.sessions.create({
+            customer: customerId,
+            line_items: [
+              {
+                price: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
+                quantity: 1,
+              },
+            ],
+            mode: "payment",
+            payment_method_types: ["card"],
+            success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?success=true`,
+            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
+          });
+          
+          console.log("One-time payment session created successfully:", oneTimeSession.id);
+          
+          if (!oneTimeSession.url) {
+            console.error("One-time payment session created but URL is missing");
+            return NextResponse.json(
+              { error: "Failed to generate checkout URL" },
+              { status: 500 }
+            );
+          }
+          
+          console.log("Returning one-time payment URL:", oneTimeSession.url);
+          return NextResponse.json({ url: oneTimeSession.url });
+        } catch (paymentError: any) {
+          console.error("Error creating one-time payment session:", paymentError.message);
+          return NextResponse.json(
+            { 
+              error: "Failed to create checkout session",
+              details: paymentError.message,
+              note: "Both subscription and one-time payment modes failed"
+            },
+            { status: 500 }
+          );
+        }
+      }
       
       return NextResponse.json(
         { 
