@@ -15,7 +15,16 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith('/api/checkout')
   )) {
     if (req.nextUrl.pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized', errorType: 'AUTH_ERROR' }, { status: 401 });
+      console.log('[Middleware] Oturum bulunamadı, API isteği:', {
+        path: req.nextUrl.pathname,
+        session: session ? 'var' : 'yok'
+      });
+      return NextResponse.json({ 
+        error: 'Unauthorized', 
+        errorType: 'AUTH_ERROR',
+        message: 'Bu API endpoint\'i için oturum açmanız gerekiyor',
+        debug: 'Middleware - auth kontrolü'
+      }, { status: 401 });
     }
     const redirectUrl = new URL('/login', req.url);
     redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname);
@@ -75,6 +84,7 @@ export const config = {
     '/premium-features/:path*',
     '/reports/:path*',
     '/admin/:path*',
+    '/api/checkout/session',
     '/api/checkout/:path*'
   ],
 };
