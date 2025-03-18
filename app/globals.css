@@ -144,6 +144,49 @@
   color: #d1d5db !important; /* gray-300 */
 }
 
+/* Blog özet container'ı */
+.blog-excerpt-wrapper {
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.dark .blog-excerpt-wrapper {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #d1d5db !important; /* gray-300 */
+}
+
+/* Daha güçlü ve spesifik özet stili düzeltmeleri */
+.dark .blog-excerpt {
+  background-color: transparent !important;
+}
+
+.dark .blog-excerpt p,
+.dark .blog-excerpt div,
+.dark .blog-excerpt span,
+.dark .blog-excerpt h1,
+.dark .blog-excerpt h2,
+.dark .blog-excerpt h3,
+.dark .blog-excerpt h4,
+.dark .blog-excerpt h5,
+.dark .blog-excerpt h6,
+.dark .blog-excerpt a,
+.dark .blog-excerpt ul,
+.dark .blog-excerpt ol,
+.dark .blog-excerpt li {
+  color: #d1d5db !important; /* gray-300 */
+  background-color: transparent !important;
+  border-color: #374151 !important; /* gray-700 */
+}
+
+/* CKEditor veya benzer editörlerin uyguladığı stiller için düzeltme */
+.dark [style*="background-color"] {
+  background-color: transparent !important;
+}
+
+.dark [style*="color"] {
+  color: #d1d5db !important; /* gray-300 */
+}
+
 /* Kategori etiketi ve diğer blog bileşenlerinin dark mode düzeltmeleri */
 .dark .blog-category-tag {
   background-color: #1f2937 !important; /* gray-800 */

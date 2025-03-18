@@ -288,10 +288,12 @@ export default function BlogPage() {
                                 {post.title}
                               </h2>
                               {post.excerpt && (
-                                <div 
-                                  className="text-muted-foreground text-sm line-clamp-3 prose-sm dark:prose-invert dark:text-gray-300 blog-excerpt"
-                                  dangerouslySetInnerHTML={{ __html: post.excerpt }}
-                                />
+                                <div className="blog-excerpt-wrapper dark:bg-gray-800 dark:text-gray-300">
+                                  <div 
+                                    className="text-muted-foreground text-sm line-clamp-3 prose-sm dark:prose-invert dark:text-gray-300 blog-excerpt"
+                                    dangerouslySetInnerHTML={{ __html: post.excerpt }}
+                                  />
+                                </div>
                               )}
                               <div className="flex items-center justify-between gap-2 text-sm mt-auto pt-3">
                                 <span className="text-primary px-2 py-1 bg-primary/10 rounded-full text-xs dark:bg-primary/20 dark:text-primary-foreground font-medium blog-category-tag">
