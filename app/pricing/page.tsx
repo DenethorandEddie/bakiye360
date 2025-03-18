@@ -17,7 +17,18 @@ export default function PricingPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Checkout error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Ödeme hatası: ${errorData.error || 'Bilinmeyen hata'}`);
+      }
 
       const data = await response.json();
       

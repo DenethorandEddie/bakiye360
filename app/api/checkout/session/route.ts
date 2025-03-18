@@ -100,7 +100,9 @@ export async function POST() {
     
     // Initialize Stripe
     console.log('Initializing Stripe...');
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+      typescript: true,
+    });
     
     // Create or retrieve Stripe customer
     let customerId = userSettings?.stripe_customer_id;
@@ -202,11 +204,11 @@ export async function POST() {
         mode: 'subscription',
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?checkout=success`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?checkout=canceled`,
-        subscription_data: {
-          metadata: {
-            userId: user.id,
-          },
+        metadata: {
+          userId: user.id,
         },
+        payment_method_types: ['card'],
+        billing_address_collection: 'auto',
       });
       
       if (!session.url) {
