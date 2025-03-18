@@ -7,197 +7,88 @@ import Stripe from "stripe";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+  const supabase = createRouteHandlerClient({ cookies });
+  
   try {
-    console.log("Checkout endpoint received request");
+    // Kullanıcı oturum bilgisini al
+    const { data: { session } } = await supabase.auth.getSession();
     
-    // Check if Stripe API key is configured
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.error("Stripe API key is missing");
+    if (!session) {
       return NextResponse.json(
-        { error: "Payment service not configured" },
-        { status: 500 }
-      );
-    }
-    
-    console.log("Creating Stripe instance with API key");
-    
-    // Initialize Stripe client with minimal configuration
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    
-    // Authenticate user
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      console.error("User not authenticated", authError);
-      return NextResponse.json(
-        { error: "Not authenticated" },
+        { error: 'Authenticated session required' },
         { status: 401 }
       );
     }
     
-    console.log("User authenticated:", user.email);
-    
-    // Get user settings from Supabase
-    const { data: userSettings, error: fetchError } = await supabase
-      .from("user_settings")
-      .select("stripe_customer_id")
-      .eq("user_id", user.id)
+    // Kullanıcı bilgilerini al
+    const { data: user, error: userError } = await supabase
+      .from('profiles')
+      .select('email, id')
+      .eq('id', session.user.id)
       .single();
     
-    if (fetchError) {
-      console.error("Error fetching user settings:", fetchError.message);
+    if (userError || !user) {
+      console.error('Error fetching user', userError);
       return NextResponse.json(
-        { error: "Error fetching user data" },
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Checkout URL'lerini oluştur
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+    
+    if (!priceId) {
+      console.error('NEXT_PUBLIC_STRIPE_PRICE_ID is not defined');
+      return NextResponse.json(
+        { error: 'Price ID is not configured' },
         { status: 500 }
       );
     }
     
-    console.log("User settings retrieved:", userSettings);
-    
-    // Create or get customer ID
-    let customerId = userSettings?.stripe_customer_id;
-    
-    if (!customerId) {
-      console.log("Creating new Stripe customer");
-      
-      try {
-        // Create new Stripe customer
-        const customer = await stripe.customers.create({
-          email: user.email,
-          metadata: {
-            user_id: user.id
-          }
-        });
-        
-        customerId = customer.id;
-        console.log("New Stripe customer created:", customerId);
-        
-        // Update user settings with customer ID
-        const { error: updateError } = await supabase
-          .from("user_settings")
-          .update({ stripe_customer_id: customerId })
-          .eq("user_id", user.id);
-        
-        if (updateError) {
-          console.error("Error updating user with customer ID:", updateError.message);
-          return NextResponse.json(
-            { error: "Error updating user data" },
-            { status: 500 }
-          );
-        }
-        
-        console.log("User settings updated with customer ID");
-      } catch (error: any) {
-        console.error("Error creating Stripe customer:", error.message);
-        return NextResponse.json(
-          { error: "Error creating customer" },
-          { status: 500 }
-        );
-      }
-    } else {
-      console.log("Using existing Stripe customer:", customerId);
-    }
-    
-    // Verify price ID is configured
-    if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID) {
-      console.error("Stripe price ID is missing");
-      return NextResponse.json(
-        { error: "Payment pricing not configured" },
-        { status: 500 }
-      );
-    }
-    
-    console.log("Creating checkout session with price:", process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
-    
-    // Create Stripe checkout session with minimal parameters
-    try {
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        line_items: [
-          {
-            price: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
-            quantity: 1,
-          },
-        ],
-        mode: "subscription",
-        billing_address_collection: "auto",
-        payment_method_types: ["card"],
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?success=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
-      });
-      
-      console.log("Checkout session created successfully:", session.id);
-      
-      if (!session.url) {
-        console.error("Checkout session created but URL is missing");
-        return NextResponse.json(
-          { error: "Failed to generate checkout URL" },
-          { status: 500 }
-        );
-      }
-      
-      console.log("Returning checkout URL:", session.url);
-      return NextResponse.json({ url: session.url });
-    } catch (error: any) {
-      console.error("Error creating checkout session:", error.message, error);
-      
-      // Test with payment mode if subscription fails
-      if (error.message.includes("subscription") || error.message.includes("recurring price")) {
-        console.log("Retrying with payment mode instead of subscription");
-        try {
-          const oneTimeSession = await stripe.checkout.sessions.create({
-            customer: customerId,
-            line_items: [
-              {
-                price: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID,
-                quantity: 1,
-              },
-            ],
-            mode: "payment",
-            payment_method_types: ["card"],
-            success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?success=true`,
-            cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
-          });
-          
-          console.log("One-time payment session created successfully:", oneTimeSession.id);
-          
-          if (!oneTimeSession.url) {
-            console.error("One-time payment session created but URL is missing");
-            return NextResponse.json(
-              { error: "Failed to generate checkout URL" },
-              { status: 500 }
-            );
-          }
-          
-          console.log("Returning one-time payment URL:", oneTimeSession.url);
-          return NextResponse.json({ url: oneTimeSession.url });
-        } catch (paymentError: any) {
-          console.error("Error creating one-time payment session:", paymentError.message);
-          return NextResponse.json(
-            { 
-              error: "Failed to create checkout session",
-              details: paymentError.message,
-              note: "Both subscription and one-time payment modes failed"
-            },
-            { status: 500 }
-          );
-        }
-      }
-      
-      return NextResponse.json(
-        { 
-          error: "Failed to create checkout session",
-          details: error.message
+    // Checkout session parametrelerini ayarla
+    const params: Stripe.Checkout.SessionCreateParams = {
+      mode: 'payment', // Tek seferlik ödeme için "payment" kullan
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
         },
-        { status: 500 }
-      );
-    }
-  } catch (error: any) {
-    console.error("Unexpected error in checkout endpoint:", error.message);
+      ],
+      customer_email: user.email,
+      success_url: `${baseUrl}/dashboard/account?success=true`,
+      cancel_url: `${baseUrl}/pricing?canceled=true`,
+      metadata: {
+        userId: user.id
+      }
+    };
+    
+    // Debug bilgilerini logla
+    console.log('Creating checkout session with params:', JSON.stringify({
+      mode: params.mode,
+      priceId,
+      customer_email: user.email,
+      success_url: params.success_url,
+      cancel_url: params.cancel_url,
+      userId: user.id
+    }, null, 2));
+    
+    // Checkout session oluştur
+    const checkoutSession = await stripe.checkout.sessions.create(params);
+    
+    // Session ID'yi logla
+    console.log('Checkout session created:', checkoutSession.id);
+    
+    // Session URL'sini döndür
+    return NextResponse.json({ sessionUrl: checkoutSession.url });
+  } catch (error) {
+    console.error('Checkout session creation error:', error);
     return NextResponse.json(
-      { error: "An unexpected error occurred" },
+      { error: 'An error occurred while creating the checkout session' },
       { status: 500 }
     );
   }
