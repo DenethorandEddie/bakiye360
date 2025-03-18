@@ -26,35 +26,32 @@ export default function AccountPage() {
         
         // Abonelik bilgilerini güncelle
         try {
-          // API'ye istek göndermeden önce kısa bir bekleme
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
           // Abonelik durumunu kontrol için API'yi çağır
           await refreshSubscription();
           
-          // Verinin güncel olduğundan emin olmak için sayfayı yenile
-          if (!isPremium) {
-            // Premium olmadıysa, API yanıtını bekle
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            window.location.reload();
-            return;
-          }
+          // Kısa bir bekleme
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // Yükleme durumlarını kaldır
+          setRefreshing(false);
+          setLoading(false);
         } catch (error) {
           console.error('Abonelik durumu güncellenirken hata:', error);
-        } finally {
           setRefreshing(false);
+          setLoading(false);
         }
+      } else {
+        // Ödeme başarılı değilse sadece loading durumunu kaldır
+        setLoading(false);
       }
       
       if (canceled === 'true') {
         router.push('/pricing?canceled=true');
       }
-      
-      setLoading(false);
     };
 
     checkSubscription();
-  }, [searchParams, router, refreshSubscription, isPremium]);
+  }, [searchParams, router, refreshSubscription]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Bilinmiyor';
