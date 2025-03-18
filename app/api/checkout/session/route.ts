@@ -111,7 +111,7 @@ export async function POST(request: Request) {
     });
     
     // Checkout URL'lerini oluştur
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const baseUrl = 'https://www.bakiye360.com';
     const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
     
     if (!priceId) {
