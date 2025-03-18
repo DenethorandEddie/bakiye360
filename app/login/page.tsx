@@ -85,16 +85,36 @@ export default function LoginPage() {
 
       if (error) {
         console.error("Giriş hatası:", error);
-        toast.error(error.message || "Giriş yapılırken bir hata oluştu");
+        
+        // Rate limit hatasını yakala ve kullanıcıya özel mesaj göster
+        if (error.message?.includes('rate limit') || error.status === 429) {
+          toast.error("Çok fazla giriş denemesi yaptınız. Lütfen birkaç dakika bekleyip tekrar deneyin.");
+          return;
+        }
+        
+        // Diğer hata mesajlarını kontrol et
+        if (error.message?.includes('credentials') || error.message?.includes('Invalid login')) {
+          toast.error("E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.");
+        } else if (error.message?.includes('confirm your email')) {
+          toast.error("Lütfen önce e-posta adresinizi onaylayın.");
+        } else {
+          toast.error(error.message || "Giriş yapılırken bir hata oluştu");
+        }
         return;
       }
 
       console.log("Giriş başarılı:", data);
       toast.success("Başarıyla giriş yapıldı");
       router.push("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Giriş işlemi hatası:", error);
-      toast.error("Giriş yapılırken bir hata oluştu");
+      
+      // Genel try-catch bloğunda da rate limit kontrolü yapalım
+      if (error?.message?.includes('rate limit') || error?.status === 429) {
+        toast.error("Çok fazla giriş denemesi yaptınız. Lütfen birkaç dakika bekleyip tekrar deneyin.");
+      } else {
+        toast.error("Giriş yapılırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.");
+      }
     } finally {
       setIsLoading(false);
     }
