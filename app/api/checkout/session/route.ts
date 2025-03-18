@@ -53,25 +53,61 @@ export async function POST(request: Request) {
     
     console.log('Checkout API: Oturum bulundu, kullanıcı ID:', session.user.id);
     
-    // Kullanıcı bilgilerini al
-    const { data: user, error: userError } = await supabase
+    // Kullanıcı bilgilerini al - önce auth.users tablosundan deneyelim
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(session.user.id);
+    
+    if (authError) {
+      console.error('Auth user lookup failed:', authError);
+    }
+    
+    // Profil bilgilerini al
+    let { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('email, id')
+      .select('*')
       .eq('id', session.user.id)
       .single();
     
-    if (userError || !user) {
+    if (profileError) {
+      console.error('Profile lookup failed:', profileError);
+      
+      // Profil bulunamadıysa, yeni profil oluştur
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: session.user.id,
+            email: session.user.email,
+            subscription_tier: 'free',
+            subscription_status: 'inactive'
+          }
+        ])
+        .select()
+        .single();
+      
+      if (createError) {
+        return createErrorResponse(
+          'Profile creation failed',
+          'Could not create user profile',
+          500,
+          { userId: session.user.id, error: createError }
+        );
+      }
+      
+      profile = newProfile;
+    }
+    
+    if (!profile) {
       return createErrorResponse(
-        'User not found',
-        'Profile lookup failed',
+        'User profile not found',
+        'Profile lookup and creation failed',
         404,
-        { userId: session.user.id, error: userError }
+        { userId: session.user.id }
       );
     }
     
     console.log('Checkout API: Kullanıcı bilgileri alındı', {
-      userId: user.id,
-      email: user.email
+      userId: profile.id,
+      email: profile.email
     });
     
     // Checkout URL'lerini oluştur
@@ -96,21 +132,21 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      customer_email: user.email,
+      customer_email: profile.email,
       success_url: `${baseUrl}/dashboard/account?success=true`,
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       metadata: {
-        userId: user.id
+        userId: profile.id
       }
     };
     
     console.log('Checkout API: Checkout session oluşturuluyor', {
       mode: params.mode,
       priceId,
-      customer_email: user.email,
+      customer_email: profile.email,
       success_url: params.success_url,
       cancel_url: params.cancel_url,
-      userId: user.id
+      userId: profile.id
     });
     
     // Checkout session oluştur
