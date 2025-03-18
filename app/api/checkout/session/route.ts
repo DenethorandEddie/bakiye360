@@ -98,6 +98,8 @@ export async function POST() {
       }, { status: 500 });
     }
     
+    console.log('Stripe API key found:', process.env.STRIPE_SECRET_KEY);
+    
     // Initialize Stripe
     console.log('Initializing Stripe...');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
@@ -106,7 +108,10 @@ export async function POST() {
     let customerId = userSettings?.stripe_customer_id;
     
     if (!customerId) {
-      console.log('No existing Stripe customer, creating new one...');
+      console.log('No existing Stripe customer, creating new one...', {
+        email: user.email,
+        userId: user.id
+      });
       try {
         const customer = await stripe.customers.create({
           email: user.email,
@@ -140,7 +145,10 @@ export async function POST() {
       }
       
       // Update user with new customer ID
-      console.log('Updating user settings with new customer ID...');
+      console.log('Updating user settings with new customer ID...', {
+        userId: user.id,
+        customerId
+      });
       const { error: updateError } = await supabase
         .from('user_settings')
         .update({ stripe_customer_id: customerId })
@@ -160,6 +168,11 @@ export async function POST() {
           errorType: 'DB_UPDATE_ERROR'
         }, { status: 500 });
       }
+
+      console.log('User settings updated with new customer ID:', {
+        userId: user.id,
+        customerId
+      });
     }
     
     // Check for Stripe price ID
@@ -172,6 +185,8 @@ export async function POST() {
         errorType: 'PRICE_CONFIG_ERROR'
       }, { status: 500 });
     }
+    
+    console.log('Stripe price ID found:', process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     
     // Check for site URL
     if (!process.env.NEXT_PUBLIC_APP_URL) {
