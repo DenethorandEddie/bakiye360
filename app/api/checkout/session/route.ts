@@ -1,211 +1,118 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
 // Route segment config for API route
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    console.log('Starting checkout session creation...');
+    console.log("Checkout endpoint received request");
     
+    // Check if Stripe API key is configured
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error("Stripe API key is missing");
+      return NextResponse.json(
+        { error: "Payment service not configured" },
+        { status: 500 }
+      );
+    }
+    
+    console.log("Creating Stripe instance with API key");
+    
+    // Initialize Stripe client with minimal configuration
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    
+    // Authenticate user
     const supabase = createRouteHandlerClient({ cookies });
-    console.log('Supabase client created, checking authentication...');
-    
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (authError) {
-      console.error('Authentication error:', {
-        error: authError,
-        message: authError.message,
-        status: 'AUTH_ERROR'
-      });
-      return NextResponse.json({ 
-        error: 'Authentication failed',
-        details: authError.message,
-        errorType: 'AUTH_ERROR'
-      }, { status: 401 });
+    if (authError || !user) {
+      console.error("User not authenticated", authError);
+      return NextResponse.json(
+        { error: "Not authenticated" },
+        { status: 401 }
+      );
     }
     
-    if (!user) {
-      console.error('No authenticated user found', {
-        status: 'NO_USER',
-        cookies: cookies().getAll() // Log cookies for debugging
-      });
-      return NextResponse.json({ 
-        error: 'Unauthorized - No user found',
-        errorType: 'NO_USER',
-        details: 'Please log in to continue'
-      }, { status: 401 });
-    }
+    console.log("User authenticated:", user.email);
     
-    console.log('User authenticated successfully:', {
-      userId: user.id,
-      email: user.email
-    });
-    
-    // Get user settings to check existing subscription and Stripe customer ID
-    console.log('Fetching user settings...');
-    const { data: userSettings, error: userSettingsError } = await supabase
-      .from('user_settings')
-      .select('stripe_customer_id, subscription_end_date')
-      .eq('user_id', user.id)
+    // Get user settings from Supabase
+    const { data: userSettings, error: fetchError } = await supabase
+      .from("user_settings")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
       .single();
-      
-    if (userSettingsError) {
-      console.error('Error fetching user settings:', {
-        error: userSettingsError,
-        message: userSettingsError.message,
-        userId: user.id,
-        status: 'USER_SETTINGS_ERROR'
-      });
-      return NextResponse.json({ 
-        error: 'User settings not found',
-        details: userSettingsError.message,
-        errorType: 'USER_SETTINGS_ERROR',
-        userId: user.id
-      }, { status: 404 });
+    
+    if (fetchError) {
+      console.error("Error fetching user settings:", fetchError.message);
+      return NextResponse.json(
+        { error: "Error fetching user data" },
+        { status: 500 }
+      );
     }
     
-    // Check for active subscription
-    if (userSettings?.subscription_end_date) {
-      const subscriptionEnd = new Date(userSettings.subscription_end_date);
-      if (subscriptionEnd > new Date()) {
-        console.error('User already has active subscription:', {
-          userId: user.id,
-          subscriptionEnd: subscriptionEnd,
-          status: 'ACTIVE_SUBSCRIPTION'
-        });
-        return NextResponse.json({ 
-          error: 'Active subscription exists',
-          details: 'You already have an active subscription',
-          errorType: 'ACTIVE_SUBSCRIPTION',
-          endDate: subscriptionEnd
-        }, { status: 400 });
-      }
-    }
-      
-    // Check for Stripe API key
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.error('Stripe API key missing', {
-        status: 'STRIPE_CONFIG_ERROR'
-      });
-      return NextResponse.json({ 
-        error: 'Payment service not configured',
-        errorType: 'STRIPE_CONFIG_ERROR'
-      }, { status: 500 });
-    }
+    console.log("User settings retrieved:", userSettings);
     
-    console.log('Stripe API key found:', process.env.STRIPE_SECRET_KEY);
-    
-    // Initialize Stripe
-    console.log('Initializing Stripe...');
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-    
-    // Create or retrieve Stripe customer
+    // Create or get customer ID
     let customerId = userSettings?.stripe_customer_id;
     
     if (!customerId) {
-      console.log('No existing Stripe customer, creating new one...', {
-        email: user.email,
-        userId: user.id
-      });
+      console.log("Creating new Stripe customer");
+      
       try {
+        // Create new Stripe customer
         const customer = await stripe.customers.create({
           email: user.email,
           metadata: {
-            userId: user.id,
-          },
+            user_id: user.id
+          }
         });
         
         customerId = customer.id;
-        console.log('New Stripe customer created:', {
-          customerId: customer.id,
-          email: user.email
-        });
-      } catch (stripeError: any) {
-        console.error('Error creating Stripe customer:', {
-          error: stripeError,
-          message: stripeError.message,
-          code: stripeError.code,
-          type: stripeError.type,
-          status: 'STRIPE_CUSTOMER_ERROR'
-        });
-        return NextResponse.json({ 
-          error: 'Failed to create Stripe customer',
-          details: stripeError.message,
-          errorType: 'STRIPE_CUSTOMER_ERROR',
-          stripeError: {
-            code: stripeError.code,
-            type: stripeError.type
-          }
-        }, { status: 500 });
-      }
-      
-      // Update user with new customer ID
-      console.log('Updating user settings with new customer ID...', {
-        userId: user.id,
-        customerId
-      });
-      const { error: updateError } = await supabase
-        .from('user_settings')
-        .update({ stripe_customer_id: customerId })
-        .eq('user_id', user.id);
+        console.log("New Stripe customer created:", customerId);
         
-      if (updateError) {
-        console.error('Error updating user with customer ID:', {
-          error: updateError,
-          message: updateError.message,
-          userId: user.id,
-          customerId,
-          status: 'DB_UPDATE_ERROR'
-        });
-        return NextResponse.json({ 
-          error: 'Failed to update user settings',
-          details: updateError.message,
-          errorType: 'DB_UPDATE_ERROR'
-        }, { status: 500 });
+        // Update user settings with customer ID
+        const { error: updateError } = await supabase
+          .from("user_settings")
+          .update({ stripe_customer_id: customerId })
+          .eq("user_id", user.id);
+        
+        if (updateError) {
+          console.error("Error updating user with customer ID:", updateError.message);
+          return NextResponse.json(
+            { error: "Error updating user data" },
+            { status: 500 }
+          );
+        }
+        
+        console.log("User settings updated with customer ID");
+      } catch (error: any) {
+        console.error("Error creating Stripe customer:", error.message);
+        return NextResponse.json(
+          { error: "Error creating customer" },
+          { status: 500 }
+        );
       }
-
-      console.log('User settings updated with new customer ID:', {
-        userId: user.id,
-        customerId
-      });
+    } else {
+      console.log("Using existing Stripe customer:", customerId);
     }
     
-    // Check for Stripe price ID
+    // Verify price ID is configured
     if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID) {
-      console.error('Stripe price ID not configured', {
-        status: 'PRICE_CONFIG_ERROR'
-      });
-      return NextResponse.json({ 
-        error: 'Payment service price not configured',
-        errorType: 'PRICE_CONFIG_ERROR'
-      }, { status: 500 });
+      console.error("Stripe price ID is missing");
+      return NextResponse.json(
+        { error: "Payment pricing not configured" },
+        { status: 500 }
+      );
     }
     
-    console.log('Stripe price ID found:', process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
+    console.log("Creating checkout session with price:", process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     
-    // Check for site URL
-    if (!process.env.NEXT_PUBLIC_APP_URL) {
-      console.error('Site URL not configured', {
-        status: 'URL_CONFIG_ERROR'
-      });
-      return NextResponse.json({ 
-        error: 'Site URL not configured',
-        errorType: 'URL_CONFIG_ERROR'
-      }, { status: 500 });
-    }
-    
-    console.log('Creating checkout session...', {
-      customerId,
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID
-    });
-    
+    // Create Stripe checkout session with minimal parameters
     try {
-      // Create checkout session with minimal configuration
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         line_items: [
@@ -214,63 +121,39 @@ export async function POST() {
             quantity: 1,
           },
         ],
-        mode: 'subscription',
+        mode: "subscription",
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/account?success=true`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
-        payment_method_types: ['card'],
       });
-
-      console.log('Checkout session created:', session);
+      
+      console.log("Checkout session created successfully:", session.id);
       
       if (!session.url) {
-        console.error('Checkout session created but no URL returned', {
-          session,
-          status: 'NO_SESSION_URL'
-        });
-        return NextResponse.json({ 
-          error: 'No checkout URL in session',
-          errorType: 'NO_SESSION_URL'
-        }, { status: 500 });
+        console.error("Checkout session created but URL is missing");
+        return NextResponse.json(
+          { error: "Failed to generate checkout URL" },
+          { status: 500 }
+        );
       }
       
-      console.log('Checkout session created successfully:', {
-        sessionId: session.id,
-        url: session.url
-      });
-      
+      console.log("Returning checkout URL:", session.url);
       return NextResponse.json({ url: session.url });
-    } catch (checkoutError: any) {
-      console.error('Error creating checkout session:', {
-        error: checkoutError,
-        message: checkoutError.message,
-        type: checkoutError.type,
-        code: checkoutError.code,
-        param: checkoutError.param,
-        status: 'CHECKOUT_SESSION_ERROR'
-      });
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error.message, error);
       
-      return NextResponse.json({ 
-        error: 'Failed to create checkout session',
-        details: checkoutError.message,
-        errorType: 'CHECKOUT_SESSION_ERROR',
-        stripeError: {
-          type: checkoutError.type,
-          code: checkoutError.code,
-          param: checkoutError.param
-        }
-      }, { status: 500 });
+      return NextResponse.json(
+        { 
+          error: "Failed to create checkout session",
+          details: error.message
+        },
+        { status: 500 }
+      );
     }
   } catch (error: any) {
-    console.error('Unexpected error in POST handler:', {
-      error,
-      message: error.message,
-      stack: error.stack,
-      status: 'UNEXPECTED_ERROR'
-    });
-    return NextResponse.json({ 
-      error: 'An unexpected error occurred',
-      details: error.message,
-      errorType: 'UNEXPECTED_ERROR'
-    }, { status: 500 });
+    console.error("Unexpected error in checkout endpoint:", error.message);
+    return NextResponse.json(
+      { error: "An unexpected error occurred" },
+      { status: 500 }
+    );
   }
 } 
