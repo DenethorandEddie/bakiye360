@@ -53,13 +53,6 @@ export async function POST(request: Request) {
     
     console.log('Checkout API: Oturum bulundu, kullanıcı ID:', session.user.id);
     
-    // Kullanıcı bilgilerini al - önce auth.users tablosundan deneyelim
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(session.user.id);
-    
-    if (authError) {
-      console.error('Auth user lookup failed:', authError);
-    }
-    
     // Profil bilgilerini al
     let { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -107,7 +100,9 @@ export async function POST(request: Request) {
     
     console.log('Checkout API: Kullanıcı bilgileri alındı', {
       userId: profile.id,
-      email: profile.email
+      email: profile.email,
+      currentTier: profile.subscription_tier,
+      currentStatus: profile.subscription_status
     });
     
     // Checkout URL'lerini oluştur
@@ -136,7 +131,8 @@ export async function POST(request: Request) {
       success_url: `${baseUrl}/dashboard/account?success=true`,
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       metadata: {
-        userId: profile.id
+        userId: profile.id,
+        userEmail: profile.email
       }
     };
     
@@ -163,8 +159,9 @@ export async function POST(request: Request) {
     });
     
   } catch (error: any) {
+    console.error('Unexpected checkout error:', error);
     return createErrorResponse(
-      'Unexpected error',
+      'Checkout session creation failed',
       error.message || 'Unknown error occurred',
       500,
       { error }

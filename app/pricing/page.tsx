@@ -35,8 +35,13 @@ export default function PricingPage() {
 
       if (!response.ok) {
         console.error('Checkout hatası:', responseData);
-        setError(`Ödeme hatası: ${responseData.error || 'Bilinmeyen hata'}`);
-        throw new Error(`Ödeme hatası: ${responseData.error || 'Bilinmeyen hata'}`);
+        const errorMessage = responseData.error 
+          ? typeof responseData.error === 'object' 
+            ? JSON.stringify(responseData.error) 
+            : responseData.error
+          : 'Bilinmeyen hata';
+        setError(`Ödeme hatası: ${errorMessage}`);
+        throw new Error(`Ödeme hatası: ${errorMessage}`);
       }
       
       if (responseData.sessionUrl) {
