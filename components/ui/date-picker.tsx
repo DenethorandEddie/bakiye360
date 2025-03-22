@@ -38,11 +38,22 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0">
         <Calendar
           mode="single"
           selected={date}
-          onSelect={setDate}
+          onSelect={(selectedDate) => {
+            if (selectedDate) {
+              // Seçilen tarihi yerel saat dilimine göre ayarla
+              const localDate = new Date(selectedDate);
+              localDate.setHours(12, 0, 0, 0);
+              const offset = localDate.getTimezoneOffset();
+              localDate.setMinutes(localDate.getMinutes() + offset);
+              setDate(localDate);
+            } else {
+              setDate(undefined);
+            }
+          }}
           initialFocus
           locale={tr}
         />

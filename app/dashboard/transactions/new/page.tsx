@@ -120,7 +120,7 @@ export default function NewTransactionPage() {
         amount: amount,
         type: formData.type,
         category_id: formData.category,
-        date: formData.date.toISOString().split("T")[0],
+        date: format(formData.date, 'yyyy-MM-dd'), // Tarihi doğrudan YYYY-MM-DD formatında kaydet
         notes: formData.notes,
       };
 
@@ -134,7 +134,7 @@ export default function NewTransactionPage() {
             amount: amount,
             type: formData.type,
             category_id: formData.category,
-            start_date: formData.date.toISOString().split("T")[0],
+            start_date: format(formData.date, 'yyyy-MM-dd'), // Tarihi doğrudan YYYY-MM-DD formatında kaydet
             notes: formData.notes,
             frequency: formData.frequency || "monthly",
           };
@@ -262,10 +262,42 @@ export default function NewTransactionPage() {
 
               <div>
                 <Label htmlFor="date">Tarih</Label>
-                <DatePicker
-                  date={formData.date}
-                  setDate={(date) => handleChange("date", date)}
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.date ? (
+                        format(formData.date, "d MMMM yyyy", { locale: tr })
+                      ) : (
+                        <span>Tarih seçin</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formData.date}
+                      onSelect={(date) => {
+                        if (date) {
+                          // Seçilen tarihi yerel saat dilimine göre ayarla
+                          const localDate = new Date(date);
+                          localDate.setHours(12, 0, 0, 0);
+                          const offset = localDate.getTimezoneOffset();
+                          localDate.setMinutes(localDate.getMinutes() + offset);
+                          handleChange("date", localDate);
+                        }
+                      }}
+                      initialFocus
+                      locale={tr}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div>
