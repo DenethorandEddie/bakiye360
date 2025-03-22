@@ -91,13 +91,13 @@ export default function EditTransactionPage({ params }: { params: { id: string }
         
         // Form verilerini ayarla
         setFormData({
-          description: transaction.description || "",
-          amount: transaction.amount.toString(),
-          type: transaction.type || "expense",
-          category: transaction.category_id || "",
-          date: transaction.date ? new Date(transaction.date) : new Date(),
-          notes: transaction.notes || "",
-          isRecurring: transaction.is_recurring || false,
+          description: transaction?.description || "",
+          amount: transaction?.amount?.toString() || "",
+          type: transaction?.type || "expense",
+          category: transaction?.category_id || "",
+          date: transaction?.date ? new Date(transaction.date) : new Date(),
+          notes: transaction?.notes || "",
+          isRecurring: transaction?.is_recurring || false,
         });
         
         console.log('İşlem bulundu:', transaction);
@@ -224,7 +224,7 @@ export default function EditTransactionPage({ params }: { params: { id: string }
           amount: parseFloat(formData.amount),
           type: formData.type,
           description: formData.description,
-          date: formData.date,
+          date: formData.date.toISOString().split("T")[0], // YYYY-MM-DD formatında kaydet
           is_recurring: formData.isRecurring,
           notes: formData.notes
         })

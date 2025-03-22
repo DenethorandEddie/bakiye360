@@ -162,7 +162,10 @@ export default function NewTransactionPage() {
       // Normal işlem kaydı oluştur
       const { data: transactionResult, error: transactionError } = await supabase
         .from("transactions")
-        .insert(transactionData)
+        .insert({
+          ...transactionData,
+          date: formData.date.toISOString().split("T")[0], // YYYY-MM-DD formatında kaydet
+        })
         .select()
         .single();
 
