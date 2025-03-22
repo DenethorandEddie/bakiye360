@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ArrowUpRight, ArrowDownRight, Loader2, Trash, Pencil } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Loader2, Trash, Pencil, Clock } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { toast } from "sonner";
 
@@ -107,61 +107,75 @@ export function TransactionTable({ transactions, loading }: TransactionTableProp
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell>
-                  {format(new Date(transaction.date), "d MMMM yyyy", { locale: tr })}
-                </TableCell>
-                <TableCell>{transaction.description}</TableCell>
-                <TableCell>{transaction.category}</TableCell>
-                <TableCell className={transaction.type === "income" ? "text-green-500" : "text-red-500"}>
-                  <div className="flex items-center">
-                    {transaction.type === "income" ? (
-                      <ArrowUpRight className="mr-1 h-4 w-4" />
-                    ) : (
-                      <ArrowDownRight className="mr-1 h-4 w-4" />
-                    )}
-                    ₺{transaction.amount.toLocaleString("tr-TR")}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      transaction.type === "income"
-                        ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                        : "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
-                    }`}
-                  >
-                    {transaction.type === "income" ? "Gelir" : "Gider"}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => window.location.href = `/dashboard/transactions/edit/${transaction.id}`}
-                    >
-                      <Pencil className="h-4 w-4 text-primary" />
-                      <span className="sr-only">Düzenle</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteTransaction(transaction.id)}
-                      disabled={deleting === transaction.id}
-                    >
-                      {deleting === transaction.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-red-500" />
-                      ) : (
-                        <Trash className="h-4 w-4 text-red-500" />
+            {transactions.map((transaction) => {
+              const transactionDate = new Date(transaction.date);
+              const today = new Date();
+              const isFutureTransaction = transactionDate > today;
+
+              return (
+                <TableRow key={transaction.id} className={isFutureTransaction ? "opacity-60" : ""}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {isFutureTransaction && (
+                        <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-1" title="Gelecek tarihli işlem">
+                          <Clock className="h-3 w-3 text-blue-500 dark:text-blue-400" />
+                        </div>
                       )}
-                      <span className="sr-only">Sil</span>
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                      {format(transactionDate, "d MMMM yyyy", { locale: tr })}
+                    </div>
+                  </TableCell>
+                  <TableCell>{transaction.description}</TableCell>
+                  <TableCell>{transaction.category}</TableCell>
+                  <TableCell className={transaction.type === "income" ? "text-green-500" : "text-red-500"}>
+                    <div className="flex items-center">
+                      {transaction.type === "income" ? (
+                        <ArrowUpRight className="mr-1 h-4 w-4" />
+                      ) : (
+                        <ArrowDownRight className="mr-1 h-4 w-4" />
+                      )}
+                      ₺{transaction.amount.toLocaleString("tr-TR")}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        transaction.type === "income"
+                          ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
+                          : "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
+                      }`}
+                    >
+                      {transaction.type === "income" ? "Gelir" : "Gider"}
+                      {isFutureTransaction && " (Gelecek)"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => window.location.href = `/dashboard/transactions/edit/${transaction.id}`}
+                      >
+                        <Pencil className="h-4 w-4 text-primary" />
+                        <span className="sr-only">Düzenle</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteTransaction(transaction.id)}
+                        disabled={deleting === transaction.id}
+                      >
+                        {deleting === transaction.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                        ) : (
+                          <Trash className="h-4 w-4 text-red-500" />
+                        )}
+                        <span className="sr-only">Sil</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

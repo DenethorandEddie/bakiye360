@@ -490,12 +490,19 @@ export default function ReportsPage() {
     }
     
     // Filtrelenmiş işlemler üzerinden özet istatistikleri hesapla
+    const today = new Date();
     const totalIncome = filteredTransactions
-      .filter(t => t.type === 'income')
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return t.type === 'income' && transactionDate <= today;
+      })
       .reduce((sum, t) => sum + (t.amount || 0), 0);
     
     const totalExpense = filteredTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return t.type === 'expense' && transactionDate <= today;
+      })
       .reduce((sum, t) => sum + (t.amount || 0), 0);
     
     const balance = totalIncome - totalExpense;
@@ -628,7 +635,7 @@ export default function ReportsPage() {
           const date = new Date(transaction.date);
           const monthKey = format(date, "MMM yyyy", { locale: tr });
           
-          if (monthlyDataMap[monthKey]) {
+          if (monthlyDataMap[monthKey] && date <= today) {
             if (transaction.type === 'income') {
               monthlyDataMap[monthKey].gelir += transaction.amount;
             } else {

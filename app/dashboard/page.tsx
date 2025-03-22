@@ -9,7 +9,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 import { Progress } from "@/components/ui/progress";
 import { format, subMonths, parseISO } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditCard, Loader2, Calendar, DollarSign, BarChart3, PieChart as PieChartIcon, ArrowUp, ArrowDown, PercentIcon, TrendingDown, MinusIcon, ShieldCheck, AlertCircle, Calculator } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Plus, Wallet, Target, TrendingUp, CreditCard, Loader2, Calendar, DollarSign, BarChart3, PieChart as PieChartIcon, ArrowUp, ArrowDown, PercentIcon, TrendingDown, MinusIcon, ShieldCheck, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { sendBudgetAlertEmail } from "@/app/utils/email";
@@ -195,30 +195,15 @@ interface MonthlyData {
   [key: string]: string | number | undefined;
 }
 
-interface Summary {
-  totalIncome: number;
-  totalExpense: number;
-  balance: number;
-  savingsRate: number;
-  futureIncome: number;
-  futureExpense: number;
-  projectedBalance: number;
-}
-
-const defaultSummary: Summary = {
-  totalIncome: 0,
-  totalExpense: 0,
-  balance: 0,
-  savingsRate: 0,
-  futureIncome: 0,
-  futureExpense: 0,
-  projectedBalance: 0
-};
-
 export default function DashboardPage() {
   const { supabase, user } = useSupabase();
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<Summary>(defaultSummary);
+  const [summary, setSummary] = useState({
+    totalIncome: 0,
+    totalExpense: 0,
+    balance: 0,
+    savingsRate: 0,
+  });
   const [expensesByCategory, setExpensesByCategory] = useState<any[]>([]);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [budgetGoals, setBudgetGoals] = useState<any[]>([]);
@@ -328,38 +313,29 @@ export default function DashboardPage() {
           ];
           
           // Özet verileri hesapla
-          const totalIncome = demoTransactions.reduce((sum: number, t: any) => 
-            t.type === 'income' ? sum + t.amount : sum, 0);
+          const today = new Date();
+          const totalIncome = demoTransactions
+            .filter(t => {
+              const transactionDate = new Date(t.date);
+              return t.type === 'income' && transactionDate <= today;
+            })
+            .reduce((sum: number, t: any) => sum + t.amount, 0);
           
-          const totalExpense = demoTransactions.reduce((sum: number, t: any) => 
-            t.type === 'expense' ? sum + t.amount : sum, 0);
+          const totalExpense = demoTransactions
+            .filter(t => {
+              const transactionDate = new Date(t.date);
+              return t.type === 'expense' && transactionDate <= today;
+            })
+            .reduce((sum: number, t: any) => sum + t.amount, 0);
           
           const balance = totalIncome - totalExpense;
           const savingsRate = totalIncome > 0 ? (balance / totalIncome) * 100 : 0;
           
-          // Gelecek işlemleri hesapla
-          const futureTransactions = demoTransactions.filter(transaction => {
-            const transactionDate = new Date(transaction.date);
-            return transactionDate > new Date();
-          });
-
-          const futureTotalIncome = futureTransactions
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-            
-          const futureTotalExpense = futureTransactions
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-          // Özet bilgileri state'e ata
           setSummary({
             totalIncome,
             totalExpense,
             balance,
             savingsRate,
-            futureIncome: futureTotalIncome,
-            futureExpense: futureTotalExpense,
-            projectedBalance: balance + futureTotalIncome - futureTotalExpense
           });
           setExpensesByCategory(expensesData);
           setMonthlyData(monthlyDataArray);
@@ -427,9 +403,6 @@ export default function DashboardPage() {
               totalExpense: 0,
               balance: 0,
               savingsRate: 0,
-              futureIncome: 0,
-              futureExpense: 0,
-              projectedBalance: 0,
             });
             setExpensesByCategory([]);
             setMonthlyData([]);
@@ -443,49 +416,41 @@ export default function DashboardPage() {
           // Son 5 işlemi göster
           setRecentTransactions(transactionsData.slice(0, 5));
           
-          // Mevcut aya ait toplam gelir, gider, bakiye ve tasarruf oranını hesapla
+          // Mevcut ayın başlangıç ve bitiş tarihlerini hesapla
           const today = new Date();
+          const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+          const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
           
-          // Sadece bugüne kadar olan işlemleri filtrele
-          const currentTransactions = transactionsData.filter(transaction => {
+          // Sadece mevcut aya ait işlemleri filtrele
+          const currentMonthTransactions = transactionsData.filter(transaction => {
             const transactionDate = new Date(transaction.date);
-            return transactionDate <= today;
+            return transactionDate >= startOfMonth && transactionDate <= endOfMonth;
           });
-
-          const totalIncome = currentTransactions
-            .filter(t => t.type === 'income')
+          
+          // Mevcut aya ait toplam gelir, gider, bakiye ve tasarruf oranını hesapla
+          const totalIncome = currentMonthTransactions
+            .filter(t => {
+              const transactionDate = new Date(t.date);
+              return t.type === 'income' && transactionDate <= today;
+            })
             .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
             
-          const totalExpense = currentTransactions
-            .filter(t => t.type === 'expense')
+          const totalExpense = currentMonthTransactions
+            .filter(t => {
+              const transactionDate = new Date(t.date);
+              return t.type === 'expense' && transactionDate <= today;
+            })
             .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
             
           const balance = totalIncome - totalExpense;
           const savingsRate = totalIncome > 0 ? (balance / totalIncome) * 100 : 0;
-
-          // Gelecek işlemleri hesapla
-          const futureTransactions = transactionsData.filter(transaction => {
-            const transactionDate = new Date(transaction.date);
-            return transactionDate > today;
-          });
-
-          const futureTotalIncome = futureTransactions
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-            
-          const futureTotalExpense = futureTransactions
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
+          
           // Özet bilgileri state'e ata
           setSummary({
             totalIncome,
             totalExpense,
             balance,
             savingsRate,
-            futureIncome: futureTotalIncome,
-            futureExpense: futureTotalExpense,
-            projectedBalance: balance + futureTotalIncome - futureTotalExpense
           });
           
           // Kategorilere göre giderleri hesapla
@@ -493,7 +458,7 @@ export default function DashboardPage() {
           const expenseCategoriesIdMap = {}; // Kategori ID'sine göre
           
           // Sadece mevcut aya ait gider işlemlerini kategorilere göre grupla
-          currentTransactions
+          currentMonthTransactions
             .filter(t => t.type === 'expense')
             .forEach(transaction => {
               // Kategori adını bul
@@ -702,69 +667,81 @@ export default function DashboardPage() {
           </div>
 
           {/* Özet Kartları */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card className="overflow-hidden border-l-4 border-l-primary">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Mevcut Bakiye
-                </CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Toplam Gelir</CardTitle>
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="flex items-center justify-center text-primary font-bold text-base">₺</div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₺{summary.balance.toLocaleString('tr-TR')}</div>
-                <p className="text-xs text-muted-foreground">
-                  Bugüne kadar olan işlemler
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Gelecek İşlemler
-                </CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground flex justify-between">
-                    <span>Gelecek Gelirler:</span>
-                    <span className="text-green-500">+₺{summary.futureIncome.toLocaleString('tr-TR')}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground flex justify-between">
-                    <span>Gelecek Giderler:</span>
-                    <span className="text-red-500">-₺{summary.futureExpense.toLocaleString('tr-TR')}</span>
-                  </div>
+                <div className="text-2xl font-bold">₺{summary.totalIncome.toLocaleString('tr-TR')}</div>
+                <div className="flex items-center pt-1 text-xs text-green-500">
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  <span>%8 artış</span>
+                  <span className="text-muted-foreground ml-1">geçen aya göre</span>
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
+            
+            <Card className="overflow-hidden border-l-4 border-l-destructive">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Tahmini Bakiye
-                </CardTitle>
-                <Calculator className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Toplam Gider</CardTitle>
+                <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <CreditCard className="h-4 w-4 text-destructive" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₺{summary.projectedBalance.toLocaleString('tr-TR')}</div>
-                <p className="text-xs text-muted-foreground">
-                  Gelecek işlemler dahil
-                </p>
+                <div className="text-2xl font-bold">₺{summary.totalExpense.toLocaleString('tr-TR')}</div>
+                <div className="flex items-center pt-1 text-xs text-destructive">
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  <span>%12 artış</span>
+                  <span className="text-muted-foreground ml-1">geçen aya göre</span>
+                </div>
               </CardContent>
             </Card>
-
-            <Card>
+            
+            <Card className="overflow-hidden border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Tasarruf Oranı
-                </CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Bakiye</CardTitle>
+                <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <Wallet className="h-4 w-4 text-green-500" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">%{summary.savingsRate.toFixed(1)}</div>
+                <div className="text-2xl font-bold">₺{summary.balance.toLocaleString('tr-TR')}</div>
+                <div className="flex items-center pt-1 text-xs text-green-500">
+                  <ArrowDownRight className="mr-1 h-3 w-3" />
+                  <span>%5 artış</span>
+                  <span className="text-muted-foreground ml-1">geçen aya göre</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="overflow-hidden border-l-4 border-l-blue-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tasarruf Oranı</CardTitle>
+                <div className="rounded-full bg-blue-100 p-1">
+                  <PercentIcon className="h-4 w-4 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  %{summary.savingsRate !== undefined
+                    ? summary.savingsRate.toFixed(1)
+                    : "0.0"}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Gelir/Gider oranı
+                  {summary.savingsRate > 0 ? (
+                    <span className="text-green-500 flex items-center">
+                      %{(summary.savingsRate).toFixed(1)}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500 flex items-center">
+                      Değişim yok
+                    </span>
+                  )}
                 </p>
               </CardContent>
             </Card>
