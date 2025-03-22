@@ -51,8 +51,7 @@ export async function middleware(req: NextRequest) {
   
   // Check for premium-only features
   if (session && 
-      (req.nextUrl.pathname.includes('/premium-features') || 
-       req.nextUrl.pathname.includes('/reports'))) {
+      (req.nextUrl.pathname.includes('/premium-features'))) {
     
     // Check if user has premium access
     const { data: profile } = await supabase

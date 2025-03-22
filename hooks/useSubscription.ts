@@ -35,7 +35,7 @@ export function useSubscription() {
     
     try {
       console.log("useSubscription: Abonelik bilgileri getiriliyor...");
-      const response = await fetch('/api/subscription/status', {
+      const response = await fetch(`/api/subscription/status?user_id=${user.id}`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache',

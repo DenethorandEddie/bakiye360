@@ -2,6 +2,7 @@
 
 import { createContext, useContext, ReactNode, useState } from 'react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useSupabase } from '@/components/supabase-provider';
 
 type SubscriptionContextType = {
   isLoading: boolean;
@@ -22,6 +23,7 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
 });
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
+  const { user } = useSupabase();
   const { 
     isLoading, 
     isActive, 
@@ -36,8 +38,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     setIsRefreshing(true);
     
     try {
+      if (!user) {
+        console.log("SubscriptionContext: Kullanıcı oturumu bulunamadı");
+        return;
+      }
+
       // Doğrudan API'den abonelik durumunu sorgula
-      const response = await fetch('/api/subscription/status', {
+      const response = await fetch(`/api/subscription/status?user_id=${user.id}`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache',

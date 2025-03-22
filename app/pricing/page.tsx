@@ -3,10 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useSubscriptionContext } from '../context/SubscriptionContext';
+import { useSupabase } from '@/components/supabase-provider';
 
 export default function PricingPage() {
   const router = useRouter();
   const { isPremium } = useSubscriptionContext();
+  const { user } = useSupabase();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,11 +19,18 @@ export default function PricingPage() {
       
       console.log('Checkout başlatılıyor...');
       
+      if (!user) {
+        const errorMessage = 'Ödeme yapmak için giriş yapmalısınız';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+      
       const response = await fetch('/api/checkout/session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ user_id: user.id }),
         credentials: 'include',
       });
 
@@ -35,13 +44,25 @@ export default function PricingPage() {
 
       if (!response.ok) {
         console.error('Checkout hatası:', responseData);
-        const errorMessage = responseData.error 
-          ? typeof responseData.error === 'object' 
-            ? JSON.stringify(responseData.error) 
-            : responseData.error
-          : 'Bilinmeyen hata';
-        setError(`Ödeme hatası: ${errorMessage}`);
-        throw new Error(`Ödeme hatası: ${errorMessage}`);
+        let errorMessage = 'Ödeme işlemi başlatılırken bir hata oluştu';
+        
+        if (responseData.error) {
+          if (typeof responseData.error === 'object') {
+            // Stripe hata objesi kontrolü
+            if (responseData.error.type === 'StripeAuthenticationError') {
+              errorMessage = 'Ödeme sistemi yapılandırması hatalı. Lütfen daha sonra tekrar deneyin.';
+            } else if (responseData.error.raw?.message) {
+              errorMessage = `Ödeme hatası: ${responseData.error.raw.message}`;
+            } else {
+              errorMessage = JSON.stringify(responseData.error);
+            }
+          } else {
+            errorMessage = responseData.error;
+          }
+        }
+        
+        setError(errorMessage);
+        throw new Error(errorMessage);
       }
       
       if (responseData.sessionUrl) {
@@ -65,8 +86,17 @@ export default function PricingPage() {
       <h1 className="text-3xl font-bold text-center mb-12">Bakiye360 Planları</h1>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-          <p>{error}</p>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 relative">
+          <span className="block sm:inline">{error}</span>
+          <span 
+            className="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer"
+            onClick={() => setError(null)}
+          >
+            <svg className="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <title>Kapat</title>
+              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+            </svg>
+          </span>
         </div>
       )}
       
@@ -112,19 +142,11 @@ export default function PricingPage() {
           ) : (
             <div className="space-y-4">
               <button 
-                className="w-full py-2 px-4 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                className={`w-full py-2 px-4 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${isLoading ? 'animate-pulse' : ''}`}
                 onClick={handleCheckout}
                 disabled={isLoading}
               >
                 {isLoading ? 'İşleniyor...' : 'Premium\'a Geç'}
-              </button>
-              
-              <button 
-                className="w-full py-2 px-4 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                onClick={() => window.open('https://dashboard.stripe.com/test/dashboard', '_blank')}
-                disabled={isLoading}
-              >
-                Stripe Dashboard
               </button>
             </div>
           )}
