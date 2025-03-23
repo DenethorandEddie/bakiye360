@@ -9,16 +9,16 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-8">
-        <Button variant="ghost" asChild className="mb-4 hover:bg-primary/10">
+      <div className="container mx-auto px-4 py-24">
+        <Button variant="ghost" asChild className="mb-8 hover:bg-blue-800/10">
           <Link href="/" className="flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Ana Sayfaya Dön
           </Link>
         </Button>
 
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 text-transparent bg-clip-text">
+        <div className="text-center max-w-3xl mx-auto mb-16 pt-20">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">
             Finansal Özgürlüğünüzün Anahtarı
           </h1>
           <p className="text-muted-foreground text-lg mb-8">
@@ -26,7 +26,7 @@ export default function AboutPage() {
             Modern teknoloji ve kullanıcı dostu arayüzümüzle, bütçe yönetimini kolaylaştırıyoruz.
           </p>
           <div className="flex justify-center gap-4">
-            <Button asChild>
+            <Button asChild className="bg-blue-700 hover:bg-blue-800">
               <Link href="/register" className="flex items-center">
                 Hemen Başla
                 <ChevronRight className="ml-2 h-4 w-4" />
@@ -41,10 +41,10 @@ export default function AboutPage() {
         {/* Misyon ve Vizyon */}
         <div className="grid md:grid-cols-2 gap-8 mb-16">
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-800/10 to-blue-700/5 rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
             <div className="relative p-8 rounded-lg border bg-background/80 backdrop-blur-sm hover:bg-background/90 transition-all">
               <h2 className="text-2xl font-bold mb-4 flex items-center">
-                <Target className="h-6 w-6 mr-2 text-primary" />
+                <Target className="h-6 w-6 mr-2 text-blue-600" />
                 Misyonumuz
               </h2>
               <p className="text-muted-foreground leading-relaxed">
@@ -55,10 +55,10 @@ export default function AboutPage() {
           </div>
 
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-800/10 to-blue-700/5 rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
             <div className="relative p-8 rounded-lg border bg-background/80 backdrop-blur-sm hover:bg-background/90 transition-all">
               <h2 className="text-2xl font-bold mb-4 flex items-center">
-                <Sparkles className="h-6 w-6 mr-2 text-primary" />
+                <Sparkles className="h-6 w-6 mr-2 text-blue-600" />
                 Vizyonumuz
               </h2>
               <p className="text-muted-foreground leading-relaxed">
@@ -74,17 +74,17 @@ export default function AboutPage() {
           <h2 className="text-3xl font-bold mb-12 text-center">Yolculuğumuz</h2>
           <div className="max-w-3xl mx-auto space-y-12">
             <div className="relative">
-              <div className="absolute left-8 h-full w-0.5 bg-gradient-to-b from-primary via-primary/50 to-transparent" />
+              <div className="absolute left-8 h-full w-0.5 bg-gradient-to-b from-blue-700 via-blue-600/50 to-transparent" />
               
               {/* 2024 Q3 */}
               <div className="relative pl-20">
-                <div className="absolute left-0 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Calendar className="h-8 w-8 text-primary" />
+                <div className="absolute left-0 w-16 h-16 rounded-full bg-blue-800/10 flex items-center justify-center">
+                  <Calendar className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="bg-card border rounded-lg p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center gap-2 mb-3">
                     <h3 className="text-xl font-bold">2024 Q3</h3>
-                    <span className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">Başlangıç</span>
+                    <span className="px-2 py-1 text-xs rounded-full bg-blue-800/10 text-blue-600">Başlangıç</span>
                   </div>
                   <p className="text-muted-foreground">
                     Bakiye360'ın ilk versiyonu yayınlandı. Temel bütçe takibi, gelir-gider yönetimi ve 
@@ -95,8 +95,8 @@ export default function AboutPage() {
 
               {/* 2024 Q4 */}
               <div className="relative pl-20 mt-12">
-                <div className="absolute left-0 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Award className="h-8 w-8 text-primary" />
+                <div className="absolute left-0 w-16 h-16 rounded-full bg-blue-800/10 flex items-center justify-center">
+                  <Award className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="bg-card border rounded-lg p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center gap-2 mb-3">
@@ -112,13 +112,13 @@ export default function AboutPage() {
 
               {/* 2025 Q1 */}
               <div className="relative pl-20 mt-12">
-                <div className="absolute left-0 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-primary" />
+                <div className="absolute left-0 w-16 h-16 rounded-full bg-blue-800/10 flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="bg-card border rounded-lg p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center gap-2 mb-3">
                     <h3 className="text-xl font-bold">2025 Q1</h3>
-                    <span className="px-2 py-1 text-xs rounded-full bg-blue-500/10 text-blue-500">Planlanan</span>
+                    <span className="px-2 py-1 text-xs rounded-full bg-blue-800/10 text-blue-600">Planlanan</span>
                   </div>
                   <p className="text-muted-foreground">
                     Mobil uygulama lansmanı ve otomatik kategorizasyon sistemi geliştirmeleri. 
@@ -129,8 +129,8 @@ export default function AboutPage() {
 
               {/* 2025 Q3 */}
               <div className="relative pl-20 mt-12">
-                <div className="absolute left-0 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Brain className="h-8 w-8 text-primary" />
+                <div className="absolute left-0 w-16 h-16 rounded-full bg-blue-800/10 flex items-center justify-center">
+                  <Brain className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="bg-card border rounded-lg p-6 hover:shadow-lg transition-all">
                   <div className="flex items-center gap-2 mb-3">
@@ -153,10 +153,10 @@ export default function AboutPage() {
           <h2 className="text-3xl font-bold mb-12 text-center">Değerlerimiz</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-800/5 to-transparent rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
               <div className="relative p-8 rounded-lg border bg-background/80 backdrop-blur-sm hover:bg-background/90 transition-all">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-                  <Shield className="h-6 w-6 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-blue-800/10 flex items-center justify-center mb-6">
+                  <Shield className="h-6 w-6 text-blue-600" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">Güvenlik</h3>
                 <p className="text-muted-foreground leading-relaxed">
@@ -167,10 +167,10 @@ export default function AboutPage() {
             </div>
 
             <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-800/5 to-transparent rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
               <div className="relative p-8 rounded-lg border bg-background/80 backdrop-blur-sm hover:bg-background/90 transition-all">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-                  <Target className="h-6 w-6 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-blue-800/10 flex items-center justify-center mb-6">
+                  <Target className="h-6 w-6 text-blue-600" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">Yenilikçilik</h3>
                 <p className="text-muted-foreground leading-relaxed">
@@ -181,10 +181,10 @@ export default function AboutPage() {
             </div>
 
             <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-800/5 to-transparent rounded-lg blur-xl transition-all duration-500 group-hover:blur-2xl" />
               <div className="relative p-8 rounded-lg border bg-background/80 backdrop-blur-sm hover:bg-background/90 transition-all">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-                  <Users className="h-6 w-6 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-blue-800/10 flex items-center justify-center mb-6">
+                  <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">Kullanıcı Odaklılık</h3>
                 <p className="text-muted-foreground leading-relaxed">
@@ -198,12 +198,12 @@ export default function AboutPage() {
 
         {/* CTA Section */}
         <div className="text-center max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Finansal Yolculuğunuza Başlayın</h2>
+          <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-700 to-blue-500 text-transparent bg-clip-text">Finansal Yolculuğunuza Başlayın</h2>
           <p className="text-muted-foreground mb-8">
             Bakiye360 ile finansal hedeflerinize ulaşmak artık çok daha kolay. 
             Hemen ücretsiz hesap oluşturun ve yolculuğunuza başlayın.
           </p>
-          <Button size="lg" asChild>
+          <Button size="lg" asChild className="bg-blue-950 hover:bg-blue-800">
             <Link href="/register" className="flex items-center">
               Ücretsiz Hesap Oluştur
               <ChevronRight className="ml-2 h-5 w-5" />
