@@ -252,6 +252,42 @@
     min-height: 2.5rem;
   }
   
+  /* Tablo hücrelerini mobilde daha kompakt yap */
+  td, th {
+    padding: 0.5rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Tabs daha iyi görünsün */
+  [role="tablist"] {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  [role="tab"] {
+    flex: 1;
+    min-width: auto !important;
+    font-size: 0.875rem !important;
+    padding: 0.5rem 0.25rem !important;
+  }
+
+  /* İstatistik kartları daha iyi görünsün */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .recharts-responsive-container {
+    height: 250px !important;
+  }
+
+  /* Dashboard tablar arasında yeterli boşluk bırak */
+  [role="tabpanel"] {
+    padding-top: 1rem !important;
+  }
+  
   /* Blog özet kısmı için mobil düzenleme */
   .blog-excerpt-wrapper {
     padding: 0.5rem !important;
@@ -266,23 +302,17 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
-  
-  .blog-excerpt p,
-  .blog-excerpt div,
-  .blog-excerpt span {
-    font-size: 0.75rem !important; /* 12px */
-    line-height: 1.2rem !important;
-    margin-bottom: 0.25rem !important;
+
+  /* Dashboard grid layout iyileştirmeleri */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
-  
-  .blog-excerpt * {
-    font-size: 0.75rem !important; /* 12px */
-  }
-  
-  /* Blog card içindeki line-clamp değerini azaltarak daha az satır göster */
-  article .blog-excerpt {
-    -webkit-line-clamp: 2 !important;
-    max-height: 2.4rem !important;
+
+  /* Card içeriklerini düzelt */
+  .card {
+    overflow: hidden;
   }
 }
 
@@ -308,6 +338,19 @@ body.mobile-scroll-active {
     grid-template-columns: 1fr;
     gap: 0.75rem;
   }
+
+  /* Grafik boyutları ve yazı fontları */
+  .recharts-text {
+    font-size: 10px !important;
+  }
+
+  .recharts-legend-item {
+    font-size: 10px !important;
+  }
+
+  .chart-container {
+    height: 220px !important;
+  }
 }
 
 /* Custom Sidebar Styles */
@@ -319,12 +362,12 @@ body.mobile-scroll-active {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  background-color: hsl(var(--background));
-  border-right: 1px solid hsla(var(--border)/0.3);
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
-  transform: translateX(-100%);
-  transition: all 0.3s cubic-bezier(0.17, 0.67, 0.83, 0.67);
-  overflow: hidden;
+  transition: transform 0.3s ease, width 0.3s ease;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  background-color: hsl(var(--card));
+  border-right: 1px solid hsla(var(--border)/0.2);
+  transform: translateX(-100%); /* Mobilde varsayılan olarak gizli */
+  width: 256px;
 }
 
 /* Dark mode specifics */
@@ -716,10 +759,10 @@ body.mobile-scroll-active {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: hsl(var(--background)/0.7);
-  backdrop-filter: blur(4px);
-  z-index: 30;
-  animation: fadeIn 0.3s ease;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 39;
+  animation: fadeIn 0.2s ease-in-out;
+  backdrop-filter: blur(2px);
 }
 
 @keyframes fadeIn {
@@ -730,6 +773,9 @@ body.mobile-scroll-active {
 /* When mobile menu is active, prevent body scroll */
 body.mobile-scroll-active {
   overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
 }
 
 /* Make the sidebar more compact on mobile */
@@ -738,6 +784,19 @@ body.mobile-scroll-active {
   .theme-toggle,
   .logout-button {
     height: 42px;
+    padding: 0 0.75rem;
+  }
+
+  .nav-group {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .modern-sidebar {
+    width: 260px;
+  }
+
+  .modern-sidebar.expanded {
+    width: 260px;
   }
 }
 

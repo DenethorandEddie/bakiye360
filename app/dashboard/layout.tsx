@@ -248,20 +248,25 @@ export default function DashboardLayout({
           {/* Logo Bölümü */}
           <div className="sidebar-logo">
             <Link href="/dashboard" className="block">
-              <div className="relative w-16 h-16">
-                {/* Light mode logo */}
-                <img 
-                  src="/logo.png" 
-                  alt="Bakiye360 Logo" 
-                  className="absolute top-0 left-0 w-full h-full object-contain dark:opacity-0 transition-opacity"
-                />
-                {/* Dark mode logo */}
-                <img 
-                  src="/logo_dark.png" 
-                  alt="Bakiye360 Logo" 
-                  className="absolute top-0 left-0 w-full h-full object-contain opacity-0 dark:opacity-100 transition-opacity"
-                />
-              </div>
+              {isClientSide && (isSidebarExpanded ? (
+                <div className="dark:hidden">
+                  <img src="/logo-text.png" alt="Bakiye360" width={140} height={36} className="h-9 w-auto" />
+                </div>
+              ) : (
+                <div className="dark:hidden">
+                  <img src="/logo-icon.png" alt="Bakiye360" width={36} height={36} className="h-9 w-9" />
+                </div>
+              ))}
+              
+              {isClientSide && (isSidebarExpanded ? (
+                <div className="hidden dark:block">
+                  <img src="/logo-text-white.png" alt="Bakiye360" width={140} height={36} className="h-9 w-auto" />
+                </div>
+              ) : (
+                <div className="hidden dark:block">
+                  <img src="/logo-icon-white.png" alt="Bakiye360" width={36} height={36} className="h-9 w-9" />
+                </div>
+              ))}
             </Link>
           </div>
 
@@ -401,27 +406,23 @@ export default function DashboardLayout({
           </div>
         </aside>
 
-        {/* Mobil arka plan overlay */}
+        {/* Backdrop Overlay for Mobile */}
         {isMobileMenuOpen && (
-          <div className="backdrop-overlay" onClick={toggleMobileMenu} />
+          <div 
+            className="backdrop-overlay lg:hidden" 
+            onClick={toggleMobileMenu}
+            aria-hidden="true"
+          ></div>
         )}
-
-        {/* Ana içerik */}
-        <main 
-          className={cn(
-            "flex-1 transition-all duration-300 ease-in-out",
-            isSidebarExpanded 
-              ? "lg:pl-60" 
-              : "lg:pl-24"
+        
+        {/* Main Content */}
+        <main className="flex-1 px-4 py-4 md:px-6 md:py-6 pt-16 lg:pt-6 pb-16 w-full overflow-x-hidden overflow-y-auto lg:ml-20">
+          {isSidebarExpanded && (
+            <div className="lg:ml-36 transition-all duration-300 ease-in-out"></div>
           )}
-        >
-          <div className="p-4 md:p-6 pt-16 lg:pt-6 min-h-screen overflow-x-hidden">
-            <div className="overflow-guard">
-              {children}
-            </div>
-          </div>
+          {children}
         </main>
-    </div>
+      </div>
     </SidebarContext.Provider>
   );
 }

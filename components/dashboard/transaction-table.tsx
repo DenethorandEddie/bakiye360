@@ -92,8 +92,9 @@ export function TransactionTable({ transactions, loading }: TransactionTableProp
     );
   }
 
-  return (
-    <Card>
+  // Masaüstü ve tablet için tablo görünümü
+  const renderDesktopView = () => (
+    <Card className="hidden md:block">
       <div className="rounded-md border overflow-hidden">
         <Table>
           <TableHeader>
@@ -180,5 +181,89 @@ export function TransactionTable({ transactions, loading }: TransactionTableProp
         </Table>
       </div>
     </Card>
+  );
+
+  // Mobil için kart görünümü
+  const renderMobileView = () => (
+    <div className="space-y-4 md:hidden">
+      {transactions.map((transaction) => {
+        const transactionDate = new Date(transaction.date);
+        const today = new Date();
+        const isFutureTransaction = transactionDate > today;
+
+        return (
+          <Card 
+            key={transaction.id} 
+            className={`${isFutureTransaction ? "opacity-70" : ""}`}
+          >
+            <div className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  {isFutureTransaction && (
+                    <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-1" title="Gelecek tarihli işlem">
+                      <Clock className="h-3 w-3 text-blue-500 dark:text-blue-400" />
+                    </div>
+                  )}
+                  <span className="text-sm text-muted-foreground">{format(transactionDate, "d MMMM yyyy", { locale: tr })}</span>
+                </div>
+                <div
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    transaction.type === "income"
+                      ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
+                      : "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
+                  }`}
+                >
+                  {transaction.type === "income" ? "Gelir" : "Gider"}
+                  {isFutureTransaction && " (Gelecek)"}
+                </div>
+              </div>
+              <div className="mb-1 font-medium">{transaction.description}</div>
+              <div className="text-sm text-muted-foreground mb-2">Kategori: {transaction.category}</div>
+              <div className="flex justify-between items-center">
+                <div className={`flex items-center font-semibold ${transaction.type === "income" ? "text-green-500" : "text-red-500"}`}>
+                  {transaction.type === "income" ? (
+                    <ArrowUpRight className="mr-1 h-4 w-4" />
+                  ) : (
+                    <ArrowDownRight className="mr-1 h-4 w-4" />
+                  )}
+                  ₺{transaction.amount.toLocaleString("tr-TR")}
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.location.href = `/dashboard/transactions/edit/${transaction.id}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-primary mr-1" />
+                    Düzenle
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteTransaction(transaction.id)}
+                    disabled={deleting === transaction.id}
+                    className="text-red-500"
+                  >
+                    {deleting === transaction.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                    ) : (
+                      <Trash className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Sil
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <>
+      {renderDesktopView()}
+      {renderMobileView()}
+    </>
   );
 } 
