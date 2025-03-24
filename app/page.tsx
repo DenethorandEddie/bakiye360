@@ -276,8 +276,8 @@ export default function Home() {
                       </div>
                       
                 {/* Stats Overlay */}
-                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-4xl">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mx-4">
+                <div className="absolute -bottom-6 md:-bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-4xl">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mx-4 mt-8 md:mt-0">
                     {[
                       { value: "1000+", label: "Aktif Kullanıcı" },
                       { value: "50K+", label: "İşlem Kaydı" },
@@ -289,12 +289,12 @@ export default function Home() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
-                        className="bg-background/80 backdrop-blur-lg rounded-lg p-4 text-center border border-foreground/10 shadow-lg"
+                        className="bg-background/80 backdrop-blur-lg rounded-lg p-3 md:p-4 text-center border border-foreground/10 shadow-lg"
                       >
-                        <div className="text-2xl font-bold text-foreground">
+                        <div className="text-lg md:text-2xl font-bold text-foreground">
                           {stat.value}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-xs md:text-sm text-muted-foreground">
                           {stat.label}
                         </div>
                       </motion.div>
