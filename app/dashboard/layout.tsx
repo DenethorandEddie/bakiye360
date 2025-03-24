@@ -250,21 +250,21 @@ export default function DashboardLayout({
             <Link href="/dashboard" className="block">
               {isClientSide && (isSidebarExpanded ? (
                 <div className="dark:hidden">
-                  <img src="/logo-text.png" alt="Bakiye360" width={140} height={36} className="h-9 w-auto" />
+                  <img src="/logo.png" alt="Bakiye360" width={140} height={36} className="h-9 w-auto" />
                 </div>
               ) : (
                 <div className="dark:hidden">
-                  <img src="/logo-icon.png" alt="Bakiye360" width={36} height={36} className="h-9 w-9" />
+                  <img src="/logo.png" alt="Bakiye360" width={56} height={36} className="h-11 w-11" />
                 </div>
               ))}
               
               {isClientSide && (isSidebarExpanded ? (
                 <div className="hidden dark:block">
-                  <img src="/logo-text-white.png" alt="Bakiye360" width={140} height={36} className="h-9 w-auto" />
+                  <img src="/logo_dark.png" alt="Bakiye360" width={140} height={36} className="h-9 w-auto" />
                 </div>
               ) : (
                 <div className="hidden dark:block">
-                  <img src="/logo-icon-white.png" alt="Bakiye360" width={36} height={36} className="h-9 w-9" />
+                  <img src="/logo_dark.png" alt="Bakiye360" width={56} height={36} className="h-11 w-11" />
                 </div>
               ))}
             </Link>
