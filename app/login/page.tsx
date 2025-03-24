@@ -123,66 +123,110 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-2">
-            <Wallet className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Giriş Yap</CardTitle>
-          <CardDescription>
-            Bütçe yönetim uygulamanıza erişmek için giriş yapın
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-posta</FormLabel>
-                    <FormControl>
-                      <Input placeholder="ornek@mail.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Şifre</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="******" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Giriş yapılıyor..." : "Giriş Yap"}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-muted-foreground text-center">
-            <Link href="/reset-password" className="text-primary hover:underline">
-              Şifremi unuttum
-            </Link>
-          </div>
-          <div className="text-sm text-center">
-            Hesabınız yok mu?{" "}
-            <Link href="/register" className="text-primary hover:underline font-semibold">
-              Kayıt Ol
-            </Link>
-          </div>
-        </CardFooter>
-      </Card>
+    <div className="flex min-h-screen relative items-center justify-center bg-background">
+      {/* Arka plan efektleri */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none" />
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/10 via-background to-background" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl" />
+      </div>
+
+      {/* Ana içerik */}
+      <div className="relative w-full max-w-lg px-4 py-8">
+        <Card className="border-none shadow-2xl bg-background/60 backdrop-blur-xl">
+          <CardHeader className="space-y-1 text-center pb-8">
+            <div className="flex justify-center mb-4 relative">
+              <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full" />
+              <div className="relative bg-gradient-to-tr from-blue-600 to-blue-400 p-3 rounded-xl shadow-xl">
+                <Wallet className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Tekrar Hoş Geldiniz
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Hesabınıza giriş yaparak kaldığınız yerden devam edin
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground/80">E-posta</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="ornek@mail.com" 
+                          {...field}
+                          className="bg-background/50 border-border/50 focus:border-blue-600/50 transition-colors"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground/80">Şifre</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder="••••••" 
+                          {...field}
+                          className="bg-background/50 border-border/50 focus:border-blue-600/50 transition-colors"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-500/25" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      <span>Giriş yapılıyor...</span>
+                    </div>
+                  ) : (
+                    "Giriş Yap"
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+
+          <CardFooter className="flex flex-col space-y-4 border-t border-border/50 mt-4 pt-6">
+            <div className="text-sm text-muted-foreground text-center">
+              <Link 
+                href="/reset-password" 
+                className="text-blue-600 hover:text-blue-500 transition-colors hover:underline"
+              >
+                Şifrenizi mi unuttunuz?
+              </Link>
+            </div>
+            <div className="text-sm text-center space-x-1">
+              <span className="text-muted-foreground">Hesabınız yok mu?</span>
+              <Link 
+                href="/register" 
+                className="text-blue-600 hover:text-blue-500 transition-colors font-medium hover:underline"
+              >
+                Hemen Kayıt Olun
+              </Link>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 }

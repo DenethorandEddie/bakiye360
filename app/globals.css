@@ -43,13 +43,13 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 222 84% 5%; /* Koyu lacivert tonu için HSL değeri */
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    --card: 222 84% 5%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 3.9%;
+    --popover: 222 84% 5%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 0 0% 98%;
@@ -84,7 +84,7 @@
   }
 
   html.dark {
-    background-color: #030712 !important; /* gray-950 */
+    background-color: #0A192F !important; /* Koyu lacivert */
     color: #f9fafb; /* gray-50 */
   }
 
@@ -93,7 +93,7 @@
   }
 
   body.dark {
-    background-color: #030712 !important; /* gray-950 */
+    background-color: #0A192F !important; /* Koyu lacivert */
     color: #f9fafb; /* gray-50 */
   }
 }
