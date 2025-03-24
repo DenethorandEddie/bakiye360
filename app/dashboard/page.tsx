@@ -930,8 +930,8 @@ export default function DashboardPage() {
                           data={expensesByCategory}
                           cx="50%"
                           cy="50%"
-                          innerRadius={isMobile ? 30 : 80} 
-                          outerRadius={isMobile ? 60 : 100}
+                          innerRadius={isMobile ? 80 : 80} 
+                          outerRadius={isMobile ? 100 : 100}
                           paddingAngle={2}
                           dataKey="value"
                           onMouseEnter={onPieEnter}
