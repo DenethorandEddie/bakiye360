@@ -119,55 +119,35 @@ export default function Home() {
       </div>
 
       {/* Header */}
-      <header className="fixed w-full top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center">
-              <Image
-                src="/logo.png"
-                alt="Bakiye360"
-                width={150}
-                height={50}
-                className="dark:hidden"
-                priority
-              />
+      <header className="container z-40 relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 via-blue-800/10 to-blue-900/10 backdrop-blur-sm rounded-2xl" />
+        <div className="flex h-20 items-center justify-between py-6 relative">
+          <div className="flex items-center gap-6 md:gap-10">
+            <Link href="/" className="hidden md:block">
               <Image
                 src="/logo_dark.png"
                 alt="Bakiye360"
-                width={150}
-                height={50}
-                className="hidden dark:block"
-                priority
+                width={80}
+                height={80}
+                className="h-30 w-auto"
               />
             </Link>
           </div>
-          <div className="flex items-center gap-4">
-            <nav className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Özellikler
-              </a>
-              <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Nasıl Çalışır
-              </a>
-              <a href="#testimonials" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Kullanıcı Yorumları
-              </a>
-            </nav>
-            <div className="flex items-center gap-4">
-              <ModeToggle />
-              <Button variant="ghost" asChild className="text-sm font-medium">
-                <Link href="/login">Giriş Yap</Link>
-              </Button>
-              <Button 
-                className="bg-foreground text-background hover:bg-foreground/90 dark:bg-background dark:text-foreground dark:hover:bg-background/90" 
-                asChild
-              >
-                <Link href="/register">
-                  Ücretsiz Başla
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
+
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-6">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-gray-200 hover:text-white transition-colors"
+            >
+              Giriş Yap
+            </Link>
+            <Button asChild className="bg-blue-700 hover:bg-blue-800 text-white transition-colors">
+              <Link href="/register" className="flex items-center gap-2">
+                Ücretsiz Hesap Oluştur
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </header>
