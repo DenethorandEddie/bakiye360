@@ -388,6 +388,7 @@ body.mobile-scroll-active {
 /* Mobile view - sidebar open */
 .modern-sidebar.mobile-open {
   transform: translateX(0);
+  width: 220px;
 }
 
 /* Desktop view */
@@ -799,11 +800,10 @@ body.mobile-scroll-active {
     padding: 0.75rem 0.5rem;
   }
 
-  .modern-sidebar {
-    width: 220px;
-  }
-
-  .modern-sidebar.expanded {
+  .modern-sidebar,
+  .modern-sidebar.expanded,
+  .modern-sidebar:not(.expanded),
+  .modern-sidebar.mobile-open {
     width: 220px;
   }
   

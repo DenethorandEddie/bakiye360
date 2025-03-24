@@ -236,24 +236,13 @@ export default function DashboardLayout({
           className={cn(
             "modern-sidebar",
             isSidebarExpanded && "expanded",
-            isMobileMenuOpen && "mobile-open"
+            isMobileMenuOpen && "mobile-open",
+            isSidebarExpanded ? "w-56" : "w-20",
           )}
         >
           {/* Mobil kapatma butonu */}
           <button onClick={toggleMobileMenu} className="mobile-close lg:hidden">
             {isClientSide && <X size={16} />}
-          </button>
-
-          {/* Website sidebar toggle butonu - sadece desktop */}
-          <button 
-            onClick={toggleSidebar} 
-            className="toggle-button"
-            title={isSidebarExpanded ? "Daralt" : "Genişlet"}
-          >
-            {isClientSide && (isSidebarExpanded ? 
-              <ChevronLeft size={12} /> : 
-              <ChevronRight size={12} />
-            )}
           </button>
 
           {/* Logo Bölümü */}
@@ -332,6 +321,34 @@ export default function DashboardLayout({
               </>
             )}
 
+            {/* Yeni tasarım: Sidebar genişlet/daralt butonu */}
+            <div className="relative">
+              <button 
+                onClick={toggleSidebar} 
+                className={cn(
+                  "absolute right-0 top-2 transform translate-x-1/2",
+                  "flex items-center justify-center",
+                  "w-5 h-10 rounded-full",
+                  "bg-background border border-border shadow-sm",
+                  "hover:bg-accent hover:border-accent-foreground/20",
+                  "transition-all duration-200",
+                  "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                  "dark:bg-background dark:border-border"
+                )}
+                aria-label={isSidebarExpanded ? "Sidebar'ı daralt" : "Sidebar'ı genişlet"}
+              >
+                {isClientSide && (
+                  <div className="flex items-center justify-center w-full h-full">
+                    {isSidebarExpanded ? (
+                      <ChevronLeft className="h-3 w-3 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </div>
+                )}
+              </button>
+            </div>
+
             {/* Alt kısımda yer alan ayarlar vb. */}
             <div>
               {isSidebarExpanded && (
@@ -400,7 +417,7 @@ export default function DashboardLayout({
         
         {/* Main Content */}
         <main className="flex-1 px-4 py-4 md:px-6 md:py-6 pt-16 lg:pt-6 pb-16 w-full overflow-x-hidden overflow-y-auto lg:pl-[100px] transition-all duration-300 ease-in-out">
-          {isSidebarExpanded && (
+          {isSidebarExpanded && !isMobileMenuOpen && (
             <div className="lg:ml-[140px] transition-all duration-300 ease-in-out"></div>
           )}
           {children}
