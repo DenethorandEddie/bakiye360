@@ -800,13 +800,29 @@ body.mobile-scroll-active {
   }
   
   /* Mobilde menü isimlerini görünür yap */
-  .modern-sidebar .nav-item-text,
-  .modern-sidebar .theme-toggle-text,
-  .modern-sidebar .logout-button-text {
-    display: block;
-    opacity: 1;
-    max-width: 100%;
+  .modern-sidebar.mobile-open .nav-item-text,
+  .modern-sidebar.mobile-open .theme-toggle-text,
+  .modern-sidebar.mobile-open .logout-button-text {
+    display: block !important;
+    opacity: 1 !important;
+    max-width: 100% !important;
     margin-left: 0.75rem;
+    white-space: nowrap;
+  }
+  
+  /* Mobilde daraltılmış sidebar metin stillerini ezme */
+  .modern-sidebar.mobile-open:not(.expanded) .nav-item-text,
+  .modern-sidebar.mobile-open:not(.expanded) .theme-toggle-text,
+  .modern-sidebar.mobile-open:not(.expanded) .logout-button-text {
+    max-width: 160px !important;
+    opacity: 1 !important;
+  }
+
+  /* Mobilde menü öğelerini yatayda hizala */
+  .modern-sidebar.mobile-open .nav-item,
+  .modern-sidebar.mobile-open .theme-toggle,
+  .modern-sidebar.mobile-open .logout-button {
+    justify-content: flex-start !important;
   }
   
   /* Mobilde daha sıkı nav öğe aralığı */
