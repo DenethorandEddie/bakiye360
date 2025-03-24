@@ -121,31 +121,31 @@ export default function Home() {
       {/* Header */}
       <header className="container z-40 relative">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 via-blue-800/10 to-blue-900/10 backdrop-blur-sm rounded-2xl" />
-        <div className="flex h-20 items-center justify-between py-6 relative">
-          <div className="flex items-center gap-6 md:gap-10">
-            <Link href="/" className="hidden md:block">
+        <div className="flex h-16 sm:h-20 items-center justify-between py-4 sm:py-6 relative px-2 sm:px-4">
+          <div className="flex items-center gap-2 md:gap-10">
+            <Link href="/" className="block">
               <Image
                 src="/logo_dark.png"
                 alt="Bakiye360"
                 width={80}
                 height={80}
-                className="h-30 w-auto"
+                className="h-12 sm:h-16 w-auto"
               />
             </Link>
           </div>
 
           {/* Auth Buttons */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-6">
             <Link
               href="/login"
-              className="text-sm font-medium text-gray-200 hover:text-white transition-colors"
+              className="text-xs sm:text-sm font-medium text-gray-200 hover:text-white transition-colors"
             >
               Giriş Yap
             </Link>
-            <Button asChild className="bg-blue-700 hover:bg-blue-800 text-white transition-colors">
-              <Link href="/register" className="flex items-center gap-2">
-                Ücretsiz Hesap Oluştur
-                <ArrowRight className="h-4 w-4" />
+            <Button asChild className="bg-blue-700 hover:bg-blue-800 text-white transition-colors text-xs sm:text-sm py-1 sm:py-2 h-auto">
+              <Link href="/register" className="flex items-center gap-1 sm:gap-2">
+                <span className="hidden xs:inline">Ücretsiz</span> Hesap Oluştur
+                <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
               </Link>
             </Button>
           </div>
