@@ -367,7 +367,15 @@ body.mobile-scroll-active {
   background-color: hsl(var(--card));
   border-right: 1px solid hsla(var(--border)/0.2);
   transform: translateX(-100%); /* Mobilde varsayılan olarak gizli */
-  width: 256px;
+  width: 220px;
+}
+
+.modern-sidebar.expanded {
+  width: 220px;
+}
+
+.modern-sidebar:not(.expanded) {
+  width: 80px;
 }
 
 /* Dark mode specifics */
