@@ -26,6 +26,8 @@ export default function RootLayout({
     <html lang="tr" className="dark" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3553192650486850"
+     crossOrigin="anonymous"></script>
       </head>
       <body className={`${inter.className} dark:bg-gray-900 dark-bg`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
