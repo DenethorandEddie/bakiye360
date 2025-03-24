@@ -275,9 +275,9 @@ export default function Home() {
                   />
                       </div>
                       
-                {/* Stats Overlay */}
-                <div className="absolute -bottom-6 md:-bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-4xl">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mx-4 mt-8 md:mt-0">
+                {/* Stats Section - Moved below image */}
+                <div className="mt-12 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mx-4">
                     {[
                       { value: "1000+", label: "Aktif Kullanıcı" },
                       { value: "50K+", label: "İşlem Kaydı" },
