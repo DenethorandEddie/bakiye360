@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 import { ModeToggle } from "@/components/mode-toggle";
+import { sanitizeHtml, renderBlogContent } from '@/lib/blog';
 
 interface Category {
   id: string;
@@ -268,8 +269,10 @@ export default function BlogPostPage({
 
           {/* Article Content */}
           <div 
-            className="prose prose-lg dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            className="prose prose-lg lg:prose-xl dark:prose-invert max-w-none"
+            dangerouslySetInnerHTML={{ 
+              __html: renderBlogContent(sanitizeHtml(post.content)) 
+            }}
           />
         </article>
 
