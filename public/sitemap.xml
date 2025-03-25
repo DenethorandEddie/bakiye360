@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Ana Sayfa -->
+  <url>
+    <loc>https://bakiye360.com/</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Hesaplamalar Ana Sayfa -->
+  <url>
+    <loc>https://bakiye360.com/hesaplamalar</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Hesaplayıcılar -->
+  <url>
+    <loc>https://bakiye360.com/hesaplamalar/kredi-hesaplama</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/hesaplamalar/doviz-hesaplama</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/hesaplamalar/konut-kredisi-hesaplama</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/hesaplamalar/faiz-hesaplama</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/hesaplamalar/kredi-karti-borcu-hesaplama</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/hesaplamalar/yatirim-getirisi-hesaplama</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Dashboard -->
+  <url>
+    <loc>https://bakiye360.com/dashboard</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Blog -->
+  <url>
+    <loc>https://bakiye360.com/blog</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Pricing -->
+  <url>
+    <loc>https://bakiye360.com/pricing</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Diğer Sayfalar -->
+  <url>
+    <loc>https://bakiye360.com/about</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Kullanıcı İşlemleri -->
+  <url>
+    <loc>https://bakiye360.com/login</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/register</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://bakiye360.com/privacy-policy</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/terms-of-service</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://bakiye360.com/cookie-policy</loc>
+    <lastmod>2024-03-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+</urlset> 

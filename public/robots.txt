@@ -1,0 +1,27 @@
+# Bakiye360 robots.txt
+User-agent: *
+Allow: /
+
+# Özel sayfaları engelle
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /reset-password/
+Disallow: /update-password/
+Disallow: /dashboard/
+
+# Giriş ve kayıt sayfalarına özel izin
+Allow: /login/
+Allow: /register/
+
+# Medya ve statik dosyalara izin ver
+Allow: /images/
+Allow: /fonts/
+Allow: /icons/
+Allow: /*.css$
+Allow: /*.js$
+
+# Sitemap (Dinamik olarak oluşturuluyor)
+Sitemap: https://bakiye360.com/api/sitemap
+
+# Crawl-delay: 10 
