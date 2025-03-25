@@ -4,7 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 
 // TinyMCE veya başka bir editör kullanabilirsiniz
-const RichTextEditor = dynamic(() => import('@/components/RichTextEditor'), { ssr: false });
+const RichTextEditor = dynamic(() => import('../../components/RichTextEditor'), { ssr: false });
 
 export default function BlogEditor() {
   const [content, setContent] = useState('');
