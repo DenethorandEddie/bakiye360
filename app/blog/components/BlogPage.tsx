@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import BlogList from './BlogList';
 import BlogHeader from './BlogHeader';
-import LoadingSkeleton from './LoadingSkeleton';
+import LoadingSkeleton from './BlogSkeleton';
 
 export default function BlogPage() {
   return (
