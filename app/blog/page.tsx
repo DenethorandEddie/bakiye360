@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import BlogList from "@/components/blog/BlogList";
-import BlogHeader from "@/components/blog/BlogHeader";
+import BlogList from "./components/BlogList";
+import BlogHeader from "./components/BlogHeader";
 
 function BlogSkeleton() {
   return (
