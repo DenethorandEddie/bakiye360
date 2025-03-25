@@ -1,10 +1,13 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    // Supabase client'ı environment variables ile oluştur
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
     // Blog yazılarını çek
     const { data: posts, error } = await supabase
@@ -30,7 +33,7 @@ export async function GET() {
   <url>
     <loc>https://bakiye360.com/hesaplamalar</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
 
@@ -38,37 +41,37 @@ export async function GET() {
   <url>
     <loc>https://bakiye360.com/hesaplamalar/kredi-hesaplama</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://bakiye360.com/hesaplamalar/doviz-hesaplama</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://bakiye360.com/hesaplamalar/konut-kredisi-hesaplama</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://bakiye360.com/hesaplamalar/faiz-hesaplama</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://bakiye360.com/hesaplamalar/kredi-karti-borcu-hesaplama</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://bakiye360.com/hesaplamalar/yatirim-getirisi-hesaplama</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
 
