@@ -21,7 +21,7 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
       )}
       
       <Editor
-        apiKey="your-tinymce-api-key" // Ücretsiz anahtar için: https://www.tiny.cloud/auth/signup/
+        apiKey="u24dfegz4mahvg746vim5pc2wbojtqbnp0ykio4y4sob9f9h"
         onInit={(evt, editor) => {
           editorRef.current = editor;
           setIsLoading(false);
