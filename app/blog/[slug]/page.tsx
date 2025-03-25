@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 import { ModeToggle } from "@/components/mode-toggle";
-import { sanitizeHtml, renderBlogContent } from '@/lib/blog';
+import { sanitizeHtml, renderBlogContent } from '@/app/lib/blog';
 
 interface Category {
   id: string;

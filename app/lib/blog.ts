@@ -6,7 +6,7 @@ import DOMPurify from 'isomorphic-dompurify';
  * @returns Temizlenmiş güvenli HTML
  */
 export function sanitizeHtml(html: string): string {
-  // İzin verilen HTML etiketlerini ve özelliklerini belirtin
+  // Izin verilen HTML etiketlerini ve özelliklerini belirtin
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       'p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
@@ -30,23 +30,23 @@ export function sanitizeHtml(html: string): string {
 
 /**
  * HTML içeriğinden metin özetini çıkarır
- * @param html HTML içerik
- * @param maxLength Maksimum özet uzunluğu
+ * @param html HTML içeriği
+ * @param maxLength Maksimum özet uzunlugu
  * @returns Düz metin özet
  */
 export function extractExcerpt(html: string, maxLength: number = 160): string {
-  // HTML etiketlerini kaldır
+  // HTML etiketlerini kaldir
   const text = html.replace(/(<([^>]+)>)/gi, '');
   
-  // Boşlukları ve yeni satırları düzenle
+  // Bosluklari ve yeni satirlari düzenle
   const normalizedText = text.replace(/\s+/g, ' ').trim();
   
-  // Maksimum uzunluğa göre kırp
+  // Maksimum uzunluga göre kirp
   if (normalizedText.length <= maxLength) {
     return normalizedText;
   }
   
-  // Son kelimeyi tamamlayarak kırp
+  // Son kelimeyi tamamlayarak kirp
   const excerpt = normalizedText.substring(0, maxLength);
   const lastSpaceIndex = excerpt.lastIndexOf(' ');
   
@@ -55,13 +55,13 @@ export function extractExcerpt(html: string, maxLength: number = 160): string {
 
 /**
  * HTML içeriğini blog sayfasında görüntülemek için prose stillerine uygun hale getirir
- * @param html HTML içerik
- * @returns İşlenmiş HTML
+ * @param html HTML içeriği
+ * @returns Islenmiş HTML
  */
 export function renderBlogContent(html: string): string {
   let processedHtml = html;
   
-  // Kod bloklarını işle
+  // Kod bloklarini isle
   processedHtml = processedHtml.replace(
     /<pre><code>([\s\S]*?)<\/code><\/pre>/g,
     '<pre class="language-typescript"><code>$1</code></pre>'
