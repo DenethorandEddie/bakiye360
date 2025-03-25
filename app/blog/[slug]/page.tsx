@@ -268,7 +268,7 @@ export default function BlogPostPage({
 
           {/* Article Content */}
           <div 
-            className="prose prose-slate max-w-none dark:prose-invert blog-excerpt"
+            className="prose prose-lg dark:prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
         </article>

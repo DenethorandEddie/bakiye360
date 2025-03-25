@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, FolderOpen, Plus } from "lucide-react";
+import { FileText, FolderOpen, Plus, PlusCircle, Settings, Users } from "lucide-react";
 import Link from "next/link";
 
-export default function AdminDashboard() {
+export default function AdminPage() {
   const [stats, setStats] = useState({
     totalPosts: 0,
     publishedPosts: 0,
@@ -61,79 +61,49 @@ export default function AdminDashboard() {
   }, [supabase]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight dark:text-white">Admin Dashboard</h1>
-        <Button asChild>
-          <Link href="/admin/posts/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Yeni Blog Yazısı
-          </Link>
-        </Button>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="dark:bg-gray-800/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium dark:text-gray-200">Toplam Yazı</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold dark:text-white">{stats.totalPosts}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="dark:bg-gray-800/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium dark:text-gray-200">Yayında</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold dark:text-white">{stats.publishedPosts}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="dark:bg-gray-800/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium dark:text-gray-200">Taslak</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold dark:text-white">{stats.draftPosts}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="dark:bg-gray-800/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium dark:text-gray-200">Kategoriler</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold dark:text-white">{stats.categories}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="dark:bg-gray-800/50">
-          <CardHeader>
-            <CardTitle className="dark:text-white">Hızlı İşlemler</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button className="w-full justify-start" variant="outline" asChild>
-              <Link href="/admin/posts/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Yeni Blog Yazısı
-              </Link>
-            </Button>
-            <Button className="w-full justify-start" variant="outline" asChild>
-              <Link href="/admin/categories">
-                <FolderOpen className="mr-2 h-4 w-4" />
-                Kategorileri Yönet
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+    <div className="container py-10">
+      <h1 className="text-3xl font-bold mb-6">Yönetim Paneli</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Link href="/admin/blog/new">
+          <Card className="p-6 hover:shadow-md transition-all cursor-pointer border-primary/10 hover:border-primary">
+            <div className="flex flex-col items-center text-center space-y-3">
+              <PlusCircle className="h-10 w-10 text-primary" />
+              <h2 className="text-xl font-semibold">Yeni Blog Yazısı</h2>
+              <p className="text-muted-foreground text-sm">HTML formatında içerikle yeni blog yazısı oluşturun</p>
+            </div>
+          </Card>
+        </Link>
+        
+        <Link href="/admin/blog">
+          <Card className="p-6 hover:shadow-md transition-all cursor-pointer">
+            <div className="flex flex-col items-center text-center space-y-3">
+              <FileText className="h-10 w-10 text-blue-500" />
+              <h2 className="text-xl font-semibold">Blog Yönetimi</h2>
+              <p className="text-muted-foreground text-sm">Mevcut blog yazılarını düzenleyin, silin veya yayınlayın</p>
+            </div>
+          </Card>
+        </Link>
+        
+        <Link href="/admin/users">
+          <Card className="p-6 hover:shadow-md transition-all cursor-pointer">
+            <div className="flex flex-col items-center text-center space-y-3">
+              <Users className="h-10 w-10 text-yellow-500" />
+              <h2 className="text-xl font-semibold">Kullanıcı Yönetimi</h2>
+              <p className="text-muted-foreground text-sm">Kullanıcıları görüntüleyin ve yönetin</p>
+            </div>
+          </Card>
+        </Link>
+        
+        <Link href="/admin/settings">
+          <Card className="p-6 hover:shadow-md transition-all cursor-pointer">
+            <div className="flex flex-col items-center text-center space-y-3">
+              <Settings className="h-10 w-10 text-green-500" />
+              <h2 className="text-xl font-semibold">Site Ayarları</h2>
+              <p className="text-muted-foreground text-sm">Site yapılandırması ve ayarlarını yönetin</p>
+            </div>
+          </Card>
+        </Link>
       </div>
     </div>
   );
