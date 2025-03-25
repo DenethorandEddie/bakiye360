@@ -3,15 +3,26 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Finansal Hesaplayıcılar | Bakiye360',
-  description: 'Kredi, faiz, yatırım getirisi ve döviz hesaplama araçları. Finansal hesaplamalarınızı kolayca yapın.',
-  keywords: 'finansal hesaplayıcı, kredi hesaplama, faiz hesaplama, yatırım getirisi, döviz hesaplama',
+  title: 'Finansal Hesaplayıcılar ve Araçlar | Bakiye360',
+  description: 'Kredi, yatırım, tasarruf ve döviz hesaplama araçları. Finansal kararlarınızı kolaylaştıracak ücretsiz hesaplayıcılar ile geleceğinizi planlayın.',
+  keywords: 'finansal hesaplayıcı, kredi hesaplama, faiz hesaplama, yatırım getirisi hesaplama, döviz hesaplama, kredi kartı borcu hesaplama, konut kredisi hesaplama',
   openGraph: {
-    title: 'Finansal Hesaplayıcılar | Bakiye360',
-    description: 'Kredi, faiz, yatırım getirisi ve döviz hesaplama araçları.',
+    title: 'Finansal Hesaplayıcılar ve Araçlar | Bakiye360',
+    description: 'Kredi, yatırım, tasarruf ve döviz hesaplama araçları ile finansal kararlarınızı kolaylaştırın.',
     url: 'https://bakiye360.com/hesaplamalar',
-    type: 'website'
+    type: 'website',
+    images: [
+      {
+        url: '/images/og-hesaplayicilar.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Bakiye360 Finansal Hesaplayıcılar'
+      }
+    ]
   },
+  alternates: {
+    canonical: 'https://bakiye360.com/hesaplamalar'
+  }
 };
 
 export default function HesaplamaLayout({
