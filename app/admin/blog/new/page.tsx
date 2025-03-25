@@ -17,10 +17,10 @@ import dynamic from 'next/dynamic';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { sanitizeHtml } from '@/lib/blog';
+import { sanitizeHtml } from '@/app/lib/blog';
 
 // TinyMCE editörü server-side rendering yapmamalı
-const RichTextEditor = dynamic(() => import('@/components/RichTextEditor'), { ssr: false });
+const RichTextEditor = dynamic(() => import('@/app/components/RichTextEditor'), { ssr: false });
 
 interface Category {
   id: string;
