@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface RichTextEditorProps {
   value: string;
@@ -11,6 +12,31 @@ interface RichTextEditorProps {
 export default function RichTextEditor({ value, onChange }: RichTextEditorProps) {
   const editorRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClientComponentClient();
+
+  const handleImageUpload = async (blobInfo: any) => {
+    try {
+      const file = blobInfo.blob();
+      const fileExt = file.name?.split('.').pop() || 'jpg';
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `blog-images/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('public')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('public')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Resim yüklenirken hata:', error);
+      return '';
+    }
+  };
 
   return (
     <div className="relative min-h-[400px] border rounded-md">
@@ -39,7 +65,7 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
           toolbar: 'undo redo | blocks | ' +
             'bold italic forecolor | alignleft aligncenter ' +
             'alignright alignjustify | bullist numlist outdent indent | ' +
-            'removeformat | help',
+            'image media | removeformat | help',
           content_style: `
             body { 
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; 
@@ -81,13 +107,15 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
               border-radius: 3px;
             }
           `,
-          language: 'tr', // Türkçe dil desteği
-          language_url: '/langs/tr.js', // Dil dosyasının konumu (public klasöründe)
-          entity_encoding: 'raw', // HTML entity'leri olduğu gibi korur
-          forced_root_block: 'p', // Boş satırları p etiketi olarak ekler
-          valid_elements: '*[*]', // Tüm HTML etiketlerine izin ver
-          extended_valid_elements: 'span[*],img[*],a[*]', // Ek olarak izin verilen özel etiketler
-          // Kod görüntüleme için codesample eklentisi
+          language: 'tr',
+          language_url: '/langs/tr.js',
+          entity_encoding: 'raw',
+          forced_root_block: 'p',
+          valid_elements: '*[*]',
+          extended_valid_elements: 'span[*],img[*],a[*]',
+          images_upload_handler: handleImageUpload,
+          automatic_uploads: true,
+          file_picker_types: 'image',
           codesample_languages: [
             { text: 'HTML/XML', value: 'markup' },
             { text: 'JavaScript', value: 'javascript' },
