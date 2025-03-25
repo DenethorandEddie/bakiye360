@@ -19,10 +19,12 @@ import {
   CheckCircle2,
   ArrowUpRight,
   Menu,
+  Calculator,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Home() {
   const router = useRouter();
@@ -132,6 +134,32 @@ export default function Home() {
                 className="h-12 sm:h-16 w-auto"
               />
             </Link>
+            <Link
+              href="/hesaplamalar"
+              className="hidden xs:flex text-sm font-medium text-gray-200 hover:text-white transition-colors items-center gap-1"
+            >
+              <Calculator className="h-4 w-4 mr-1" />
+              Hesaplayıcılar
+            </Link>
+            
+            {/* Mobil Menü */}
+            <div className="xs:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-gray-200 hover:text-white">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/hesaplamalar" className="flex items-center">
+                      <Calculator className="h-4 w-4 mr-2" />
+                      Hesaplayıcılar
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* Auth Buttons */}
