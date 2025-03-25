@@ -668,10 +668,11 @@ export default function DashboardPage() {
 
           {/* Özet Kartları */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card className="overflow-hidden border-l-4 border-l-primary">
+            <Card className="relative overflow-hidden border-none bg-gradient-to-br from-primary/10 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/20 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-transparent opacity-20"></div>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Toplam Gelir</CardTitle>
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center shadow-inner">
                   <div className="flex items-center justify-center text-primary font-bold text-base">₺</div>
                 </div>
               </CardHeader>
@@ -685,10 +686,11 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
             
-            <Card className="overflow-hidden border-l-4 border-l-destructive">
+            <Card className="relative overflow-hidden border-none bg-gradient-to-br from-destructive/10 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-destructive/20 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-destructive/20 via-transparent to-transparent opacity-20"></div>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Toplam Gider</CardTitle>
-                <div className="h-8 w-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-xl bg-destructive/10 flex items-center justify-center shadow-inner">
                   <CreditCard className="h-4 w-4 text-destructive" />
                 </div>
               </CardHeader>
@@ -702,10 +704,11 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
             
-            <Card className="overflow-hidden border-l-4 border-l-green-500">
+            <Card className="relative overflow-hidden border-none bg-gradient-to-br from-green-500/10 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-green-500/20 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-transparent to-transparent opacity-20"></div>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Bakiye</CardTitle>
-                <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-xl bg-green-500/10 flex items-center justify-center shadow-inner">
                   <Wallet className="h-4 w-4 text-green-500" />
                 </div>
               </CardHeader>
@@ -719,11 +722,12 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
             
-            <Card className="overflow-hidden border-l-4 border-l-blue-500">
+            <Card className="relative overflow-hidden border-none bg-gradient-to-br from-blue-500/10 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-blue-500/20 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-transparent to-transparent opacity-20"></div>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Tasarruf Oranı</CardTitle>
-                <div className="rounded-full bg-blue-100 p-1">
-                  <PercentIcon className="h-4 w-4 text-blue-600" />
+                <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center shadow-inner">
+                  <PercentIcon className="h-4 w-4 text-blue-500" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -752,7 +756,7 @@ export default function DashboardPage() {
             {/* Sol Sütun */}
             <div className="lg:col-span-2 space-y-4">
               {/* Gelir/Gider Grafiği */}
-              <Card className="w-full overflow-hidden">
+              <Card className="w-full overflow-hidden border-none bg-gradient-to-br from-background via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-background/80 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div>
@@ -837,7 +841,7 @@ export default function DashboardPage() {
               </Card>
 
               {/* Bütçe Hedefleri */}
-              <Card>
+              <Card className="w-full overflow-hidden border-none bg-gradient-to-br from-background via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-background/80 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div>
@@ -911,7 +915,7 @@ export default function DashboardPage() {
             {/* Sağ Sütun */}
             <div className="space-y-4">
               {/* Harcama Kategorileri */}
-              <Card className="w-full overflow-hidden">
+              <Card className="w-full overflow-hidden border-none bg-gradient-to-br from-background via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-background/80 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div>
@@ -947,7 +951,7 @@ export default function DashboardPage() {
               </Card>
 
               {/* Son İşlemler */}
-              <Card className="w-full overflow-hidden">
+              <Card className="w-full overflow-hidden border-none bg-gradient-to-br from-background via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-background/80 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1001,16 +1005,16 @@ export default function DashboardPage() {
           {/* Tabs Bölümü */}
           <div className="mt-6">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full flex justify-start overflow-x-auto py-1 gap-1 sm:gap-2">
-                <TabsTrigger value="overview" className="flex-shrink-0 text-xs sm:text-sm">Genel</TabsTrigger>
-                <TabsTrigger value="income-expense" className="flex-shrink-0 text-xs sm:text-sm">Gelir/Gider</TabsTrigger>
-                <TabsTrigger value="categories" className="flex-shrink-0 text-xs sm:text-sm">Kategori Dağılımı</TabsTrigger>
-                <TabsTrigger value="savings" className="flex-shrink-0 text-xs sm:text-sm">Tasarruf Trendi</TabsTrigger>
-                <TabsTrigger value="budget" className="flex-shrink-0 text-xs sm:text-sm">Bütçe Hedefleri</TabsTrigger>
+              <TabsList className="w-full flex justify-start overflow-x-auto py-2 px-1 bg-gradient-to-r from-primary/5 via-background/95 to-primary/5 backdrop-blur-md supports-[backdrop-filter]:bg-background/40 border-none rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_25px_rgba(0,0,0,0.12)] transition-all duration-300">
+                <TabsTrigger value="overview" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200">Genel</TabsTrigger>
+                <TabsTrigger value="income-expense" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200">Gelir/Gider</TabsTrigger>
+                <TabsTrigger value="categories" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200">Kategori Dağılımı</TabsTrigger>
+                <TabsTrigger value="savings" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200">Tasarruf Trendi</TabsTrigger>
+                <TabsTrigger value="budget" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200">Bütçe Hedefleri</TabsTrigger>
               </TabsList>
               
               <TabsContent value="overview" className="space-y-4">
-                <Card>
+                <Card className="border-none bg-gradient-to-br from-primary/5 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/10 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                   <CardHeader>
                     <CardTitle>Finansal Performans</CardTitle>
                     <CardDescription>Gelir, gider ve tasarruf oranınızın karşılaştırmalı analizi</CardDescription>
@@ -1156,7 +1160,7 @@ export default function DashboardPage() {
               </TabsContent>
               
               <TabsContent value="income-expense" className="space-y-4">
-                <Card className="w-full overflow-hidden">
+                <Card className="border-none bg-gradient-to-br from-primary/5 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/10 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                   <CardHeader>
                     <CardTitle>Gelir-Gider Analizi</CardTitle>
                     <CardDescription>Gelir ve giderlerin aylık dağılımı</CardDescription>
@@ -1228,7 +1232,7 @@ export default function DashboardPage() {
               </TabsContent>
               
               <TabsContent value="categories" className="space-y-4">
-                <Card>
+                <Card className="border-none bg-gradient-to-br from-primary/5 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/10 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                   <CardHeader>
                     <CardTitle>Kategori Bazlı Harcamalar</CardTitle>
                     <CardDescription>Kategorilere göre harcama dağılımı</CardDescription>
@@ -1282,7 +1286,7 @@ export default function DashboardPage() {
               </TabsContent>
               
               <TabsContent value="savings" className="space-y-4">
-                <Card className="w-full overflow-hidden">
+                <Card className="border-none bg-gradient-to-br from-primary/5 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/10 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                   <CardHeader>
                     <CardTitle>Tasarruf Trendi</CardTitle>
                     <CardDescription>Aylık tasarruf miktarı değişimi</CardDescription>
@@ -1339,7 +1343,7 @@ export default function DashboardPage() {
               </TabsContent>
               
               <TabsContent value="budget" className="space-y-4">
-                <Card>
+                <Card className="border-none bg-gradient-to-br from-primary/5 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/10 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
                   <CardHeader>
                     <CardTitle>Bütçe Hedefleri</CardTitle>
                     <CardDescription>Belirlediğiniz bütçe hedeflerine göre ilerleme durumu</CardDescription>

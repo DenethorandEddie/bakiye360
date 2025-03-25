@@ -223,12 +223,19 @@ export default function TransactionsPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">İşlemler</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">İşlemler</h1>
+          <p className="text-muted-foreground">
+            Tüm finansal işlemlerinizi görüntüleyin ve yönetin
+          </p>
+        </div>
+      </div>
 
-      <Card className="mb-8">
+      <Card className="mb-8 border-none bg-gradient-to-br from-primary/5 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/10 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
         <CardHeader>
           <CardTitle>Filtreler</CardTitle>
-          <CardDescription>İşlemleri filtrelemek için aşağıdaki seçenekleri kullanın</CardDescription>
+          <CardDescription>İşlemlerinizi filtrelemek için aşağıdaki seçenekleri kullanın</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -239,25 +246,26 @@ export default function TransactionsPage() {
                 placeholder="Açıklama veya kategori ara..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-background/50 backdrop-blur-sm border-primary/10 focus:border-primary/20 hover:border-primary/20 transition-colors"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="type">İşlem Tipi</Label>
               <Select value={typeFilter} onValueChange={handleTypeChange}>
-                <SelectTrigger id="type">
+                <SelectTrigger id="type" className="bg-background/50 backdrop-blur-sm border-primary/10 focus:border-primary/20 hover:border-primary/20 transition-colors">
                   <SelectValue placeholder="Tüm İşlemler" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tüm İşlemler</SelectItem>
-                  <SelectItem value="income">Gelir</SelectItem>
-                  <SelectItem value="expense">Gider</SelectItem>
+                  <SelectItem value="income">Gelirler</SelectItem>
+                  <SelectItem value="expense">Giderler</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Kategori</Label>
               <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-                <SelectTrigger id="category">
+                <SelectTrigger id="category" className="bg-background/50 backdrop-blur-sm border-primary/10 focus:border-primary/20 hover:border-primary/20 transition-colors">
                   <SelectValue placeholder="Tüm Kategoriler" />
                 </SelectTrigger>
                 <SelectContent>
@@ -273,39 +281,40 @@ export default function TransactionsPage() {
             <div className="space-y-2">
               <Label>Tarih Aralığı</Label>
               <DatePickerWithRange
-                dateRange={dateRange}
-                onDateRangeChange={handleDateRangeChange}
+                date={dateRange}
+                onDateChange={handleDateRangeChange}
               />
             </div>
-            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="mb-4 flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-medium">
-            {filteredTransactions.length} İşlem Bulundu
-          </h2>
-          {subscriptionStatus.isPremium && (
-            <p className="text-sm text-primary">
-              Premium kullanıcı: Sınırsız işlem hakkınız var
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="default"
-            onClick={() => window.location.href = "/dashboard/transactions/new"}
-          >
-            Yeni İşlem Ekle
-          </Button>
-        </div>
-      </div>
+      {/* İşlem Limiti Uyarısı */}
+      {reachedTransactionLimit && (
+        <Alert className="mb-4 bg-gradient-to-r from-amber-500/10 via-background to-background border-amber-500/20 backdrop-blur supports-[backdrop-filter]:bg-amber-500/10 shadow-[0_2px_10px_rgba(251,191,36,0.1)]">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-amber-600">İşlem Limiti</AlertTitle>
+          <AlertDescription className="text-amber-600">
+            Bu ay için ücretsiz işlem limitinize ulaştınız. Premium üyeliğe geçerek sınırsız işlem yapabilirsiniz.
+          </AlertDescription>
+        </Alert>
+      )}
 
-      <TransactionTable 
-        transactions={filteredTransactions} 
-        loading={loading} 
-      />
+      {/* Premium Özellik Bildirimi */}
+      {!subscriptionStatus.isPremium && (
+        <Alert className="mb-4 bg-gradient-to-r from-primary/10 via-background to-background border-primary/20 backdrop-blur supports-[backdrop-filter]:bg-primary/10 shadow-[0_2px_10px_rgba(0,0,0,0.1)]">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <AlertTitle>Premium Özellik</AlertTitle>
+          <AlertDescription>
+            Premium üyeliğe geçerek gelişmiş filtreleme ve raporlama özelliklerine erişebilirsiniz.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* İşlem Tablosu */}
+      <div className="rounded-xl overflow-hidden border-none bg-gradient-to-br from-background/50 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-[0_0_15px_rgba(0,0,0,0.1)]">
+        <TransactionTable transactions={filteredTransactions} loading={loading} />
+      </div>
     </div>
   );
 }
