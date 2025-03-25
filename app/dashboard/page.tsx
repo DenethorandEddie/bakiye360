@@ -1005,12 +1005,12 @@ export default function DashboardPage() {
           {/* Tabs Bölümü */}
           <div className="mt-6">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full flex justify-start overflow-x-auto py-2 px-1 bg-gradient-to-r from-primary/5 via-background/95 to-primary/5 backdrop-blur-md supports-[backdrop-filter]:bg-background/40 border-none rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_25px_rgba(0,0,0,0.12)] transition-all duration-300 border-0">
-                <TabsTrigger value="overview" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0">Genel</TabsTrigger>
-                <TabsTrigger value="income-expense" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0">Gelir/Gider</TabsTrigger>
-                <TabsTrigger value="categories" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0">Kategori Dağılımı</TabsTrigger>
-                <TabsTrigger value="savings" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0">Tasarruf Trendi</TabsTrigger>
-                <TabsTrigger value="budget" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0">Bütçe Hedefleri</TabsTrigger>
+              <TabsList className="w-full flex justify-start overflow-x-auto py-2 px-1 bg-gradient-to-r from-primary/5 via-background/95 to-primary/5 backdrop-blur-md supports-[backdrop-filter]:bg-background/40 border-0 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_25px_rgba(0,0,0,0.12)] transition-all duration-300">
+                <TabsTrigger value="overview" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0 rounded-lg">Genel</TabsTrigger>
+                <TabsTrigger value="income-expense" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0 rounded-lg">Gelir/Gider</TabsTrigger>
+                <TabsTrigger value="categories" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0 rounded-lg">Kategori Dağılımı</TabsTrigger>
+                <TabsTrigger value="savings" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0 rounded-lg">Tasarruf Trendi</TabsTrigger>
+                <TabsTrigger value="budget" className="flex-shrink-0 text-xs sm:text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-200 border-0 rounded-lg">Bütçe Hedefleri</TabsTrigger>
               </TabsList>
               
               <TabsContent value="overview" className="space-y-4">
