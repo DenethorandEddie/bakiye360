@@ -521,6 +521,7 @@ export default function Home() {
               <ul className="space-y-3 text-sm text-gray-400">
                 <li><Link href="#features" className="hover:text-white transition-colors duration-200">Özellikler</Link></li>
                 <li><Link href="#how-it-works" className="hover:text-white transition-colors duration-200">Nasıl Çalışır</Link></li>
+                <li><Link href="/hesaplamalar" className="hover:text-white transition-colors duration-200">Hesaplayıcılar</Link></li>
                 <li><Link href="/register" className="hover:text-white transition-colors duration-200">Kayıt Ol</Link></li>
                 <li><Link href="/login" className="hover:text-white transition-colors duration-200">Giriş Yap</Link></li>
               </ul>
