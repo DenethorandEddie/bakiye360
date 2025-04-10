@@ -18,9 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TransactionTable } from "@/components/dashboard/transaction-table";
-import { Sparkles, AlertCircle } from "lucide-react";
+import { Sparkles, AlertCircle, Plus } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import Link from "next/link";
 
 interface Transaction {
   id: string;
@@ -230,6 +231,12 @@ export default function TransactionsPage() {
             Tüm finansal işlemlerinizi görüntüleyin ve yönetin
           </p>
         </div>
+        <Button asChild>
+          <Link href="/dashboard/transactions/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Yeni İşlem
+          </Link>
+        </Button>
       </div>
 
       <Card className="mb-8 border-none bg-gradient-to-br from-primary/5 via-background to-background backdrop-blur supports-[backdrop-filter]:bg-background/60 hover:bg-gradient-to-br hover:from-primary/10 hover:via-background hover:to-background transition-all duration-300 shadow-[0_0_15px_rgba(0,0,0,0.1)] hover:shadow-[0_0_25px_rgba(0,0,0,0.15)] rounded-xl">
